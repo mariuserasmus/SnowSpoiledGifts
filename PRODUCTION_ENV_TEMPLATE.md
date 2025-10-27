@@ -29,6 +29,7 @@ MAIL_CC_RECIPIENT=mariuserasmus69@gmail.com
 # Site Configuration
 SITE_URL=https://www.snowspoiledgifts.co.za
 SITE_NAME=Snow's Spoiled Gifts
+BASE_URL=https://www.snowspoiledgifts.co.za
 ```
 
 ---
@@ -120,6 +121,7 @@ MAIL_CC_RECIPIENT=mariuserasmus69@gmail.com
 # Site Configuration
 SITE_URL=https://www.snowspoiledgifts.co.za
 SITE_NAME=Snow's Spoiled Gifts
+BASE_URL=https://www.snowspoiledgifts.co.za
 ```
 
 ---

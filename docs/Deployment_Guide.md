@@ -49,28 +49,37 @@ MAIL_CC_RECIPIENT=mariuserasmus69@gmail.com
 # Site Configuration
 SITE_URL=https://www.snowspoiledgifts.co.za
 SITE_NAME=Snow's Spoiled Gifts
+BASE_URL=https://www.snowspoiledgifts.co.za
 ```
 
 **Important:**
 - Generate SECRET_KEY: `python -c "import secrets; print(secrets.token_hex(32))"`
 - Get Gmail App Password from: https://myaccount.google.com/apppasswords
 
-2. **Update `config.py`** with your real information:
+2. **Verify `src/config.py`** (Optional - Already configured):
+
+The file `src/config.py` already exists and has sensible defaults. It reads from `.env` automatically.
+
+If you want to customize site information, edit `src/config.py` (lines 21-35):
 
 ```python
-SITE_NAME = "Snow's Spoiled Gifts"
-CONTACT_EMAIL = "your-real-email@snowspoiledgifts.co.za"
-CONTACT_PHONE = "+27 XX XXX XXXX"  # Your real phone
-LAUNCH_DATE = "February 2025"  # Your target launch
+# Site settings
+SITE_NAME = "Snow Spoiled Gifts"
+SITE_URL = "www.snowspoiledgifts.co.za"
+CONTACT_EMAIL = "elmienerasmus@gmail.com"
+CONTACT_PHONE = "+71 4711 779"
 
+# Social Media Links
 SOCIAL_MEDIA = {
-    'facebook': 'https://facebook.com/your-actual-page',
-    'instagram': 'https://instagram.com/your-actual-account',
-    'whatsapp': 'https://wa.me/27XXXXXXXXX',  # Your WhatsApp number
+    'facebook': 'https://facebook.com/snowspoiledgifts',
+    'instagram': 'https://www.instagram.com/sn0w_sp0ild_g1fts',
+    'whatsapp': 'https://wa.me/27714711779',
 }
 ```
 
-3. **Create `requirements.txt`** (already done):
+**Note:** These are already set correctly. You only need to update if you want to change contact info or social links.
+
+3. **Review `requirements.txt`** (already exists):
 
 ```
 Flask==3.0.0
