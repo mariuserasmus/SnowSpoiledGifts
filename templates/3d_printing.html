@@ -863,15 +863,16 @@
 
 <!-- Toast Notification for Coming Soon -->
 <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 11000;">
-    <div id="comingSoonToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+    <div id="comingSoonToast" class="toast coming-soon-toast" role="alert" aria-live="assertive" aria-atomic="true">
         <div class="toast-header bg-primary text-white">
             <i class="fas fa-shopping-cart me-2"></i>
             <strong class="me-auto">Shopping Cart</strong>
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>
-        <div class="toast-body">
+        <div class="toast-body bg-white text-dark">
             <i class="fas fa-info-circle text-primary me-2"></i>
-            Shopping cart feature coming soon! For now, please use our quote request forms or contact us directly to place an order.
+            <strong>Coming Soon!</strong><br>
+            Shopping cart feature is under development. For now, please use our quote request forms or contact us directly to place an order.
         </div>
     </div>
 </div>
@@ -1246,6 +1247,25 @@
             width: 35px;
             height: 35px;
         }
+    }
+
+    /* Toast Notification - Force light colors for readability */
+    .coming-soon-toast .toast-body {
+        background-color: #ffffff !important;
+        color: #212529 !important;
+        border: 1px solid #dee2e6;
+        font-size: 0.95rem;
+    }
+
+    .coming-soon-toast .toast-header {
+        background-color: #2563eb !important;
+        color: #ffffff !important;
+        border-bottom: 1px solid rgba(0,0,0,0.1);
+    }
+
+    /* Ensure icon is visible */
+    .coming-soon-toast .toast-body .fa-info-circle {
+        color: #2563eb !important;
     }
 </style>
 {% endblock %}
