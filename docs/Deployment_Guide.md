@@ -28,19 +28,32 @@ Contact Afrihost support or check your hosting control panel to confirm:
 # Production settings
 SECRET_KEY=your-very-long-random-secret-key-here-change-this
 FLASK_ENV=production
+DEBUG=False
 
 # Strong admin credentials
 ADMIN_USERNAME=your_admin_username
 ADMIN_PASSWORD=your_strong_password_here
 
-# Database (if using MySQL instead of SQLite)
+# Database
 DATABASE_PATH=database/signups.db
-# OR for MySQL:
-# DATABASE_URL=mysql://username:password@localhost/database_name
 
-# Your actual contact info
-SITE_URL=www.snowspoiledgifts.co.za
+# Email Configuration (Gmail)
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=True
+MAIL_USERNAME=elmienerasmus@gmail.com
+MAIL_PASSWORD=your-gmail-app-password-here
+MAIL_DEFAULT_SENDER=elmienerasmus@gmail.com
+MAIL_CC_RECIPIENT=mariuserasmus69@gmail.com
+
+# Site Configuration
+SITE_URL=https://www.snowspoiledgifts.co.za
+SITE_NAME=Snow's Spoiled Gifts
 ```
+
+**Important:**
+- Generate SECRET_KEY: `python -c "import secrets; print(secrets.token_hex(32))"`
+- Get Gmail App Password from: https://myaccount.google.com/apppasswords
 
 2. **Update `config.py`** with your real information:
 
