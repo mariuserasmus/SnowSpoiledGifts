@@ -1,0 +1,22 @@
+---
+# cPanel Deployment Configuration for Snow's Spoiled Gifts
+# This file tells cPanel how to deploy your Flask application
+
+deployment:
+  tasks:
+    # Install Python dependencies
+    - export DEPLOYPATH=/home/snowsxtp/ssg
+    - /bin/python3 -m pip install --user -r $DEPLOYPATH/requirements.txt
+
+    # Create necessary directories
+    - /bin/mkdir -p $DEPLOYPATH/database
+    - /bin/mkdir -p $DEPLOYPATH/tmp
+    - /bin/mkdir -p $DEPLOYPATH/static/uploads
+
+    # Set proper permissions
+    - /bin/chmod 755 $DEPLOYPATH/database
+    - /bin/chmod 755 $DEPLOYPATH/static/uploads
+    - /bin/chmod 644 $DEPLOYPATH/passenger_wsgi.py
+
+    # Restart Passenger application
+    - /bin/touch $DEPLOYPATH/tmp/restart.txt
