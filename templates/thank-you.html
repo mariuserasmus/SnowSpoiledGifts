@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Thank You - {{ config.SITE_NAME }}{% endblock %}
+
+{% block content %}
+<section class="thank-you-section">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-6 mx-auto text-center">
+                <div class="thank-you-card">
+                    <div class="success-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h1 class="thank-you-title">Thank You!</h1>
+                    <p class="lead">You're on the list!</p>
+                    <p>We'll send you an email as soon as we launch. Get ready for something amazing!</p>
+
+                    <div class="my-4">
+                        <p class="mb-2"><strong>While you wait, follow us on social media:</strong></p>
+                        <div class="social-links-large">
+                            <a href="{{ config.SOCIAL_MEDIA.facebook }}" target="_blank" class="social-link-large">
+                                <i class="fab fa-facebook"></i>
+                            </a>
+                            <a href="{{ config.SOCIAL_MEDIA.instagram }}" target="_blank" class="social-link-large">
+                                <i class="fab fa-instagram"></i>
+                            </a>
+                            <a href="{{ config.SOCIAL_MEDIA.whatsapp }}" target="_blank" class="social-link-large">
+                                <i class="fab fa-whatsapp"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-home"></i> Back to Home
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

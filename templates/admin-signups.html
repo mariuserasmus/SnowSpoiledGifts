@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Email Signups - Admin - {{ config.SITE_NAME }}{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <div class="container-fluid">
+        <div class="row mb-4">
+            <div class="col">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2><i class="fas fa-users"></i> Email Signups</h2>
+                    <div>
+                        <a href="{{ url_for('admin_quotes') }}" class="btn btn-info me-2">
+                            <i class="fas fa-file-invoice"></i> View Quotes
+                        </a>
+                        <a href="{{ url_for('admin_cutter_items') }}" class="btn btn-warning me-2">
+                            <i class="fas fa-cookie-bite"></i> Manage Cutters
+                        </a>
+                        <a href="{{ url_for('export_csv') }}" class="btn btn-success me-2">
+                            <i class="fas fa-download"></i> Export CSV
+                        </a>
+                        <a href="{{ url_for('admin_logout') }}" class="btn btn-secondary">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-icon">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <div class="stats-content">
+                        <h3>{{ total_count }}</h3>
+                        <p>Total Signups</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col">
+                <div class="table-card">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Interests</th>
+                                    <th>Status</th>
+                                    <th>Signup Date</th>
+                                    <th>IP Address</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if signups %}
+                                    {% for signup in signups %}
+                                    <tr>
+                                        <td>{{ signup.id }}</td>
+                                        <td>{{ signup.name }}</td>
+                                        <td>{{ signup.email }}</td>
+                                        <td>
+                                            {% if signup.interests %}
+                                                {% for interest in signup.interests %}
+                                                    <span class="badge bg-primary me-1">{{ interest.replace('_', ' ').title() }}</span>
+                                                {% endfor %}
+                                            {% else %}
+                                                <span class="text-muted">None selected</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if signup.is_active %}
+                                                <span class="badge bg-success">Active</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Unsubscribed</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ signup.signup_date }}</td>
+                                        <td class="text-muted">{{ signup.ip_address or 'N/A' }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted">No signups yet</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

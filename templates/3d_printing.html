@@ -1,0 +1,1555 @@
+{% extends "base.html" %}
+
+{% block title %}3D Printing - {{ config.SITE_NAME }}{% endblock %}
+
+{% block content %}
+<!-- Category Header Bar -->
+<section class="category-header">
+    <div class="container">
+        <h1 class="category-title">3D Printing</h1>
+        <p class="category-description">Custom 3D printing solutions for all your creative needs</p>
+    </div>
+</section>
+
+<!-- Sub-Products Navigation Cards -->
+<section class="sub-products-section">
+    <div class="container">
+        <div class="row g-4">
+            <!-- Custom Design -->
+            <div class="col-md-6 col-lg-3">
+                <a href="#custom-design" class="sub-product-card" data-product="custom-design">
+                    <div class="sub-product-image">
+                        <img src="https://images.unsplash.com/photo-1683818051102-dd1199d163b9?w=400&h=300&fit=crop&q=80" alt="Custom Design">
+                    </div>
+                    <div class="sub-product-content">
+                        <h3>Custom Design</h3>
+                        <p>Got an idea that you need designed and 3D printed? Maybe a broken part?</p>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Cookie/Clay Cutters -->
+            <div class="col-md-6 col-lg-3">
+                <a href="#cookie-cutters" class="sub-product-card" data-product="cookie-cutters">
+                    <div class="sub-product-image">
+                        <img src="https://images.unsplash.com/photo-1668709203381-5ef9e9720ed1?w=400&h=300&fit=crop&q=80" alt="Cookie & Clay Cutters">
+                    </div>
+                    <div class="sub-product-content">
+                        <h3>Cookie/Clay Cutters</h3>
+                        <p>Browse our collection or request a custom design</p>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Cake Toppers -->
+            <div class="col-md-6 col-lg-3">
+                <a href="#cake-toppers" class="sub-product-card" data-product="cake-toppers">
+                    <div class="sub-product-image">
+                        <img src="https://images.unsplash.com/photo-1604531825889-88dc0c7e37db?w=400&h=300&fit=crop&q=80" alt="Cake Toppers">
+                    </div>
+                    <div class="sub-product-content">
+                        <h3>Cake Toppers</h3>
+                        <p>Need something to make that Birthday cake extra special?</p>
+                    </div>
+                </a>
+            </div>
+
+            <!-- 3D Print Service -->
+            <div class="col-md-6 col-lg-3">
+                <a href="#print-service" class="sub-product-card" data-product="print-service">
+                    <div class="sub-product-image">
+                        <img src="https://images.unsplash.com/photo-1740625940423-a59a65c753c0?w=400&h=300&fit=crop&q=80" alt="3D Print Service">
+                    </div>
+                    <div class="sub-product-content">
+                        <h3>3D Print Service</h3>
+                        <p>Got a 3D print file that you just need printed?</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Sub-Product Details Section -->
+<section class="sub-product-details" id="product-details">
+    <div class="container">
+
+        <!-- ========================================
+             CUSTOM DESIGN (Type B: Quote-Based)
+             ======================================== -->
+        <div class="product-detail-content" id="custom-design" style="display: none;">
+            <div class="row">
+                <div class="col-lg-6 mb-4">
+                    <!-- Custom Design Carousel -->
+                    <div id="customDesignCarousel" class="carousel slide service-carousel" data-bs-ride="carousel" data-bs-interval="2000">
+                        <div class="carousel-indicators">
+                            {% for image in carousel_images.custom_design %}
+                            <button type="button" data-bs-target="#customDesignCarousel" data-bs-slide-to="{{ loop.index0 }}" {% if loop.first %}class="active"{% endif %}></button>
+                            {% endfor %}
+                        </div>
+                        <div class="carousel-inner rounded shadow">
+                            {% for image in carousel_images.custom_design %}
+                            <div class="carousel-item {% if loop.first %}active{% endif %}">
+                                <img src="{{ image }}" class="d-block w-100" alt="Custom Design Example {{ loop.index }}" loading="lazy">
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <button class="carousel-control-prev" type="button" data-bs-target="#customDesignCarousel" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Previous</span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#customDesignCarousel" data-bs-slide="next">
+                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Next</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <h2 class="mb-4">Custom Design Service</h2>
+                    <p class="lead">Turn your ideas into reality with our custom 3D design and printing service.</p>
+                    <p>Whether you have a unique concept in mind, need a replacement for a broken part, or want to bring a specific design to life, we're here to help.</p>
+
+                    <div class="alert alert-info mt-4">
+                        <i class="fas fa-info-circle"></i> <strong>Quote-based service:</strong> Submit your request below and we'll get back to you with a quote within 24-48 hours.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom Design Request Form -->
+            <div class="row mt-5">
+                <div class="col-12">
+                    <div class="request-form-card">
+                        <h3 class="mb-4"><i class="fas fa-paper-plane"></i> Request Custom Design Quote</h3>
+                        <form class="custom-request-form" id="customDesignForm" method="POST" action="{{ url_for('quote_request') }}" enctype="multipart/form-data">
+                            <input type="hidden" name="service_type" value="Custom Design">
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Your Name *</label>
+                                    <input type="text" name="name" class="form-control" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Email Address *</label>
+                                    <input type="email" name="email" class="form-control" required>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Phone Number</label>
+                                    <input type="tel" name="phone" class="form-control">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Preferred Contact Method</label>
+                                    <select name="preferred_contact" class="form-select">
+                                        <option>Email</option>
+                                        <option>WhatsApp</option>
+                                        <option>Phone Call</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Describe Your Idea *</label>
+                                <textarea name="description" class="form-control" rows="4" placeholder="Please describe what you need designed and printed..." required></textarea>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Intended Use</label>
+                                    <input type="text" name="intended_use" class="form-control" placeholder="e.g., replacement part, gift, decoration">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Approximate Size Needed</label>
+                                    <input type="text" name="size" class="form-control" placeholder="e.g., 10cm x 5cm or Small/Medium/Large">
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Quantity</label>
+                                    <input type="number" name="quantity" class="form-control" value="1" min="1">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Preferred Color(s)</label>
+                                    <input type="text" name="color" class="form-control" placeholder="e.g., Blue, Red">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Material Preference</label>
+                                    <select name="material" class="form-select">
+                                        <option>No preference</option>
+                                        <option>PLA (Standard)</option>
+                                        <option>ABS (Durable)</option>
+                                        <option>TPU (Flexible)</option>
+                                        <option>Not sure</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Upload Reference Images (Optional)</label>
+                                <input type="file" name="reference_images" class="form-control" multiple accept="image/*">
+                                <small class="text-muted">You can upload multiple images (JPG, PNG, max 10MB each)</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Budget Range (Optional)</label>
+                                <select name="budget" class="form-select">
+                                    <option>No budget in mind</option>
+                                    <option>Under R100</option>
+                                    <option>R100 - R250</option>
+                                    <option>R250 - R500</option>
+                                    <option>Over R500</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Additional Notes</label>
+                                <textarea name="additional_notes" class="form-control" rows="2" placeholder="Any other details we should know..."></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-paper-plane"></i> Submit Request for Quote
+                            </button>
+                            <p class="text-muted small mt-2">We'll review your request and send you a quote within 24-48 hours.</p>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================
+             COOKIE/CLAY CUTTERS (Type A: Dual-Function)
+             ======================================== -->
+        <div class="product-detail-content" id="cookie-cutters" style="display: none;">
+            <div class="row mb-5">
+                <div class="col-12">
+                    <h2 class="mb-3">Cookie & Clay Cutters</h2>
+                    <p class="lead">Browse our collection of ready-made cutters or request a custom design.</p>
+                </div>
+            </div>
+
+            <!-- Request Custom Card (Always at top) -->
+            <div class="row mb-5">
+                <div class="col-12">
+                    <div class="custom-request-callout">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h3><i class="fas fa-magic"></i> Can't Find What You Need?</h3>
+                                <p class="mb-0">Request a custom cookie or clay cutter design! Upload your image or describe your idea, and we'll create it for you.</p>
+                            </div>
+                            <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                                <button class="btn btn-warning btn-lg" data-bs-toggle="modal" data-bs-target="#customCutterModal">
+                                    <i class="fas fa-pencil-alt"></i> Request Custom Cutter
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters & Search Bar -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="product-filters-card">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-3">
+                                <label class="form-label"><strong>Category</strong></label>
+                                <select class="form-select" id="filterCategory">
+                                    <option value="">All Categories</option>
+                                    {% for category in categories %}
+                                    <option value="{{ category.id }}">{{ category.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label"><strong>Type</strong></label>
+                                <select class="form-select" id="filterType">
+                                    <option value="">All Types</option>
+                                    {% for type in types %}
+                                    <option value="{{ type.id }}">{{ type.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label"><strong>Search</strong></label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="searchBox" placeholder="Search by name or description...">
+                                    <button class="btn btn-outline-secondary"><i class="fas fa-search"></i></button>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label"><strong>Sort By</strong></label>
+                                <select class="form-select" id="sortBy">
+                                    <option>Newest First</option>
+                                    <option>Price: Low to High</option>
+                                    <option>Price: High to Low</option>
+                                    <option>Name: A-Z</option>
+                                    <option>Most Popular</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <p class="mb-0 text-muted"><strong>Showing {{ items|length }} products</strong></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Product Grid (Database-Driven) -->
+            <div class="row g-4" id="productGrid">
+                {% if items %}
+                    {% for item in items %}
+                    {% if item.is_active %}
+                    <div class="col-6 col-md-4 col-lg-3" data-category="{{ item.category_id }}" data-type="{{ item.type_id }}">
+                        <div class="shop-product-card"
+                             data-name="{{ item.name|e }}"
+                             data-description="{{ item.description|e }}"
+                             data-price="R{{ "%.2f"|format(item.price) }}"
+                             data-dimensions="{{ item.dimensions|e }}"
+                             data-category="{{ item.category_name|e }}"
+                             data-category-desc="{{ item.category_description|e }}"
+                             data-type="{{ item.type_name|e }}"
+                             data-material="{{ item.material|e }}"
+                             data-stock="{{ item.stock_status|e }}"
+                             data-photos='{{ item.photo_urls|tojson }}'
+                             onclick="openProductDetailFromCard(this, event);"
+                             style="cursor: pointer;">
+                            <div class="product-image">
+                                {% if item.main_photo_url %}
+                                <img src="{{ item.main_photo_url }}" alt="{{ item.name }}">
+                                {% else %}
+                                <img src="https://images.unsplash.com/photo-1551754655-cd27e38d2076?w=400&h=400&fit=crop&q=80" alt="{{ item.name }}">
+                                {% endif %}
+
+                                <!-- Category Badge -->
+                                <span class="badge bg-primary product-badge">{{ item.category_name }}</span>
+
+                                <!-- NEW Badge for items < 30 days old -->
+                                {% if item.is_new %}
+                                <span class="badge bg-success new-badge" style="position: absolute; top: 10px; left: 10px;">NEW</span>
+                                {% endif %}
+                            </div>
+                            <div class="product-info">
+                                <h5>{{ item.name }}</h5>
+                                <p class="text-muted small mb-2">{{ item.description }}</p>
+                                <p class="product-specs">
+                                    <small><i class="fas fa-ruler"></i> {{ item.dimensions }}</small><br>
+                                    <small><i class="fas fa-tag"></i> {{ item.category_name }}, {{ item.type_name }}</small>
+                                </p>
+                                <div class="product-price">R{{ "%.2f"|format(item.price) }}</div>
+                                <div class="product-actions">
+                                    <button class="btn btn-primary btn-sm w-100 mb-2" onclick="event.stopPropagation(); alert('Added to cart!')">
+                                        <i class="fas fa-shopping-cart"></i> Add to Cart
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm w-100" onclick="event.stopPropagation(); openCustomizeModal('{{ item.name }}')">
+                                        <i class="fas fa-pencil-alt"></i> Customize This
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <div class="col-12">
+                        <div class="alert alert-info text-center">
+                            <i class="fas fa-info-circle"></i> No products available yet. Check back soon!
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Pagination (Hidden for now - will implement when needed) -->
+            <div class="row mt-5" style="display: none;">
+                <div class="col-12">
+                    <nav>
+                        <ul class="pagination justify-content-center">
+                            <li class="page-item disabled"><a class="page-link" href="#">Previous</a></li>
+                            <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                            <li class="page-item"><a class="page-link" href="#">2</a></li>
+                            <li class="page-item"><a class="page-link" href="#">3</a></li>
+                            <li class="page-item"><a class="page-link" href="#">4</a></li>
+                            <li class="page-item"><a class="page-link" href="#">Next</a></li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+            <!-- TODO: Implement pagination when product count > 12 -->
+        </div>
+
+        <!-- ========================================
+             CAKE TOPPERS (Type B: Quote-Based)
+             ======================================== -->
+        <div class="product-detail-content" id="cake-toppers" style="display: none;">
+            <div class="row">
+                <div class="col-lg-6 mb-4">
+                    <!-- Cake Toppers Carousel -->
+                    <div id="cakeToppersCarousel" class="carousel slide service-carousel" data-bs-ride="carousel" data-bs-interval="2000">
+                        <div class="carousel-indicators">
+                            {% for image in carousel_images.cake_toppers %}
+                            <button type="button" data-bs-target="#cakeToppersCarousel" data-bs-slide-to="{{ loop.index0 }}" {% if loop.first %}class="active"{% endif %}></button>
+                            {% endfor %}
+                        </div>
+                        <div class="carousel-inner rounded shadow">
+                            {% for image in carousel_images.cake_toppers %}
+                            <div class="carousel-item {% if loop.first %}active{% endif %}">
+                                <img src="{{ image }}" class="d-block w-100" alt="Cake Topper Example {{ loop.index }}" loading="lazy">
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <button class="carousel-control-prev" type="button" data-bs-target="#cakeToppersCarousel" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Previous</span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#cakeToppersCarousel" data-bs-slide="next">
+                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Next</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <h2 class="mb-4">Custom Cake Toppers</h2>
+                    <p class="lead">Make every celebration extra special with custom 3D printed cake toppers.</p>
+                    <p>Perfect for birthdays, weddings, anniversaries, and any special occasion. We'll design and print the perfect topper to match your theme.</p>
+
+                    <div class="alert alert-info mt-4">
+                        <i class="fas fa-info-circle"></i> <strong>Quote-based service:</strong> Each cake topper is custom-designed. Fill out the form below and we'll send you a quote!
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cake Topper Request Form -->
+            <div class="row mt-5">
+                <div class="col-12">
+                    <div class="request-form-card">
+                        <h3 class="mb-4"><i class="fas fa-birthday-cake"></i> Request Cake Topper Quote</h3>
+                        <form class="custom-request-form" action="{{ url_for('cake_topper_request') }}" method="POST" enctype="multipart/form-data">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Your Name *</label>
+                                    <input type="text" name="name" class="form-control" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Email Address *</label>
+                                    <input type="email" name="email" class="form-control" required>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Phone Number</label>
+                                    <input type="tel" name="phone" class="form-control">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Event Date (if applicable)</label>
+                                    <input type="date" name="event_date" class="form-control">
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Occasion/Theme *</label>
+                                    <select name="occasion" class="form-select" required>
+                                        <option value="">Select...</option>
+                                        <option>Birthday</option>
+                                        <option>Wedding</option>
+                                        <option>Anniversary</option>
+                                        <option>Baby Shower</option>
+                                        <option>Graduation</option>
+                                        <option>Other</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Size Preference</label>
+                                    <select name="size_preference" class="form-select">
+                                        <option>Small (5-8cm)</option>
+                                        <option>Medium (8-12cm)</option>
+                                        <option>Large (12-15cm)</option>
+                                        <option>Custom Size</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Text to Include (Name, Age, Message) *</label>
+                                <input type="text" name="text_to_include" class="form-control" placeholder='e.g., "Happy 5th Birthday Sarah!"' required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Design Details & Theme *</label>
+                                <textarea name="design_details" class="form-control" rows="3" placeholder="Describe the theme, colors, characters, or style you'd like..." required></textarea>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Color Preferences</label>
+                                    <input type="text" name="color_preferences" class="form-control" placeholder="e.g., Pink and Gold">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Stand Type</label>
+                                    <select name="stand_type" class="form-select">
+                                        <option>Stick (for inserting)</option>
+                                        <option>Flat Base</option>
+                                        <option>No Stand</option>
+                                        <option>Not Sure</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Upload Reference Images (Optional)</label>
+                                <input type="file" name="reference_images" class="form-control" multiple accept="image/*">
+                                <small class="text-muted">Upload images of similar designs or themes you like</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Additional Notes</label>
+                                <textarea name="additional_notes" class="form-control" rows="2" placeholder="Any other details..."></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-paper-plane"></i> Request Quote
+                            </button>
+                            <p class="text-muted small mt-2">We'll send you a quote and design preview within 24-48 hours.</p>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================
+             3D PRINT SERVICE (Type C: Automated Quote)
+             ======================================== -->
+        <div class="product-detail-content" id="print-service" style="display: none;">
+            <div class="row">
+                <div class="col-lg-6 mb-4">
+                    <!-- 3D Print Service Carousel -->
+                    <div id="printServiceCarousel" class="carousel slide service-carousel" data-bs-ride="carousel" data-bs-interval="2000">
+                        <div class="carousel-indicators">
+                            {% for image in carousel_images.print_service %}
+                            <button type="button" data-bs-target="#printServiceCarousel" data-bs-slide-to="{{ loop.index0 }}" {% if loop.first %}class="active"{% endif %}></button>
+                            {% endfor %}
+                        </div>
+                        <div class="carousel-inner rounded shadow">
+                            {% for image in carousel_images.print_service %}
+                            <div class="carousel-item {% if loop.first %}active{% endif %}">
+                                <img src="{{ image }}" class="d-block w-100" alt="3D Print Service Example {{ loop.index }}" loading="lazy">
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <button class="carousel-control-prev" type="button" data-bs-target="#printServiceCarousel" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Previous</span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#printServiceCarousel" data-bs-slide="next">
+                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Next</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <h2 class="mb-4">3D Print Service</h2>
+                    <p class="lead">Already have a 3D file? We'll print it for you with professional quality.</p>
+                    <p>Upload your STL, OBJ, or 3MF file, configure your preferences, and get an instant quote or submit for review.</p>
+
+                    <div class="alert alert-success mt-4">
+                        <i class="fas fa-bolt"></i> <strong>Fast service:</strong> Most prints completed within 3-5 business days!
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3D Print Service Form -->
+            <div class="row mt-5">
+                <div class="col-12">
+                    <div class="request-form-card">
+                        <h3 class="mb-4"><i class="fas fa-cube"></i> Upload & Configure Your Print</h3>
+                        <form class="custom-request-form" action="{{ url_for('print_service_request') }}" method="POST" enctype="multipart/form-data">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Your Name *</label>
+                                    <input type="text" name="name" class="form-control" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Email Address *</label>
+                                    <input type="email" name="email" class="form-control" required>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label">Upload 3D File(s) *</label>
+                                <input type="file" name="print_files" class="form-control" multiple accept=".stl,.obj,.3mf" required>
+                                <small class="text-muted">Accepted formats: STL, OBJ, 3MF (max 50MB per file)</small>
+                                <div class="alert alert-light mt-2 small">
+                                    <i class="fas fa-info-circle"></i> After upload, we'll analyze your file and display estimated print time and material usage.
+                                </div>
+                            </div>
+
+                            <div class="print-config-section">
+                                <h5 class="mb-3">Print Configuration</h5>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Material *</label>
+                                        <select name="material" class="form-select" required>
+                                            <option>PLA (Standard - Most Popular)</option>
+                                            <option>PLA+ (Stronger)</option>
+                                            <option>PETG (Durable, heat-resistant)</option>
+                                            <option>TPU (Flexible)</option>
+                                            <option>ABS (Industrial strength)</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Color *</label>
+                                        <select name="color" class="form-select" required>
+                                            <option>White</option>
+                                            <option>Black</option>
+                                            <option>Red</option>
+                                            <option>Blue</option>
+                                            <option>Green</option>
+                                            <option>Yellow</option>
+                                            <option>Orange</option>
+                                            <option>Pink</option>
+                                            <option>Purple</option>
+                                            <option>Gray</option>
+                                            <option>Other (specify in notes)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label">Layer Height</label>
+                                        <select name="layer_height" class="form-select">
+                                            <option>0.2mm (Standard - Balanced)</option>
+                                            <option>0.1mm (High Detail - Slower)</option>
+                                            <option>0.3mm (Draft - Faster)</option>
+                                        </select>
+                                        <small class="text-muted">Lower = smoother, slower</small>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label">Infill Density</label>
+                                        <select name="infill_density" class="form-select">
+                                            <option>20% (Standard - Most items)</option>
+                                            <option>10% (Light - Display items)</option>
+                                            <option>50% (Strong - Functional parts)</option>
+                                            <option>100% (Solid - Maximum strength)</option>
+                                        </select>
+                                        <small class="text-muted">Higher = stronger, heavier</small>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label">Quantity</label>
+                                        <input type="number" name="quantity" class="form-control" value="1" min="1" max="100">
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Supports</label>
+                                    <select name="supports" class="form-select">
+                                        <option>Automatic (Recommended)</option>
+                                        <option>None</option>
+                                        <option>Let me know what's best</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Quote Display (would be populated after file upload) -->
+                            <div class="quote-display-section mt-4 mb-4" style="display: none;">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h5 class="card-title">Estimated Quote</h5>
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <p class="mb-1"><small class="text-muted">Print Time</small></p>
+                                                <p class="h5">~8 hours 32 mins</p>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <p class="mb-1"><small class="text-muted">Material Needed</small></p>
+                                                <p class="h5">~85g</p>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <p class="mb-1"><small class="text-muted">Estimated Price</small></p>
+                                                <p class="h5 text-success">R120.00</p>
+                                            </div>
+                                        </div>
+                                        <small class="text-muted"><i class="fas fa-info-circle"></i> Final price may vary slightly based on actual print results.</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Special Instructions (Optional)</label>
+                                <textarea name="special_instructions" class="form-control" rows="2" placeholder="Any specific requirements or notes..."></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-check"></i> Submit Print Request
+                            </button>
+                            <p class="text-muted small mt-2">You'll receive a confirmation email with final quote and payment instructions.</p>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Default message when no product selected -->
+        <div class="product-detail-content text-center py-5" id="default-message">
+            <i class="fas fa-arrow-up fa-3x text-muted mb-3"></i>
+            <h3>Select a service above to learn more</h3>
+            <p class="text-muted">Click on any of the cards above to see detailed information and request forms for our 3D printing services.</p>
+        </div>
+    </div>
+</section>
+
+<!-- Product Detail Modal -->
+<div class="modal fade" id="productDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="productModalTitle">Product Name</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <!-- Image Carousel Section -->
+                    <div class="col-md-6 mb-4 mb-md-0">
+                        <div id="productImageCarousel" class="carousel slide" data-bs-ride="false">
+                            <div class="carousel-indicators" id="carouselIndicators">
+                                <!-- Dynamically populated -->
+                            </div>
+                            <div class="carousel-inner" id="carouselImages">
+                                <!-- Dynamically populated -->
+                            </div>
+                            <button class="carousel-control-prev" type="button" data-bs-target="#productImageCarousel" data-bs-slide="prev">
+                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Previous</span>
+                            </button>
+                            <button class="carousel-control-next" type="button" data-bs-target="#productImageCarousel" data-bs-slide="next">
+                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Next</span>
+                            </button>
+                        </div>
+
+                        <!-- Category Description -->
+                        <div class="alert alert-info mt-3" id="modalCategoryDescription" style="display: none;">
+                            <i class="fas fa-info-circle"></i> <span id="modalCategoryDescriptionText"></span>
+                        </div>
+                    </div>
+
+                    <!-- Product Details Section -->
+                    <div class="col-md-6">
+                        <div class="product-detail-info">
+                            <h3 id="modalProductName">Product Name</h3>
+                            <p class="text-muted" id="modalProductDescription">Product description</p>
+
+                            <div class="product-price-large mb-3" id="modalProductPrice">R45.00</div>
+
+                            <div class="product-specifications mb-4">
+                                <h6 class="fw-bold">Specifications:</h6>
+                                <ul class="list-unstyled">
+                                    <li><i class="fas fa-ruler text-primary"></i> <strong>Dimensions:</strong> <span id="modalProductDimensions">8cm × 7cm × 2cm</span></li>
+                                    <li><i class="fas fa-tag text-primary"></i> <strong>Category:</strong> <span id="modalProductCategory">Cookie</span></li>
+                                    <li><i class="fas fa-shapes text-primary"></i> <strong>Type:</strong> <span id="modalProductType">Animal</span></li>
+                                    <li><i class="fas fa-cube text-primary"></i> <strong>Material:</strong> <span id="modalProductMaterial">Food-safe PLA</span></li>
+                                    <li><i class="fas fa-box text-primary"></i> <strong>Stock:</strong> <span id="modalProductStock" class="badge bg-success">In Stock</span></li>
+                                </ul>
+                            </div>
+
+                            <div class="quantity-selector mb-4">
+                                <label class="form-label fw-bold">Quantity:</label>
+                                <div class="input-group">
+                                    <button class="btn btn-outline-secondary" type="button" onclick="decreaseQuantity()">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                    <input type="number" class="form-control text-center" id="productQuantity" value="1" min="1" max="99">
+                                    <button class="btn btn-outline-secondary" type="button" onclick="increaseQuantity()">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="product-actions-modal">
+                                <button class="btn btn-primary btn-lg w-100 mb-2">
+                                    <i class="fas fa-shopping-cart"></i> Add to Cart
+                                </button>
+                                <button class="btn btn-outline-secondary btn-lg w-100" onclick="openCustomizeModalFromProduct()">
+                                    <i class="fas fa-pencil-alt"></i> Customize This Product
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Cutter Request Modal -->
+<div class="modal fade" id="customCutterModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-magic"></i> Request Custom Cookie/Clay Cutter</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form class="custom-request-form">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Your Name *</label>
+                            <input type="text" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email Address *</label>
+                            <input type="email" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Based on Existing Product? (Optional)</label>
+                        <input type="text" class="form-control" id="baseProductName" placeholder="Leave blank for completely new design">
+                        <small class="text-muted">If customizing an existing product, enter the product name</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Describe Your Custom Cutter *</label>
+                        <textarea class="form-control" rows="3" placeholder="Describe the design, shape, or theme you want..." required></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Desired Size</label>
+                            <input type="text" class="form-control" placeholder="e.g., 10cm wide or Larger than original">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Cutter Type</label>
+                            <select class="form-select">
+                                <option>Cookie Cutter</option>
+                                <option>Clay Cutter</option>
+                                <option>Imprint Stamp</option>
+                                <option>Not sure</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Upload Reference Image(s) *</label>
+                        <input type="file" class="form-control" multiple accept="image/*" required>
+                        <small class="text-muted">Upload pictures or sketches of what you want designed</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Quantity Needed</label>
+                        <input type="number" class="form-control" value="1" min="1">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Additional Notes</label>
+                        <textarea class="form-control" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary">
+                    <i class="fas fa-paper-plane"></i> Submit Custom Request
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Category Header */
+    .category-header {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: white;
+        padding: 40px 0 20px;
+        margin-top: 76px;
+    }
+
+    .category-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .category-description {
+        font-size: 0.95rem;
+        opacity: 0.9;
+        margin: 0;
+    }
+
+    /* Sub-Products Section */
+    .sub-products-section {
+        padding: 60px 0 40px;
+        background: var(--light-color);
+    }
+
+    .sub-product-card {
+        display: block;
+        text-decoration: none;
+        background: var(--card-bg);
+        border-radius: 12px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
+        height: 100%;
+    }
+
+    .sub-product-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    }
+
+    .sub-product-card.active {
+        border: 3px solid #2563eb;
+        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+    }
+
+    .sub-product-image {
+        width: 100%;
+        height: 200px;
+        overflow: hidden;
+    }
+
+    .sub-product-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s ease;
+    }
+
+    .sub-product-card:hover .sub-product-image img {
+        transform: scale(1.05);
+    }
+
+    .sub-product-content {
+        padding: 1.5rem;
+    }
+
+    .sub-product-content h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-color);
+        margin-bottom: 0.5rem;
+    }
+
+    .sub-product-content p {
+        font-size: 0.9rem;
+        color: var(--muted-text);
+        margin: 0;
+    }
+
+    /* Product Details Section */
+    .sub-product-details {
+        padding: 60px 0;
+        min-height: 400px;
+    }
+
+    .product-detail-content {
+        animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Request Form Card */
+    .request-form-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: var(--shadow-md);
+    }
+
+    /* Custom Request Callout */
+    .custom-request-callout {
+        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    }
+
+    .custom-request-callout h3 {
+        color: white;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Product Filters */
+    .product-filters-card {
+        background: var(--card-bg);
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: var(--shadow-sm);
+    }
+
+    /* Shop Product Cards */
+    .shop-product-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        border: 1px solid #2563eb;
+        box-shadow: 0 0 8px rgba(37, 99, 235, 0.2), var(--shadow-sm);
+    }
+
+    .shop-product-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    }
+
+    .shop-product-card .product-image {
+        position: relative;
+        width: 100%;
+        padding-top: 100%; /* 1:1 aspect ratio */
+        overflow: hidden;
+    }
+
+    .shop-product-card .product-image img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .product-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 10;
+    }
+
+    .shop-product-card .product-info {
+        padding: 1rem;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .shop-product-card h5 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: var(--text-color);
+    }
+
+    .product-specs {
+        font-size: 0.75rem;
+        color: var(--muted-text);
+        margin-bottom: 0.5rem;
+    }
+
+    .product-price {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #2563eb;
+        margin-bottom: 1rem;
+    }
+
+    .product-actions {
+        margin-top: auto;
+    }
+
+    /* Print Config Section */
+    .print-config-section {
+        background: var(--light-color);
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+    }
+
+    /* Product Detail Modal */
+    #productImageCarousel .carousel-inner {
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    #productImageCarousel .carousel-item img {
+        width: 100%;
+        height: 500px;
+        object-fit: cover;
+    }
+
+    #productImageCarousel .carousel-control-prev,
+    #productImageCarousel .carousel-control-next {
+        background: rgba(0, 0, 0, 0.3);
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+    #productImageCarousel .carousel-control-prev {
+        left: 10px;
+    }
+
+    #productImageCarousel .carousel-control-next {
+        right: 10px;
+    }
+
+    .product-price-large {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #2563eb;
+    }
+
+    .product-specifications li {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid rgba(229, 231, 235, 0.3);
+    }
+
+    .product-specifications li:last-child {
+        border-bottom: none;
+    }
+
+    /* Modal dark mode support */
+    .modal-content {
+        background: var(--card-bg);
+        color: var(--text-color);
+    }
+
+    .modal-header {
+        border-bottom-color: rgba(229, 231, 235, 0.3);
+    }
+
+    .modal-footer {
+        border-top-color: rgba(229, 231, 235, 0.3);
+    }
+
+    /* Text below buttons dark mode support */
+    .text-muted {
+        color: var(--muted-text) !important;
+    }
+
+    .product-specifications i {
+        width: 20px;
+        margin-right: 8px;
+    }
+
+    /* Service Carousel Styling */
+    .service-carousel .carousel-inner {
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .service-carousel .carousel-item img {
+        width: 100%;
+        height: 450px;
+        object-fit: scale-down;
+        background-color: #f3f4f6;
+    }
+
+    .service-carousel .carousel-control-prev,
+    .service-carousel .carousel-control-next {
+        background: rgba(0, 0, 0, 0.5);
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        top: 50%;
+        transform: translateY(-50%);
+        transition: all 0.3s ease;
+    }
+
+    .service-carousel .carousel-control-prev:hover,
+    .service-carousel .carousel-control-next:hover {
+        background: rgba(0, 0, 0, 0.7);
+    }
+
+    .service-carousel .carousel-control-prev {
+        left: 15px;
+    }
+
+    .service-carousel .carousel-control-next {
+        right: 15px;
+    }
+
+    .service-carousel .carousel-indicators {
+        margin-bottom: 15px;
+    }
+
+    .service-carousel .carousel-indicators button {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background-color: rgba(255, 255, 255, 0.5);
+        border: none;
+    }
+
+    .service-carousel .carousel-indicators button.active {
+        background-color: rgba(255, 255, 255, 0.9);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .category-title {
+            font-size: 1.75rem;
+        }
+
+        .category-description {
+            font-size: 1rem;
+        }
+
+        .category-header {
+            padding: 60px 0 30px;
+        }
+
+        .shop-product-card h5 {
+            font-size: 0.9rem;
+        }
+
+        .product-price {
+            font-size: 1.25rem;
+        }
+
+        .service-carousel .carousel-item img {
+            height: 300px;
+        }
+
+        .service-carousel .carousel-control-prev,
+        .service-carousel .carousel-control-next {
+            width: 35px;
+            height: 35px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const subProductCards = document.querySelectorAll('.sub-product-card');
+        const productDetails = document.querySelectorAll('.product-detail-content');
+        const defaultMessage = document.getElementById('default-message');
+
+        subProductCards.forEach(card => {
+            card.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                // Get the product ID from data attribute
+                const productId = this.getAttribute('data-product');
+
+                // Remove active class from all cards
+                subProductCards.forEach(c => c.classList.remove('active'));
+
+                // Add active class to clicked card
+                this.classList.add('active');
+
+                // Hide all product details
+                productDetails.forEach(detail => {
+                    detail.style.display = 'none';
+                });
+
+                // Show selected product detail
+                const selectedDetail = document.getElementById(productId);
+                if (selectedDetail) {
+                    selectedDetail.style.display = 'block';
+
+                    // Initialize carousel if it exists in this section
+                    const carousel = selectedDetail.querySelector('.service-carousel');
+                    if (carousel) {
+                        const carouselInstance = new bootstrap.Carousel(carousel, {
+                            interval: 2000,
+                            ride: 'carousel'
+                        });
+                    }
+
+                    // Smooth scroll to details section with offset for fixed navbar
+                    const detailsSection = document.getElementById('product-details');
+                    const navbarHeight = 80; // Height of fixed navbar
+                    const elementPosition = detailsSection.getBoundingClientRect().top;
+                    const offsetPosition = elementPosition + window.pageYOffset - navbarHeight;
+
+                    window.scrollTo({
+                        top: offsetPosition,
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+
+        // Check if there's a hash in the URL and activate that product
+        const hash = window.location.hash.substring(1);
+        if (hash) {
+            const targetCard = document.querySelector(`[data-product="${hash}"]`);
+            if (targetCard) {
+                targetCard.click();
+            }
+        }
+
+        // Form submission handlers - now connected to backend
+        // Custom Design form submits normally to /quote-request
+        // Other forms still need to be connected (future implementation)
+    });
+
+    // Function to open customize modal with pre-filled product name
+    function openCustomizeModal(productName) {
+        const modal = new bootstrap.Modal(document.getElementById('customCutterModal'));
+        document.getElementById('baseProductName').value = productName;
+        modal.show();
+    }
+
+    // Function to open product detail modal with full information
+    function openProductDetail(event, name, description, price, dimensions, category, type, material, stock, images, categoryDescription) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        console.log('=== openProductDetail called ===');
+        console.log('Product name:', name);
+        console.log('Images received:', images);
+        console.log('Images count:', images ? images.length : 0);
+
+        // Populate modal title and basic info
+        document.getElementById('productModalTitle').textContent = name;
+        document.getElementById('modalProductName').textContent = name;
+        document.getElementById('modalProductDescription').textContent = description;
+        document.getElementById('modalProductPrice').textContent = price;
+        document.getElementById('modalProductDimensions').textContent = dimensions;
+        document.getElementById('modalProductCategory').textContent = category;
+        document.getElementById('modalProductType').textContent = type;
+        document.getElementById('modalProductMaterial').textContent = material;
+
+        // Show category description if available
+        if (categoryDescription && categoryDescription.trim() !== '') {
+            document.getElementById('modalCategoryDescriptionText').textContent = categoryDescription;
+            document.getElementById('modalCategoryDescription').style.display = 'block';
+        } else {
+            document.getElementById('modalCategoryDescription').style.display = 'none';
+        }
+
+        // Set stock badge
+        const stockBadge = document.getElementById('modalProductStock');
+        stockBadge.textContent = stock;
+        stockBadge.className = 'badge';
+        if (stock === 'In Stock') {
+            stockBadge.classList.add('bg-success');
+        } else if (stock === 'Made to Order') {
+            stockBadge.classList.add('bg-warning');
+        } else {
+            stockBadge.classList.add('bg-secondary');
+        }
+
+        // Reset quantity
+        document.getElementById('productQuantity').value = 1;
+
+        // Populate carousel with images
+        const carouselIndicators = document.getElementById('carouselIndicators');
+        const carouselImages = document.getElementById('carouselImages');
+
+        console.log('Clearing carousel...');
+        // Clear existing content
+        carouselIndicators.innerHTML = '';
+        carouselImages.innerHTML = '';
+
+        console.log('Adding images to carousel...');
+        // Add images to carousel
+        images.forEach((imageUrl, index) => {
+            console.log(`Adding image ${index}:`, imageUrl);
+            // Add indicator
+            const indicator = document.createElement('button');
+            indicator.type = 'button';
+            indicator.setAttribute('data-bs-target', '#productImageCarousel');
+            indicator.setAttribute('data-bs-slide-to', index.toString());
+            if (index === 0) {
+                indicator.classList.add('active');
+                indicator.setAttribute('aria-current', 'true');
+            }
+            indicator.setAttribute('aria-label', `Slide ${index + 1}`);
+            carouselIndicators.appendChild(indicator);
+
+            // Add carousel item
+            const carouselItem = document.createElement('div');
+            carouselItem.classList.add('carousel-item');
+            if (index === 0) {
+                carouselItem.classList.add('active');
+            }
+
+            const img = document.createElement('img');
+            img.src = imageUrl;
+            img.classList.add('d-block', 'w-100');
+            img.alt = `${name} - Image ${index + 1}`;
+
+            carouselItem.appendChild(img);
+            carouselImages.appendChild(carouselItem);
+        });
+
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('productDetailModal'));
+        modal.show();
+    }
+
+    // Wrapper function to read data from card attributes
+    function openProductDetailFromCard(cardElement, event) {
+        const name = cardElement.getAttribute('data-name');
+        const description = cardElement.getAttribute('data-description');
+        const price = cardElement.getAttribute('data-price');
+        const dimensions = cardElement.getAttribute('data-dimensions');
+        const category = cardElement.getAttribute('data-category');
+        const categoryDescription = cardElement.getAttribute('data-category-desc');
+        const type = cardElement.getAttribute('data-type');
+        const material = cardElement.getAttribute('data-material');
+        const stock = cardElement.getAttribute('data-stock');
+        const photosJson = cardElement.getAttribute('data-photos');
+
+        let images = [];
+        try {
+            images = JSON.parse(photosJson) || [];
+            console.log('Parsed images:', images);
+        } catch (e) {
+            console.error('Error parsing photo URLs:', e, 'Raw JSON:', photosJson);
+            images = [];
+        }
+
+        // If no images, use a placeholder
+        if (images.length === 0) {
+            images = ['https://images.unsplash.com/photo-1551754655-cd27e38d2076?w=800&h=800&fit=crop&q=80'];
+        }
+
+        console.log('Final images array:', images);
+
+        // Call the original function
+        openProductDetail(event, name, description, price, dimensions, category, type, material, stock, images, categoryDescription);
+    }
+
+    // Quantity control functions
+    function increaseQuantity() {
+        const input = document.getElementById('productQuantity');
+        const currentValue = parseInt(input.value) || 1;
+        const maxValue = parseInt(input.max) || 99;
+        if (currentValue < maxValue) {
+            input.value = currentValue + 1;
+        }
+    }
+
+    function decreaseQuantity() {
+        const input = document.getElementById('productQuantity');
+        const currentValue = parseInt(input.value) || 1;
+        const minValue = parseInt(input.min) || 1;
+        if (currentValue > minValue) {
+            input.value = currentValue - 1;
+        }
+    }
+
+    // Function to open customize modal from product detail modal
+    function openCustomizeModalFromProduct() {
+        const productName = document.getElementById('modalProductName').textContent;
+
+        // Close product detail modal
+        const productModal = bootstrap.Modal.getInstance(document.getElementById('productDetailModal'));
+        if (productModal) {
+            productModal.hide();
+        }
+
+        // Open customize modal with product name
+        setTimeout(() => {
+            openCustomizeModal(productName);
+        }, 300); // Small delay to ensure smooth transition between modals
+    }
+
+    // Client-side filtering and sorting for shop products
+    function filterAndSortProducts() {
+        const categoryFilter = document.getElementById('filterCategory').value;
+        const typeFilter = document.getElementById('filterType').value;
+        const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+        const sortBy = document.getElementById('sortBy').value;
+
+        const productGrid = document.getElementById('productGrid');
+        const productCards = Array.from(document.querySelectorAll('#productGrid > div[data-category]'));
+        let visibleCards = [];
+
+        // Filter products
+        productCards.forEach(card => {
+            const cardCategory = card.getAttribute('data-category');
+            const cardType = card.getAttribute('data-type');
+            const cardElement = card.querySelector('.shop-product-card');
+            const name = cardElement.getAttribute('data-name').toLowerCase();
+            const description = cardElement.getAttribute('data-description').toLowerCase();
+
+            // Check filters
+            const categoryMatch = !categoryFilter || cardCategory === categoryFilter;
+            const typeMatch = !typeFilter || cardType === typeFilter;
+            const searchMatch = !searchTerm || name.includes(searchTerm) || description.includes(searchTerm);
+
+            if (categoryMatch && typeMatch && searchMatch) {
+                card.style.display = '';
+                visibleCards.push(card);
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        // Sort visible products
+        if (sortBy && visibleCards.length > 0) {
+            visibleCards.sort((a, b) => {
+                const aCard = a.querySelector('.shop-product-card');
+                const bCard = b.querySelector('.shop-product-card');
+
+                switch(sortBy) {
+                    case 'Newest First':
+                        // Already in order from database (created_date DESC)
+                        return 0;
+
+                    case 'Price: Low to High':
+                        const aPrice = parseFloat(aCard.getAttribute('data-price').replace('R', ''));
+                        const bPrice = parseFloat(bCard.getAttribute('data-price').replace('R', ''));
+                        return aPrice - bPrice;
+
+                    case 'Price: High to Low':
+                        const aPriceH = parseFloat(aCard.getAttribute('data-price').replace('R', ''));
+                        const bPriceH = parseFloat(bCard.getAttribute('data-price').replace('R', ''));
+                        return bPriceH - aPriceH;
+
+                    case 'Name: A-Z':
+                        const aName = aCard.getAttribute('data-name').toLowerCase();
+                        const bName = bCard.getAttribute('data-name').toLowerCase();
+                        return aName.localeCompare(bName);
+
+                    case 'Most Popular':
+                        // For now, just maintain current order
+                        // TODO: Implement popularity tracking
+                        return 0;
+
+                    default:
+                        return 0;
+                }
+            });
+
+            // Reorder DOM elements
+            visibleCards.forEach(card => {
+                productGrid.appendChild(card);
+            });
+        }
+
+        // Update product count
+        document.querySelector('.product-filters-card .text-muted strong').textContent = `Showing ${visibleCards.length} products`;
+    }
+
+    // Attach filter and sort event listeners
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('filterCategory').addEventListener('change', filterAndSortProducts);
+        document.getElementById('filterType').addEventListener('change', filterAndSortProducts);
+        document.getElementById('searchBox').addEventListener('input', filterAndSortProducts);
+        document.getElementById('sortBy').addEventListener('change', filterAndSortProducts);
+    });
+</script>
+{% endblock %}

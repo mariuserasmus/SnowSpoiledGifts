@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}{% if item %}Edit{% else %}Add{% endif %} Item - Admin - {{ config.SITE_NAME }}{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <div class="container-fluid">
+        <div class="row mb-4">
+            <div class="col">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2>
+                        <i class="fas {% if item %}fa-edit{% else %}fa-plus{% endif %}"></i>
+                        {% if item %}Edit Item: {{ item.name }}{% else %}Add New Item{% endif %}
+                    </h2>
+                    <div>
+                        <a href="{{ url_for('admin_cutter_items') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Items
+                        </a>
+                        <a href="{{ url_for('admin_logout') }}" class="btn btn-secondary">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if item %}
+        <div class="row mb-3">
+            <div class="col">
+                <div class="alert alert-info">
+                    <strong>Item Number:</strong> {{ item.item_number }}
+                    <span class="ms-3"><strong>Created:</strong> {{ item.created_date }}</span>
+                    {% if item.updated_date != item.created_date %}
+                    <span class="ms-3"><strong>Last Updated:</strong> {{ item.updated_date }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <form method="POST" enctype="multipart/form-data" id="itemForm" action="{% if item %}{{ url_for('admin_edit_cutter_item_page', item_id=item.id) }}{% else %}{{ url_for('admin_add_cutter_item_page') }}{% endif %}">
+            <div class="row">
+                <!-- Left Column: Item Details -->
+                <div class="col-md-8">
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-info-circle"></i> Item Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Item Name *</label>
+                                    <input type="text" name="name" class="form-control" required value="{{ item.name if item else '' }}" placeholder="e.g., Dinosaur Cookie Cutter">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Price (R) *</label>
+                                    <input type="number" name="price" class="form-control" step="0.01" min="0" required value="{{ '%.2f'|format(item.price) if item else '' }}" placeholder="45.00">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Description</label>
+                                <textarea name="description" class="form-control" rows="3" placeholder="Brief description of the item...">{{ item.description if item else '' }}</textarea>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Category *</label>
+                                    <select name="category_id" class="form-select" required>
+                                        <option value="">Select Category...</option>
+                                        {% for category in categories %}
+                                        <option value="{{ category.id }}" {% if item and item.category_id == category.id %}selected{% endif %}>
+                                            {{ category.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <small class="text-muted">
+                                        <a href="{{ url_for('admin_cutter_categories') }}" target="_blank">Manage Categories</a>
+                                    </small>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Type *</label>
+                                    <select name="type_id" class="form-select" required>
+                                        <option value="">Select Type...</option>
+                                        {% for type in types %}
+                                        <option value="{{ type.id }}" {% if item and item.type_id == type.id %}selected{% endif %}>
+                                            {{ type.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <small class="text-muted">
+                                        <a href="{{ url_for('admin_cutter_types') }}" target="_blank">Manage Types</a>
+                                    </small>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Dimensions</label>
+                                    <input type="text" name="dimensions" class="form-control" value="{{ item.dimensions if item else '' }}" placeholder="e.g., 8cm × 7cm × 2cm">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Material</label>
+                                    <input type="text" name="material" class="form-control" value="{{ item.material if item else 'Food-safe PLA' }}" placeholder="e.g., Food-safe PLA">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Stock Status *</label>
+                                <select name="stock_status" class="form-select" required>
+                                    <option value="in_stock" {% if item and item.stock_status == 'in_stock' %}selected{% endif %}>In Stock</option>
+                                    <option value="made_to_order" {% if item and item.stock_status == 'made_to_order' %}selected{% endif %}>Made to Order</option>
+                                    <option value="out_of_stock" {% if item and item.stock_status == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Photos -->
+                <div class="col-md-4">
+                    <div class="card mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="fas fa-images"></i> Photos</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if item and item.photos %}
+                            <div class="mb-3">
+                                <h6>Current Photos:</h6>
+                                <div id="currentPhotos">
+                                    {% for photo in item.photos %}
+                                    <div class="photo-item mb-2 p-2 border rounded {% if photo.is_main %}border-primary{% endif %}" data-photo-id="{{ photo.id }}">
+                                        <img src="/{{ photo.photo_path }}" class="img-fluid rounded mb-2" alt="Photo">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            {% if photo.is_main %}
+                                            <span class="badge bg-primary">Main Photo</span>
+                                            {% else %}
+                                            <button type="button" class="btn btn-sm btn-outline-primary"
+                                                    onclick="submitPhotoAction('{{ url_for('admin_set_main_photo', item_id=item.id, photo_id=photo.id) }}')">
+                                                Set as Main
+                                            </button>
+                                            {% endif %}
+                                            <button type="button" class="btn btn-sm btn-danger"
+                                                    onclick="if(confirm('Delete this photo?')) submitPhotoAction('{{ url_for('admin_delete_photo', photo_id=photo.id) }}')">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <hr>
+                            {% endif %}
+
+                            <div class="mb-3">
+                                <label class="form-label">Upload Photos</label>
+                                <input type="file" name="photos" class="form-control" multiple accept="image/*" id="photoInput">
+                                <small class="text-muted">You can select multiple photos. The first one will be set as main.</small>
+                            </div>
+
+                            <div id="photoPreview" class="mt-3"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body d-flex justify-content-between">
+                            <a href="{{ url_for('admin_cutter_items') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save"></i> {% if item %}Save Changes{% else %}Create Item{% endif %}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .photo-item {
+        background: #f8f9fa;
+    }
+
+    .photo-item.border-primary {
+        background: #e7f1ff;
+    }
+
+    .photo-item img {
+        max-height: 150px;
+        width: 100%;
+        object-fit: cover;
+    }
+
+    #photoPreview img {
+        max-height: 100px;
+        margin: 5px;
+        border-radius: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Photo preview functionality
+    document.getElementById('photoInput').addEventListener('change', function(e) {
+        const preview = document.getElementById('photoPreview');
+        preview.innerHTML = '';
+
+        const files = e.target.files;
+        if (files.length > 0) {
+            preview.innerHTML = '<h6>Preview:</h6>';
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+
+                reader.onload = function(e) {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'img-thumbnail';
+                    preview.appendChild(img);
+                };
+
+                reader.readAsDataURL(file);
+            }
+        }
+    });
+
+    // Function to submit photo actions (Set as Main, Delete)
+    function submitPhotoAction(url) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url;
+        document.body.appendChild(form);
+        form.submit();
+    }
+</script>
+{% endblock %}

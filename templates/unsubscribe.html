@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Unsubscribe - {{ config.SITE_NAME }}{% endblock %}
+
+{% block content %}
+<section class="thank-you-section">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-6 mx-auto">
+                <div class="thank-you-card">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-envelope-open" style="font-size: 4rem; color: #f59e0b;"></i>
+                        <h1 class="thank-you-title mt-3">Unsubscribe</h1>
+                    </div>
+
+                    <p class="text-center mb-4">Are you sure you want to unsubscribe from our notifications?</p>
+
+                    <div class="card mb-4" style="background: #f9fafb; border: 1px solid #e5e7eb;">
+                        <div class="card-body">
+                            <h5 class="card-title" style="color: #2563eb;">Your Subscription Details:</h5>
+                            <p class="mb-2"><strong>Name:</strong> {{ signup.name }}</p>
+                            <p class="mb-2"><strong>Email:</strong> {{ signup.email }}</p>
+
+                            {% if signup.interests %}
+                            <p class="mb-2"><strong>Interests:</strong></p>
+                            <ul class="mb-0">
+                                {% for interest in signup.interests %}
+                                <li>
+                                    {% if interest == '3d_printing' %}3D Printing
+                                    {% elif interest == 'sublimation' %}Sublimation
+                                    {% elif interest == 'vinyl' %}Vinyl
+                                    {% elif interest == 'giftboxes' %}Giftboxes
+                                    {% elif interest == 'candles_soaps' %}Candles and Soaps
+                                    {% else %}{{ interest }}
+                                    {% endif %}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if not signup.is_active %}
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-info-circle"></i> You have already unsubscribed from our notifications.
+                    </div>
+                    <div class="text-center mt-4">
+                        <a href="{{ url_for('index') }}" class="btn btn-primary">
+                            <i class="fas fa-home"></i> Back to Home
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning text-center">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        You will no longer receive notifications about new products and updates from Snow Spoiled Gifts.
+                    </div>
+
+                    <form method="POST" action="{{ url_for('unsubscribe', token=token) }}" class="text-center">
+                        <button type="submit" class="btn btn-danger btn-lg me-2 mb-2">
+                            <i class="fas fa-user-times"></i> Yes, Unsubscribe Me
+                        </button>
+                        <a href="{{ url_for('index') }}" class="btn btn-secondary btn-lg mb-2">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </form>
+
+                    <div class="text-center mt-4">
+                        <p class="text-muted small">
+                            Changed your mind? Simply click "Cancel" to keep your subscription active.
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

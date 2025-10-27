@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Hero Section -->
+<section id="home" class="hero-section">
+    <div class="hero-overlay"></div>
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8 mx-auto text-center hero-content">
+                <span class="badge coming-soon-badge mb-3">Coming Soon</span>
+                <h1 class="hero-title">Something Amazing is Coming!</h1>
+                <p class="hero-subtitle">Get ready for unique, personalized gifts from 3D printing to custom giftboxes. Snow Spoiled Gifts is bringing you something special!</p>
+                <p class="launch-date"><i class="fas fa-rocket"></i> Launching our brand new website with exciting products, custom ordering at your fingertips, and regular updates with fresh creations!</p>
+                <a href="#notify" class="btn btn-primary btn-lg pulse">Get Notified of Major News!</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Categories Preview Section -->
+<section id="categories" class="categories-section">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="section-title">What We'll Offer</h2>
+            <p class="section-subtitle">Explore our exciting product categories</p>
+        </div>
+        <div class="row g-4">
+            <!-- 3D Printing -->
+            <div class="col-md-6 col-lg-4">
+                <a href="{{ url_for('printing_3d') }}" class="category-card-link">
+                    <div class="category-card">
+                        <div class="category-image">
+                            <img src="https://images.unsplash.com/photo-1703720675167-2fba006efb82?w=600&h=400&fit=crop&q=80" alt="3D Printing" onerror="this.src='https://placehold.co/600x400/6366f1/ffffff?text=3D+Printing&font=roboto'">
+                            <div class="category-overlay">
+                                <span class="category-badge live-now-badge">Live Now!</span>
+                            </div>
+                        </div>
+                        <div class="category-content">
+                            <h3>3D Printing</h3>
+                            <p>Custom cookie cutters, cake toppers, toys, and personalized 3D creations</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Sublimation -->
+            <div class="col-md-6 col-lg-4">
+                <a href="#notify" class="category-card-link">
+                    <div class="category-card">
+                        <div class="category-image">
+                            <img src="https://images.unsplash.com/photo-1542556398-95fb5b9f9b48?w=600&h=400&fit=crop&q=80" alt="Sublimation" onerror="this.src='https://placehold.co/600x400/ec4899/ffffff?text=Sublimation&font=roboto'">
+                            <div class="category-overlay">
+                                <span class="category-badge">Coming Soon</span>
+                            </div>
+                        </div>
+                        <div class="category-content">
+                            <h3>Sublimation</h3>
+                            <p>Personalized mugs, t-shirts, and custom sublimation products</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Vinyl -->
+            <div class="col-md-6 col-lg-4">
+                <a href="#notify" class="category-card-link">
+                    <div class="category-card">
+                        <div class="category-image">
+                            <img src="https://images.unsplash.com/photo-1572950947476-26a6e4111e80?w=600&h=400&fit=crop&q=80" alt="Vinyl" onerror="this.src='https://placehold.co/600x400/14b8a6/ffffff?text=Vinyl&font=roboto'">
+                            <div class="category-overlay">
+                                <span class="category-badge">Coming Soon</span>
+                            </div>
+                        </div>
+                        <div class="category-content">
+                            <h3>Vinyl</h3>
+                            <p>Custom decals, stickers, and creative vinyl designs</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Giftboxes -->
+            <div class="col-md-6 col-lg-4">
+                <a href="#notify" class="category-card-link">
+                    <div class="category-card">
+                        <div class="category-image">
+                            <img src="https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=600&h=400&fit=crop&q=80" alt="Giftboxes" onerror="this.src='https://placehold.co/600x400/f59e0b/ffffff?text=Giftboxes&font=roboto'">
+                            <div class="category-overlay">
+                                <span class="category-badge">Coming Soon</span>
+                            </div>
+                        </div>
+                        <div class="category-content">
+                            <h3>Giftboxes</h3>
+                            <p>Curated gift boxes perfect for any occasion</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Candles and Soaps -->
+            <div class="col-md-6 col-lg-4">
+                <a href="#notify" class="category-card-link">
+                    <div class="category-card">
+                        <div class="category-image">
+                            <img src="https://images.unsplash.com/photo-1603006905003-be475563bc59?w=600&h=400&fit=crop&q=80" alt="Candles and Soaps" onerror="this.src='https://placehold.co/600x400/a78bfa/ffffff?text=Candles+%26+Soaps&font=roboto'">
+                            <div class="category-overlay">
+                                <span class="category-badge">Coming Soon</span>
+                            </div>
+                        </div>
+                        <div class="category-content">
+                            <h3>Candles and Soaps</h3>
+                            <p>Handcrafted candles and artisan soaps for a luxurious self-care experience</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Seasonal Events and Specials -->
+            <div class="col-md-6 col-lg-4">
+                <a href="#notify" class="category-card-link">
+                    <div class="category-card">
+                        <div class="category-image">
+                            <img src="https://images.unsplash.com/photo-1513885535751-8b9238bd345a?w=600&h=400&fit=crop&q=80" alt="Seasonal Events and Specials" onerror="this.src='https://placehold.co/600x400/f43f5e/ffffff?text=Seasonal+Events&font=roboto'">
+                            <div class="category-overlay">
+                                <span class="category-badge notify-badge">Get Notified</span>
+                            </div>
+                        </div>
+                        <div class="category-content">
+                            <h3>Seasonal Events & Specials</h3>
+                            <p>Regular specials, themed seasonal gift ideas, exclusive promotions, and exciting competitions</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Email Signup Section -->
+<section id="notify" class="notify-section">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-6 mx-auto">
+                <div class="notify-card">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-bell notification-icon"></i>
+                        <h2 class="section-title">Be the First to Know!</h2>
+                        <p class="section-subtitle">Sign up to get notified when we launch</p>
+                    </div>
+                    <form method="POST" action="{{ url_for('signup') }}" id="signupForm">
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            {{ form.name(class="form-control form-control-lg", placeholder="Your Name") }}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.email(class="form-control form-control-lg", placeholder="Your Email") }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">What are you interested in?</label>
+                            <div class="interest-checkboxes">
+                                {% for value, label in form.interests.choices %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="interests" value="{{ value }}" id="interest_{{ value }}">
+                                    <label class="form-check-label" for="interest_{{ value }}">
+                                        {{ label }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <small class="text-muted">
+                                <i class="fas fa-lock"></i> We respect your privacy. No spam, ever.
+                            </small>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                            <i class="fas fa-envelope"></i> Notify Me!
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- About Section -->
+<section id="about" class="about-section">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-4 mb-4 mb-lg-0">
+                <img src="{{ url_for('static', filename='images/hero/hero-banner.jpg') }}" alt="About Us" class="img-fluid rounded shadow" onerror="this.src='https://placehold.co/600x400/2563eb/ffffff?text=About+Us&font=roboto'">
+            </div>
+            <div class="col-lg-4 mb-4 mb-lg-0">
+                <h2 class="section-title">About Snow Spoiled Gifts</h2>
+                <p class="lead">Welcome to Snow Spoiled Gifts, where creativity meets personalization!</p>
+                <p>We're a passionate home-based business dedicated to creating unique, personalized gifts that make every occasion special. From custom 3D printed cookie cutters to beautiful sublimation products, creative vinyl designs, and curated gift boxes - we pour love into every creation.</p>
+                <p>Our mission is simple: to help you spoil your loved ones (and yourself!) with gifts that are as unique as they are. Each product is crafted with care, attention to detail, and a whole lot of heart.</p>
+                <p><strong>Stay tuned - something amazing is coming your way!</strong></p>
+            </div>
+            <div class="col-lg-4 mb-4 mb-lg-0 d-flex justify-content-center align-items-center">
+                <div class="about-logo-container">
+                    <img src="{{ url_for('static', filename='images/logo/SSG.png') }}" alt="Snow Spoiled Gifts Logo" class="about-logo img-fluid">
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Contact Section -->
+<section id="contact" class="contact-section">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="section-title">Get In Touch</h2>
+            <p class="section-subtitle">Have questions? We'd love to hear from you!</p>
+        </div>
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="contact-card">
+                    <div class="contact-icon">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <h4>Email</h4>
+                    <p><a href="mailto:{{ config.CONTACT_EMAIL }}">{{ config.CONTACT_EMAIL }}</a></p>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="contact-card">
+                    <div class="contact-icon">
+                        <i class="fab fa-whatsapp"></i>
+                    </div>
+                    <h4>WhatsApp</h4>
+                    <p><a href="{{ config.SOCIAL_MEDIA.whatsapp }}" target="_blank">{{ config.CONTACT_PHONE }}</a></p>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="contact-card">
+                    <div class="contact-icon">
+                        <i class="fas fa-map-marker-alt"></i>
+                    </div>
+                    <h4>Website</h4>
+                    <p>{{ config.SITE_URL }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
