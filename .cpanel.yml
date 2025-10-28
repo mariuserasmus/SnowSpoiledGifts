@@ -1,14 +1,33 @@
 ---
 # cPanel Deployment Configuration for Snow's Spoiled Gifts
 # This file tells cPanel how to deploy your Flask application
+# Note: Manual deployment via cPanel Git interface due to auto-deploy restrictions
 
 deployment:
   tasks:
+    # Set paths
+    # REPOPATH is where Git pulls the code (cPanel repository location)
+    # APPPATH is where the application runs (your live site)
+    - export REPOPATH=/home/snowsxtp/repositories/ssg
+    - export APPPATH=/home/snowsxtp/ssg
+
     # Copy all files from repository to application directory
-    - /bin/cp -R /home/snowsxtp/repositories/ssg/* /home/snowsxtp/ssg/ 2>&1 || true
+    - /bin/cp -R $REPOPATH/* $APPPATH/
+    - /bin/cp -R $REPOPATH/.* $APPPATH/ 2>/dev/null || true
+
+    # Create necessary directories
+    - /bin/mkdir -p $APPPATH/database
+    - /bin/mkdir -p $APPPATH/tmp
+    - /bin/mkdir -p $APPPATH/static/uploads
+
+    # Set proper permissions
+    - /bin/chmod 755 $APPPATH/database
+    - /bin/chmod 755 $APPPATH/static/uploads
+    - /bin/chmod 644 $APPPATH/passenger_wsgi.py
 
     # Restart Passenger application (this is the critical step)
-    - /bin/touch /home/snowsxtp/ssg/tmp/restart.txt
+    - /bin/touch $APPPATH/tmp/restart.txt
 
     # Verify deployment
-    - /bin/echo "Deployment completed successfully"
+    - /bin/echo "Deployment completed at $(date)"
+    - /bin/ls -la $APPPATH/tmp/restart.txt
