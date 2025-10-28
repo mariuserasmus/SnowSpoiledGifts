@@ -1,15 +1,24 @@
-# Snow's Spoiled Gifts - Coming Soon Website
+# Snow's Spoiled Gifts - E-Commerce Website
 
-Phase 0 "Coming Soon" website for www.snowspoiledgifts.co.za
+Full-featured Flask e-commerce website for www.snowspoiledgifts.co.za
 
 ## Features
 
-- ✨ Beautiful, mobile-responsive landing page
+### Customer-Facing
+- ✨ Beautiful, mobile-responsive design with dark mode
+- 🛍️ 3D Printing services showcase (Custom Design, Cookie/Clay Cutters, Cake Toppers, Print Service)
+- 🎨 Product catalog with filters, search, and sorting
+- 📸 Multi-image product galleries with carousels
+- 📝 Quote request forms with file uploads
 - 📧 Email signup with interest tracking
-- 🎨 Fun but professional design
-- 👨‍💼 Admin panel for managing signups
-- 📊 CSV export of email list
+
+### Admin Panel
+- 👨‍💼 Comprehensive admin dashboard
+- 📦 Cookie & Clay Cutters management (Categories, Types, Items, Photos)
+- 📊 Quote request management (Custom Design, Cake Topper, Print Service)
+- 📧 Email notification system with multiple recipients
 - 🔒 Secure admin authentication
+- 📊 CSV export of signups and quotes
 
 ## Quick Start
 
@@ -47,6 +56,68 @@ copy .env.example .env
 ```bash
 python app.py
 ```
+
+Visit: http://localhost:5000
+
+---
+
+## 📚 Documentation
+
+### Project Documentation
+- **[progress.md](progress.md)** - Complete development history and current status
+- **[CHECKPOINT_NEXT_PHASE.md](CHECKPOINT_NEXT_PHASE.md)** - Roadmap for future features (Shopping Cart, Auth, Checkout)
+
+### Deployment
+- **[deployment/](deployment/)** - All deployment guides for Afrihost hosting
+  - [AFRIHOST_PASSENGER_SETUP.md](deployment/AFRIHOST_PASSENGER_SETUP.md) - Complete deployment guide
+  - [FIX_PRODUCTION_EMAIL.md](deployment/FIX_PRODUCTION_EMAIL.md) - Fix email issues
+  - [DEPLOYMENT_QUICK_START.md](deployment/DEPLOYMENT_QUICK_START.md) - Quick reference
+  - [PRODUCTION_ENV_TEMPLATE.md](deployment/PRODUCTION_ENV_TEMPLATE.md) - Environment configuration
+
+### System Documentation
+- **[docs/](docs/)** - Technical documentation
+  - [CHECKPOINT_COOKIE_CUTTERS_ADMIN.md](docs/CHECKPOINT_COOKIE_CUTTERS_ADMIN.md) - Cookie & Clay Cutters system
+  - [EMAIL_SETUP.md](docs/EMAIL_SETUP.md) - Email configuration guide
+  - [NETWORK_TROUBLESHOOTING.md](docs/NETWORK_TROUBLESHOOTING.md) - Network access issues
+
+### Archive
+- **[archive/](archive/)** - Historical documentation (older/superseded guides)
+
+---
+
+## 🎯 Current Status
+
+**Production:** ✅ Deployed to www.snowspoiledgifts.co.za
+
+**Completed Features:**
+- ✅ Customer landing page with dark mode
+- ✅ 3D Printing services showcase
+- ✅ Cookie & Clay Cutters shop (admin + frontend)
+- ✅ Quote request system (3 types)
+- ✅ Email notifications (Afrihost SMTP)
+- ✅ Admin panel (signups, quotes, products)
+
+**Next Phase:**
+- 🛒 Shopping Cart (see CHECKPOINT_NEXT_PHASE.md)
+- 👤 User Authentication
+- 💳 Checkout & Payment
+- 📦 Order Management
+
+---
+
+## 🛠️ Tech Stack
+
+- **Backend:** Flask (Python)
+- **Database:** SQLite
+- **Frontend:** Bootstrap 5, JavaScript
+- **Email:** SMTP (Afrihost mail server)
+- **Hosting:** Afrihost (Passenger WSGI)
+
+---
+
+## 📞 Contact
+
+For questions about this codebase, see documentation in `docs/` folder or review `progress.md` for development history.
 
 Visit: http://localhost:5000
 

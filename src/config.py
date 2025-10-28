@@ -39,9 +39,9 @@ class Config:
     MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
     MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'True') == 'True'
     MAIL_USE_SSL = os.getenv('MAIL_USE_SSL', 'False') == 'True'
-    MAIL_USERNAME = os.getenv('MAIL_USERNAME', 'elmienerasmus@gmail.com')
+    MAIL_USERNAME = os.getenv('MAIL_USERNAME', 'mariuserasmus69@gmail.com')
     MAIL_PASSWORD = os.getenv('MAIL_PASSWORD', '')  # Set in .env file
-    MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', 'elmienerasmus@gmail.com')
+    MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', 'mariuserasmus69@gmail.com')
 
     # Notification recipients (comma-separated in .env, defaults to both emails)
     NOTIFICATION_RECIPIENTS = os.getenv(
@@ -50,4 +50,4 @@ class Config:
     ).split(',')
 
     # Base URL for links in emails (unsubscribe, etc.)
-    BASE_URL = os.getenv('BASE_URL', 'http://192.168.0.248:5000')
+    BASE_URL = os.getenv('BASE_URL', 'www.snowspoiledgifts.co.za')
