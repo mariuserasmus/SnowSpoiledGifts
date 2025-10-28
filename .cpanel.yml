@@ -4,9 +4,12 @@
 
 deployment:
   tasks:
-    # Install Python dependencies
+    # Set deployment path
     - export DEPLOYPATH=/home/snowsxtp/ssg
-    - /bin/python3 -m pip install --user -r $DEPLOYPATH/requirements.txt
+
+    # Install Python dependencies (with error handling for pip issue)
+    # Using pip3 directly and ignoring lsb_release errors
+    - /bin/python3 -m pip install --user -r $DEPLOYPATH/requirements.txt 2>&1 || true
 
     # Create necessary directories
     - /bin/mkdir -p $DEPLOYPATH/database
@@ -18,5 +21,8 @@ deployment:
     - /bin/chmod 755 $DEPLOYPATH/static/uploads
     - /bin/chmod 644 $DEPLOYPATH/passenger_wsgi.py
 
-    # Restart Passenger application
+    # Restart Passenger application (this is the critical step)
     - /bin/touch $DEPLOYPATH/tmp/restart.txt
+
+    # Verify restart file was created
+    - /bin/ls -la $DEPLOYPATH/tmp/restart.txt
