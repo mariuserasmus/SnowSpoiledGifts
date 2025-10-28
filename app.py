@@ -4,6 +4,7 @@ from src.config import Config
 from src.database import Database
 from src.forms import EmailSignupForm
 from src.email_utils import send_quote_notification, send_customer_confirmation, send_signup_confirmation, send_cake_topper_notification, send_print_service_notification, send_admin_reply_to_customer
+from version_check import get_version_info
 from datetime import datetime
 import os
 import random
@@ -949,6 +950,17 @@ def admin_delete_photo(photo_id):
         return redirect(url_for('admin_edit_cutter_item_page', item_id=item_id))
     else:
         return redirect(url_for('admin_cutter_items'))
+
+
+@app.route('/version-check')
+def version_check():
+    """Check which version of the code is currently deployed"""
+    import json
+    version_info = get_version_info()
+    return Response(
+        json.dumps(version_info, indent=2),
+        mimetype='application/json'
+    )
 
 
 @app.route('/admin/quotes/email/<string:request_type>/<int:quote_id>', methods=['POST'])
