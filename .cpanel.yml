@@ -14,9 +14,6 @@ deployment:
     - /bin/cp -R $REPOPATH/* $APPPATH/
     - /bin/cp -R $REPOPATH/.* $APPPATH/ 2>/dev/null || true
 
-    # Install Python dependencies (with error handling for pip issue)
-    - /bin/python3 -m pip install --user -r $APPPATH/requirements.txt 2>&1 || true
-
     # Create necessary directories
     - /bin/mkdir -p $APPPATH/database
     - /bin/mkdir -p $APPPATH/tmp
