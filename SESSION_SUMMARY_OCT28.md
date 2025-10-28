@@ -259,7 +259,211 @@ See: [`CHECKPOINT_NEXT_PHASE.md`](CHECKPOINT_NEXT_PHASE.md)
 
 ---
 
-**Session Date:** 2025-10-28 (Evening)
-**Duration:** ~2 hours
+---
+
+## 🎨 Session 2: Cosmetic Updates & Deployment Improvements
+
+### 3. ✅ UI/UX Improvements
+**Changes Implemented:**
+
+**Homepage Hero Section:**
+- ❌ Removed "Coming Soon" badge
+- Changed "Something Amazing is Coming!" → "Something Amazing is Happening!"
+- Updated call-to-action: "New features being added regularly. Sign up to be the 1st to know about it!"
+
+**Footer Updates (on all pages):**
+- Changed "Launching November 2025" → "Launched November 2025"
+- Added clickable version link at bottom of footer
+
+**Contact Section:**
+- Added second email: `info@snowspoiledgifts.co.za`
+- Made website clickable with URL
+- Added Facebook link: `https://facebook.com/snowspoiledgifts`
+- Changed heading from "Website" to "Website & Social"
+
+**Admin Panel - Button Standardization:**
+- Changed ALL navigation buttons from solid to outline style
+- Affected pages:
+  - `admin-signups.html` (View buttons + Export CSV)
+  - `admin-quotes.html` (View buttons)
+  - `admin-cutter-items.html` (All navigation)
+  - `admin-cutter-categories.html` (All navigation)
+  - `admin-cutter-types.html` (All navigation)
+  - `admin-cutter-item-form.html` (All navigation)
+- Benefits: Consistent look in both light and dark modes
+
+**Files Modified:**
+- `templates/index.html`
+- `templates/base.html`
+- `templates/admin-signups.html`
+- `templates/admin-quotes.html`
+- `templates/admin-cutter-items.html`
+- `templates/admin-cutter-categories.html`
+- `templates/admin-cutter-types.html`
+- `templates/admin-cutter-item-form.html`
+
+---
+
+### 4. ✅ Email Customer Functionality Enhancement
+**Problem:** "Email Customer" button in admin opened local Outlook app
+
+**Solution Implemented:**
+- Created `send_admin_reply_to_customer()` function in `src/email_utils.py`
+- Added new route: `/admin/quotes/email/<type>/<id>`
+- Replaced mailto link with modal form in admin quotes page
+- Added email composition modal with:
+  - Pre-filled subject line
+  - Textarea for custom message
+  - Professional email template with branding
+  - Send button that emails directly from website
+
+**Database Methods Added:**
+- `get_quote_request(quote_id)` - Retrieve single custom design quote
+- `get_cake_topper_request(quote_id)` - Retrieve single cake topper quote
+- `get_print_service_request(quote_id)` - Retrieve single print service quote
+
+**Files Modified:**
+- `src/email_utils.py` - New email function
+- `src/database.py` - New getter methods
+- `app.py` - New email route + import
+- `templates/admin-quotes.html` - Modal form added
+
+**Benefits:**
+- ✅ No more opening Outlook
+- ✅ Professional branded emails
+- ✅ Emails sent from website
+- ✅ Works from any computer
+
+---
+
+### 5. ✅ cPanel Git Deployment Configuration
+**Problem:** Manual deployment clicking was tedious
+
+**Journey:**
+1. **Attempted Auto-Deploy** - Set up git push to cPanel for automatic deployment
+2. **Hit Permission Issues** - `setuid root` errors with various commands
+3. **Tried Multiple Fixes** - Simplified .cpanel.yml multiple times
+4. **Final Decision** - Reverted to manual deployment (more reliable)
+
+**What We Learned:**
+- cPanel auto-deploy has permission restrictions on shared hosting
+- Manual deployment via cPanel Git interface works reliably
+- Repository path: `/home/snowsxtp/repositories/ssg`
+- Application path: `/home/snowsxtp/ssg`
+
+**Final Working Configuration:**
+```yaml
+deployment:
+  tasks:
+    - export REPOPATH=/home/snowsxtp/repositories/ssg
+    - export APPPATH=/home/snowsxtp/ssg
+    - /bin/cp -R $REPOPATH/* $APPPATH/
+    - /bin/touch $APPPATH/tmp/restart.txt
+```
+
+**Manual Deployment Workflow:**
+1. `git push origin main` (push to GitHub)
+2. cPanel → Git Version Control
+3. Click "Update From Remote"
+4. Click "Deploy HEAD Commit"
+5. Wait 1-2 minutes
+
+**Files Modified:**
+- `.cpanel.yml` - Deployment configuration
+- `version_check.py` - Created for deployment verification
+- `app.py` - Added `/version-check` route
+
+---
+
+## 📊 Total Session Statistics
+
+**Total Time Spent:** ~4 hours (2 sessions)
+
+**Git Commits:** 13
+1. `01218e8` - Fix production email - Add Afrihost SMTP support
+2. `d665f21` - Reorganize documentation
+3. `5962560` - Add cPanel Git deployment configuration
+4. `1b635c5` - Add session summary for October 28
+5. `e16ae69` - Cosmetic improvements and email functionality upgrade
+6. `4885e72` - Fix cPanel deployment pip installation error
+7. `0485eb5` - Add version check endpoint
+8. `a2afe61` - Fix deployment path - copy from repository to app
+9. `e7730ca` - Cosmetic updates - hero, contact, footer
+10. `401b906` - Remove pip from deployment
+11. `db07399` - Simplify .cpanel.yml
+12. `8765b43` - Restore manual deployment workflow
+
+**Files Modified:** 18
+**Files Created:** 6
+**Lines Changed:** ~500+
+
+---
+
+## 🎯 Updated Project Status
+
+### Completed Features
+- ✅ Customer landing page with dark mode
+- ✅ 3D Printing services showcase
+- ✅ Cookie & Clay Cutters shop (admin + frontend)
+- ✅ Quote request system (3 types)
+- ✅ Email notifications with Afrihost SMTP
+- ✅ Admin panel (signups, quotes, products)
+- ✅ Multi-photo product galleries
+- ✅ Product filters, search, and sorting
+- ✅ **Admin email customer functionality**
+- ✅ **Consistent admin UI styling**
+- ✅ **Version tracking system**
+- ✅ **Production deployment workflow**
+
+### Recent Improvements
+- ✅ Professional branded emails from admin panel
+- ✅ Improved homepage messaging
+- ✅ Better contact information
+- ✅ Consistent admin button styling
+- ✅ Version info in footer
+
+---
+
+## 🚀 Next Session Tasks
+
+1. **Continue with Shopping Cart Implementation**
+   - Follow guide in `CHECKPOINT_NEXT_PHASE.md`
+   - Database schema for cart_items
+   - Cart routes and templates
+   - Add to Cart button functionality
+   - Cart icon in navbar
+
+---
+
+## 💡 Additional Key Learnings
+
+### cPanel Deployment
+- **Auto-deploy limitations** - Shared hosting has permission restrictions
+- **Manual workflow reliable** - Two-click deployment works consistently
+- **Repository vs Application** - Understand the two separate directories
+- **Version checking** - Added endpoint to verify deployed code
+
+### UI/UX
+- **Outline buttons** - Better for dark mode consistency
+- **Messaging clarity** - "Launched" vs "Launching" makes it clear site is live
+- **Contact options** - Multiple emails and social links increase accessibility
+
+---
+
+## 🎊 Updated Achievements
+
+✅ **Production-Ready Email System** - Works with Afrihost
+✅ **Professional Email Address** - Emails from info@snowspoiledgifts.co.za
+✅ **Admin Email Tool** - Send emails directly from admin panel
+✅ **Consistent UI** - All buttons standardized
+✅ **Clear Messaging** - Site indicates it's live and active
+✅ **Version Tracking** - Can verify deployed code version
+✅ **Clean Documentation** - Well-organized and easy to navigate
+✅ **Reliable Deployment** - Working manual deployment workflow
+
+---
+
+**Session Date:** 2025-10-28 (Full Day)
+**Duration:** ~4 hours (2 sessions)
 **Status:** ✅ All objectives completed
-**Next:** Deploy email fix, then start Shopping Cart
+**Next:** Shopping Cart implementation

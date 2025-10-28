@@ -17,8 +17,10 @@ Full-featured Flask e-commerce website for www.snowspoiledgifts.co.za
 - 📦 Cookie & Clay Cutters management (Categories, Types, Items, Photos)
 - 📊 Quote request management (Custom Design, Cake Topper, Print Service)
 - 📧 Email notification system with multiple recipients
+- ✉️ Email customer directly from admin panel (with branded templates)
 - 🔒 Secure admin authentication
 - 📊 CSV export of signups and quotes
+- 🎨 Consistent UI styling (light & dark mode)
 
 ## Quick Start
 
@@ -96,12 +98,45 @@ Visit: http://localhost:5000
 - ✅ Quote request system (3 types)
 - ✅ Email notifications (Afrihost SMTP)
 - ✅ Admin panel (signups, quotes, products)
+- ✅ Admin email customer functionality (Oct 2025)
+- ✅ Consistent UI styling across admin pages (Oct 2025)
+- ✅ Version tracking system (Oct 2025)
 
 **Next Phase:**
 - 🛒 Shopping Cart (see CHECKPOINT_NEXT_PHASE.md)
 - 👤 User Authentication
 - 💳 Checkout & Payment
 - 📦 Order Management
+
+---
+
+## 🚀 Deployment Workflow
+
+### Production Deployment (Afrihost cPanel)
+
+**Step 1: Commit and Push to GitHub**
+```bash
+git add .
+git commit -m "Your commit message"
+git push origin main
+```
+
+**Step 2: Deploy via cPanel**
+1. Log into cPanel → Git Version Control
+2. Click **"Update From Remote"** (pulls from GitHub)
+3. Click **"Deploy HEAD Commit"** (copies to app & restarts)
+4. Wait 1-2 minutes for deployment to complete
+
+**Step 3: Verify Deployment**
+- Visit: https://snowspoiledgifts.co.za/version-check
+- Check the version info matches your latest commit
+- Hard refresh your browser (Ctrl+Shift+R) to see changes
+
+**Important Paths:**
+- Repository: `/home/snowsxtp/repositories/ssg` (where Git pulls code)
+- Application: `/home/snowsxtp/ssg` (where the live site runs)
+
+**See also:** [deployment/DEPLOYMENT_QUICK_START.md](deployment/DEPLOYMENT_QUICK_START.md)
 
 ---
 
