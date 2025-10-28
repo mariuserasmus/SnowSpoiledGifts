@@ -13,10 +13,10 @@
                         {% if item %}Edit Item: {{ item.name }}{% else %}Add New Item{% endif %}
                     </h2>
                     <div>
-                        <a href="{{ url_for('admin_cutter_items') }}" class="btn btn-secondary">
+                        <a href="{{ url_for('admin_cutter_items') }}" class="btn btn-outline-secondary">
                             <i class="fas fa-arrow-left"></i> Back to Items
                         </a>
-                        <a href="{{ url_for('admin_logout') }}" class="btn btn-secondary">
+                        <a href="{{ url_for('admin_logout') }}" class="btn btn-outline-secondary">
                             <i class="fas fa-sign-out-alt"></i> Logout
                         </a>
                     </div>

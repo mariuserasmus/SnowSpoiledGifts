@@ -393,6 +393,21 @@ class Database:
             conn.close()
             return False, f"An error occurred: {str(e)}"
 
+    def delete_quote_request(self, quote_id):
+        """Delete a quote request"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('DELETE FROM quote_requests WHERE id = ?', (quote_id,))
+            conn.commit()
+            conn.close()
+            return True, "Quote request deleted successfully!"
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}"
+
     def unsubscribe_by_token(self, token):
         """Unsubscribe a user by their unique token"""
         conn = self.get_connection()
@@ -541,6 +556,21 @@ class Database:
             conn.close()
             return False, f"An error occurred: {str(e)}"
 
+    def delete_cake_topper_request(self, request_id):
+        """Delete a cake topper request"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('DELETE FROM cake_topper_requests WHERE id = ?', (request_id,))
+            conn.commit()
+            conn.close()
+            return True, "Cake topper request deleted successfully!"
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}"
+
     def add_print_service_request(self, name, email, uploaded_files, material,
                                   color, layer_height, infill_density, quantity,
                                   supports, special_instructions, ip_address):
@@ -617,6 +647,21 @@ class Database:
             conn.commit()
             conn.close()
             return True, "Status updated successfully!"
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}"
+
+    def delete_print_service_request(self, request_id):
+        """Delete a 3D print service request"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('DELETE FROM print_service_requests WHERE id = ?', (request_id,))
+            conn.commit()
+            conn.close()
+            return True, "Print service request deleted successfully!"
 
         except Exception as e:
             conn.close()
@@ -1314,3 +1359,36 @@ class Database:
             })
 
         return result
+
+    def get_quote_request(self, quote_id):
+        """Get a single quote request by ID"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT * FROM quote_requests WHERE id = ?', (quote_id,))
+        request = cursor.fetchone()
+        conn.close()
+        
+        return dict(request) if request else None
+
+    def get_cake_topper_request(self, quote_id):
+        """Get a single cake topper request by ID"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT * FROM cake_topper_requests WHERE id = ?', (quote_id,))
+        request = cursor.fetchone()
+        conn.close()
+        
+        return dict(request) if request else None
+
+    def get_print_service_request(self, quote_id):
+        """Get a single print service request by ID"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT * FROM print_service_requests WHERE id = ?', (quote_id,))
+        request = cursor.fetchone()
+        conn.close()
+        
+        return dict(request) if request else None

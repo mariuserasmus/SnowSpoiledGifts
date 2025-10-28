@@ -3,7 +3,7 @@ from functools import wraps
 from src.config import Config
 from src.database import Database
 from src.forms import EmailSignupForm
-from src.email_utils import send_quote_notification, send_customer_confirmation, send_signup_confirmation, send_cake_topper_notification, send_print_service_notification
+from src.email_utils import send_quote_notification, send_customer_confirmation, send_signup_confirmation, send_cake_topper_notification, send_print_service_notification, send_admin_reply_to_customer
 from datetime import datetime
 import os
 import random
@@ -571,6 +571,29 @@ def update_quote_status(request_type, quote_id):
     return redirect(url_for('admin_quotes'))
 
 
+@app.route('/admin/quotes/delete/<string:request_type>/<int:quote_id>', methods=['POST'])
+@admin_required
+def delete_quote_request(request_type, quote_id):
+    """Delete quote request for any type"""
+    # Call the appropriate delete method based on request type
+    if request_type == 'custom_design':
+        success, message = db.delete_quote_request(quote_id)
+    elif request_type == 'cake_topper':
+        success, message = db.delete_cake_topper_request(quote_id)
+    elif request_type == 'print_service':
+        success, message = db.delete_print_service_request(quote_id)
+    else:
+        success = False
+        message = "Invalid request type"
+
+    if success:
+        flash('Quote request deleted successfully!', 'success')
+    else:
+        flash(message, 'error')
+
+    return redirect(url_for('admin_quotes'))
+
+
 @app.route('/admin/export-csv')
 @admin_required
 def export_csv():
@@ -926,6 +949,45 @@ def admin_delete_photo(photo_id):
         return redirect(url_for('admin_edit_cutter_item_page', item_id=item_id))
     else:
         return redirect(url_for('admin_cutter_items'))
+
+
+@app.route('/admin/quotes/email/<string:request_type>/<int:quote_id>', methods=['POST'])
+@admin_required
+def email_customer(request_type, quote_id):
+    """Send email to customer from admin panel"""
+    subject = request.form.get('email_subject')
+    message = request.form.get('email_message')
+
+    # Get quote details based on request type
+    if request_type == 'custom_design':
+        quote_details = db.get_quote_request(quote_id)
+    elif request_type == 'cake_topper':
+        quote_details = db.get_cake_topper_request(quote_id)
+    elif request_type == 'print_service':
+        quote_details = db.get_print_service_request(quote_id)
+    else:
+        flash('Invalid request type', 'error')
+        return redirect(url_for('admin_quotes'))
+
+    if not quote_details:
+        flash('Quote not found', 'error')
+        return redirect(url_for('admin_quotes'))
+
+    # Send email
+    success, result_message = send_admin_reply_to_customer(
+        app.config,
+        quote_details['email'],
+        quote_details['name'],
+        subject,
+        message
+    )
+
+    if success:
+        flash(f'Email sent successfully to {quote_details["email"]}!', 'success')
+    else:
+        flash(f'Failed to send email: {result_message}', 'error')
+
+    return redirect(url_for('admin_quotes'))
 
 
 if __name__ == '__main__':

@@ -975,3 +975,119 @@ View in Admin Panel: http://192.168.0.248:5000/admin/quotes
         error_msg = f"Failed to send email notification: {str(e)}"
         print(error_msg)
         return False, error_msg
+
+def send_admin_reply_to_customer(config, to_email, to_name, subject, message_body):
+    """
+    Send a reply email from admin to customer.
+
+    Args:
+        config: Flask app config object
+        to_email: Customer's email address
+        to_name: Customer's name
+        subject: Email subject line
+        message_body: The message content (plain text)
+
+    Returns:
+        Tuple (success: bool, message: str)
+    """
+    # Check if email password is configured
+    if not config['MAIL_PASSWORD']:
+        print("Warning: Email password not configured. Skipping email.")
+        return False, "Email not configured"
+
+    try:
+        # Create message
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = config['MAIL_DEFAULT_SENDER']
+        msg['To'] = to_email
+        msg['Reply-To'] = config['MAIL_DEFAULT_SENDER']
+
+        # Convert line breaks to HTML
+        html_message_body = message_body.replace('\n', '<br>')
+
+        # Create HTML email body
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; padding: 30px 20px; border-radius: 8px 8px 0 0; text-align: center; }}
+                .header h1 {{ margin: 0; font-size: 24px; }}
+                .header p {{ margin: 10px 0 0 0; opacity: 0.9; font-size: 14px; }}
+                .content {{ background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; }}
+                .message-box {{ background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb; }}
+                .footer {{ background: #f3f4f6; padding: 20px; text-align: center; font-size: 13px; color: #6b7280; border-radius: 0 0 8px 8px; }}
+                .footer p {{ margin: 5px 0; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>Snow Spoiled Gifts</h1>
+                    <p>Premium 3D Printing & Personalized Gifts</p>
+                </div>
+
+                <div class="content">
+                    <p>Hi <strong>{to_name}</strong>,</p>
+
+                    <div class="message-box">
+                        {html_message_body}
+                    </div>
+
+                    <p style="margin-top: 20px; font-size: 14px; color: #6b7280;">
+                        If you have any questions, feel free to reply to this email.
+                    </p>
+                </div>
+
+                <div class="footer">
+                    <p><strong>Snow Spoiled Gifts</strong></p>
+                    <p>Premium 3D Printing & Personalized Gifts</p>
+                    <p style="margin-top: 15px;">Contact us: {config['MAIL_DEFAULT_SENDER']}</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        # Create plain text version as fallback
+        text_body = f"""
+Hi {to_name},
+
+{message_body}
+
+If you have any questions, feel free to reply to this email.
+
+---
+Snow Spoiled Gifts
+Premium 3D Printing & Personalized Gifts
+Contact us: {config['MAIL_DEFAULT_SENDER']}
+        """
+
+        # Attach both HTML and plain text versions
+        part1 = MIMEText(text_body, 'plain')
+        part2 = MIMEText(html_body, 'html')
+        msg.attach(part1)
+        msg.attach(part2)
+
+        # Send email using SSL or TLS
+        if config.get('MAIL_USE_SSL'):
+            # Use SMTP_SSL for port 465
+            with smtplib.SMTP_SSL(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+                server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+                server.send_message(msg)
+        else:
+            # Use SMTP with STARTTLS for port 587
+            with smtplib.SMTP(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+                server.starttls()
+                server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+                server.send_message(msg)
+
+        return True, "Email sent successfully"
+
+    except Exception as e:
+        error_msg = f"Failed to send email: {str(e)}"
+        print(error_msg)
+        return False, error_msg
