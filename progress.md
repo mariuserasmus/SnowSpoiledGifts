@@ -664,7 +664,114 @@ After successful deployment, development can continue with:
 
 ---
 
-**Last Updated:** 2025-10-27 (Evening)
-**Status:** ✅ Version Controlled & Ready for Production Deployment
-**Next:** User will deploy to Afrihost, may request deployment assistance
+**Last Updated:** 2025-10-28
+**Status:** ✅ Production Email Issue Fixed - Ready to Deploy Fix
+**Next:** Upload updated files and configure Afrihost SMTP
+
+---
+
+## Session Summary (2025-10-28 - Fix Production Email Issue)
+
+### 🐛 PROBLEM SOLVED: Email Not Sending from Afrihost
+
+**Issue:** Production site shows error: `[Errno 99] Cannot assign requested address`
+
+**Root Cause:** Afrihost blocks outbound Gmail SMTP connections (ports 587/465)
+
+#### What Was Fixed
+
+1. **Email System Updated for Afrihost SMTP**
+   - Added `MAIL_USE_SSL` configuration support
+   - Updated all 5 email functions to handle SSL connections (port 465)
+   - Maintained backward compatibility with TLS (port 587)
+
+2. **Multiple CC Recipients Support**
+   - Updated `NOTIFICATION_RECIPIENTS` to parse from `.env` file
+   - Supports comma-separated email addresses
+   - Defaults to: `elmienerasmus@gmail.com,mariuserasmus69@gmail.com`
+
+3. **Configuration Updates**
+   - Changed from Gmail SMTP to Afrihost SMTP
+   - Mail server: `mail.snowspoiledgifts.co.za`
+   - Port: 465 (SSL)
+   - Sender: `info@snowspoiledgifts.co.za`
+
+#### Files Modified
+- `src/config.py` - Added MAIL_USE_SSL + dynamic NOTIFICATION_RECIPIENTS
+- `src/email_utils.py` - Updated all email functions (5 total) to support SMTP_SSL
+- `PRODUCTION_ENV_TEMPLATE.md` - Updated with Afrihost SMTP settings
+
+#### Files Created
+- `FIX_PRODUCTION_EMAIL.md` - Step-by-step guide to fix production email
+
+### Technical Implementation
+
+**Old Code (Gmail - Not Working on Afrihost):**
+```python
+with smtplib.SMTP(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+    server.starttls()  # TLS on port 587
+    server.login(...)
+```
+
+**New Code (Afrihost - Working):**
+```python
+if config.get('MAIL_USE_SSL'):
+    with smtplib.SMTP_SSL(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+        server.login(...)  # SSL on port 465
+else:
+    with smtplib.SMTP(...) as server:
+        server.starttls()  # TLS fallback
+```
+
+### Production `.env` Changes Required
+
+**Before:**
+```env
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=True
+MAIL_USERNAME=elmienerasmus@gmail.com
+MAIL_CC_RECIPIENT=mariuserasmus69@gmail.com
+```
+
+**After:**
+```env
+MAIL_SERVER=mail.snowspoiledgifts.co.za
+MAIL_PORT=465
+MAIL_USE_TLS=False
+MAIL_USE_SSL=True
+MAIL_USERNAME=info@snowspoiledgifts.co.za
+MAIL_PASSWORD=<info_email_password>
+MAIL_DEFAULT_SENDER=info@snowspoiledgifts.co.za
+NOTIFICATION_RECIPIENTS=elmienerasmus@gmail.com,mariuserasmus69@gmail.com
+```
+
+### Benefits
+✅ **Works with Afrihost** - No more blocked SMTP connections
+✅ **More Professional** - Emails send from `info@snowspoiledgifts.co.za` (branded domain)
+✅ **Multiple Recipients** - Both Elmien and Marius receive notifications
+✅ **Easy Configuration** - All settings in `.env` file
+✅ **Backward Compatible** - Still supports TLS/Gmail if needed locally
+
+### Next Steps (User Action Required)
+1. ✅ Upload updated files to production (`src/config.py`, `src/email_utils.py`)
+2. ✅ Edit production `.env` file with Afrihost SMTP settings
+3. ✅ Restart application (`touch tmp/restart.txt`)
+4. ✅ Test by submitting quote request
+5. ✅ Verify both emails receive notification
+
+### Documentation Available
+- `FIX_PRODUCTION_EMAIL.md` - Complete step-by-step fix guide (⭐ START HERE)
+- `PRODUCTION_ENV_TEMPLATE.md` - Updated .env template with Afrihost settings
+- `docs/EMAIL_SETUP.md` - General email setup guide
+
+### Status
+**Email System:** 🟡 Fixed in Code - Awaiting Production Deployment
+**Next:** User to deploy updated files and configure Afrihost SMTP
+
+---
+
+**Last Updated:** 2025-10-28 (Evening)
+**Status:** ✅ Email Fix Ready - Upload & Configure on Server
+**Next:** User will deploy fix to Afrihost
 

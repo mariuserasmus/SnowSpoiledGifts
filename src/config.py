@@ -38,12 +38,16 @@ class Config:
     MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
     MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
     MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'True') == 'True'
+    MAIL_USE_SSL = os.getenv('MAIL_USE_SSL', 'False') == 'True'
     MAIL_USERNAME = os.getenv('MAIL_USERNAME', 'elmienerasmus@gmail.com')
     MAIL_PASSWORD = os.getenv('MAIL_PASSWORD', '')  # Set in .env file
     MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', 'elmienerasmus@gmail.com')
 
-    # Notification recipients
-    NOTIFICATION_RECIPIENTS = ['elmienerasmus@gmail.com', 'mariuserasmus69@gmail.com']
+    # Notification recipients (comma-separated in .env, defaults to both emails)
+    NOTIFICATION_RECIPIENTS = os.getenv(
+        'NOTIFICATION_RECIPIENTS',
+        'elmienerasmus@gmail.com,mariuserasmus69@gmail.com'
+    ).split(',')
 
     # Base URL for links in emails (unsubscribe, etc.)
     BASE_URL = os.getenv('BASE_URL', 'http://192.168.0.248:5000')

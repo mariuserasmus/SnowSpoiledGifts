@@ -17,14 +17,17 @@ ADMIN_PASSWORD=<your_strong_password>
 # Database
 DATABASE_PATH=database/signups.db
 
-# Email Configuration (Gmail)
-MAIL_SERVER=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USE_TLS=True
-MAIL_USERNAME=elmienerasmus@gmail.com
-MAIL_PASSWORD=<your_gmail_app_password>
-MAIL_DEFAULT_SENDER=elmienerasmus@gmail.com
-MAIL_CC_RECIPIENT=mariuserasmus69@gmail.com
+# Email Configuration (Afrihost SMTP - RECOMMENDED)
+MAIL_SERVER=mail.snowspoiledgifts.co.za
+MAIL_PORT=465
+MAIL_USE_TLS=False
+MAIL_USE_SSL=True
+MAIL_USERNAME=info@snowspoiledgifts.co.za
+MAIL_PASSWORD=<your_info_email_password>
+MAIL_DEFAULT_SENDER=info@snowspoiledgifts.co.za
+
+# Notification Recipients (comma-separated, no spaces)
+NOTIFICATION_RECIPIENTS=elmienerasmus@gmail.com,mariuserasmus69@gmail.com
 
 # Site Configuration
 SITE_URL=https://www.snowspoiledgifts.co.za
@@ -68,29 +71,23 @@ Example: `Sn0w$G1ft$2025!Secure`
 ADMIN_PASSWORD=YourStrongPasswordHere
 ```
 
-### 4. MAIL_PASSWORD (Gmail App Password)
+### 4. MAIL_PASSWORD (Afrihost Email Password)
 
-You need a Gmail App Password (not your regular Gmail password):
+Use the password for your `info@snowspoiledgifts.co.za` email account:
 
-**Steps to get App Password:**
+**Where to find/set it:**
 
-1. Go to: https://myaccount.google.com/apppasswords
-2. Sign in to the Gmail account: `elmienerasmus@gmail.com`
-3. Make sure 2-Factor Authentication is enabled
-4. Click "Generate" under App Passwords
-5. Select "Mail" and "Other (Custom name)"
-6. Name it: "Snow's Spoiled Gifts Website"
-7. Click "Generate"
-8. Copy the 16-character password (example: `abcd efgh ijkl mnop`)
-9. Remove spaces and paste: `abcdefghijklmnop`
+1. Go to: **cPanel → Email Accounts**
+2. Find: `info@snowspoiledgifts.co.za`
+3. Click "Manage" or "Change Password"
+4. Either use existing password or set a new strong password
+5. Copy the password
 
 ```env
-MAIL_PASSWORD=abcdefghijklmnop
+MAIL_PASSWORD=YourEmailPasswordHere
 ```
 
-**Note:** If you can't access App Passwords, you need to:
-- Enable 2-Factor Authentication on Gmail first
-- Then App Passwords option will appear
+**Important:** This is the password you use to check email for `info@snowspoiledgifts.co.za`, not your cPanel password.
 
 ---
 
@@ -109,14 +106,17 @@ ADMIN_PASSWORD=Sn0w$G1ft$2025!Secure
 # Database
 DATABASE_PATH=database/signups.db
 
-# Email Configuration (Gmail)
-MAIL_SERVER=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USE_TLS=True
-MAIL_USERNAME=elmienerasmus@gmail.com
-MAIL_PASSWORD=abcdefghijklmnop
-MAIL_DEFAULT_SENDER=elmienerasmus@gmail.com
-MAIL_CC_RECIPIENT=mariuserasmus69@gmail.com
+# Email Configuration (Afrihost SMTP)
+MAIL_SERVER=mail.snowspoiledgifts.co.za
+MAIL_PORT=465
+MAIL_USE_TLS=False
+MAIL_USE_SSL=True
+MAIL_USERNAME=info@snowspoiledgifts.co.za
+MAIL_PASSWORD=YourInfoEmailPassword123
+MAIL_DEFAULT_SENDER=info@snowspoiledgifts.co.za
+
+# Notification Recipients (comma-separated, no spaces)
+NOTIFICATION_RECIPIENTS=elmienerasmus@gmail.com,mariuserasmus69@gmail.com
 
 # Site Configuration
 SITE_URL=https://www.snowspoiledgifts.co.za
@@ -160,20 +160,27 @@ After deployment, test the email system:
 ## Troubleshooting Email Issues
 
 ### "Authentication failed" error:
-- ✅ Make sure you're using an **App Password**, not regular Gmail password
-- ✅ Verify 2-Factor Authentication is enabled on Gmail
-- ✅ Check password has no spaces
-- ✅ Try generating a new App Password
+- ✅ Verify you're using the correct `info@snowspoiledgifts.co.za` password
+- ✅ Check password has no spaces or special characters that need escaping
+- ✅ Try resetting the email password in cPanel
+- ✅ Confirm MAIL_USERNAME is the full email address
+
+### "[Errno 99] Cannot assign requested address" error:
+- ✅ This means Gmail SMTP is blocked by Afrihost
+- ✅ **Solution:** Use Afrihost SMTP (mail.snowspoiledgifts.co.za) as shown above
+- ✅ Make sure MAIL_PORT=465 and MAIL_USE_SSL=True
 
 ### "Connection timeout" error:
-- ✅ Verify MAIL_PORT=587
-- ✅ Verify MAIL_USE_TLS=True
-- ✅ Check Afrihost doesn't block port 587
+- ✅ Verify MAIL_PORT=465
+- ✅ Verify MAIL_USE_SSL=True (not MAIL_USE_TLS)
+- ✅ Verify MAIL_SERVER=mail.snowspoiledgifts.co.za
+- ✅ Check if port 465 is open (should be on Afrihost)
 
 ### Emails not sending but no error:
-- ✅ Check spam folder
-- ✅ Verify MAIL_DEFAULT_SENDER email is correct
-- ✅ Check Flask logs for errors
+- ✅ Check spam folder in recipient email
+- ✅ Verify MAIL_DEFAULT_SENDER email exists (info@snowspoiledgifts.co.za)
+- ✅ Check Flask logs: `tail -f logs/error.log` or cPanel error logs
+- ✅ Test sending email from cPanel webmail first
 
 ---
 

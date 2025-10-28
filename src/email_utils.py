@@ -179,14 +179,24 @@ View in Admin Panel: http://192.168.0.248:5000/admin/quotes
         msg.attach(part1)
         msg.attach(part2)
 
-        # Send email
-        with smtplib.SMTP(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
-            server.starttls()
-            server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+        # Send email using SSL or TLS
+        if config.get('MAIL_USE_SSL'):
+            # Use SMTP_SSL for port 465
+            with smtplib.SMTP_SSL(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+                server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
 
-            # Send to all recipients
-            all_recipients = config['NOTIFICATION_RECIPIENTS']
-            server.send_message(msg, to_addrs=all_recipients)
+                # Send to all recipients
+                all_recipients = config['NOTIFICATION_RECIPIENTS']
+                server.send_message(msg, to_addrs=all_recipients)
+        else:
+            # Use SMTP with STARTTLS for port 587
+            with smtplib.SMTP(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+                server.starttls()
+                server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+
+                # Send to all recipients
+                all_recipients = config['NOTIFICATION_RECIPIENTS']
+                server.send_message(msg, to_addrs=all_recipients)
 
         return True, "Email notification sent successfully"
 
@@ -380,11 +390,18 @@ This is an automated confirmation email.
         msg.attach(part1)
         msg.attach(part2)
 
-        # Send email
-        with smtplib.SMTP(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
-            server.starttls()
-            server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
-            server.send_message(msg)
+        # Send email using SSL or TLS
+        if config.get('MAIL_USE_SSL'):
+            # Use SMTP_SSL for port 465
+            with smtplib.SMTP_SSL(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+                server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+                server.send_message(msg)
+        else:
+            # Use SMTP with STARTTLS for port 587
+            with smtplib.SMTP(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+                server.starttls()
+                server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+                server.send_message(msg)
 
         return True, "Customer confirmation email sent successfully"
 
@@ -554,11 +571,18 @@ If you didn't sign up for this or wish to unsubscribe, visit:
         msg.attach(part1)
         msg.attach(part2)
 
-        # Send email
-        with smtplib.SMTP(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
-            server.starttls()
-            server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
-            server.send_message(msg)
+        # Send email using SSL or TLS
+        if config.get('MAIL_USE_SSL'):
+            # Use SMTP_SSL for port 465
+            with smtplib.SMTP_SSL(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+                server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+                server.send_message(msg)
+        else:
+            # Use SMTP with STARTTLS for port 587
+            with smtplib.SMTP(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+                server.starttls()
+                server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+                server.send_message(msg)
 
         return True, "Signup confirmation email sent successfully"
 
@@ -739,14 +763,24 @@ View in Admin Panel: http://192.168.0.248:5000/admin/quotes
         msg.attach(part1)
         msg.attach(part2)
 
-        # Send email
-        with smtplib.SMTP(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
-            server.starttls()
-            server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+        # Send email using SSL or TLS
+        if config.get('MAIL_USE_SSL'):
+            # Use SMTP_SSL for port 465
+            with smtplib.SMTP_SSL(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+                server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
 
-            # Send to all recipients
-            all_recipients = config['NOTIFICATION_RECIPIENTS']
-            server.send_message(msg, to_addrs=all_recipients)
+                # Send to all recipients
+                all_recipients = config['NOTIFICATION_RECIPIENTS']
+                server.send_message(msg, to_addrs=all_recipients)
+        else:
+            # Use SMTP with STARTTLS for port 587
+            with smtplib.SMTP(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+                server.starttls()
+                server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+
+                # Send to all recipients
+                all_recipients = config['NOTIFICATION_RECIPIENTS']
+                server.send_message(msg, to_addrs=all_recipients)
 
         return True, "Email notification sent successfully"
 
@@ -916,14 +950,24 @@ View in Admin Panel: http://192.168.0.248:5000/admin/quotes
         msg.attach(part1)
         msg.attach(part2)
 
-        # Send email
-        with smtplib.SMTP(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
-            server.starttls()
-            server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+        # Send email using SSL or TLS
+        if config.get('MAIL_USE_SSL'):
+            # Use SMTP_SSL for port 465
+            with smtplib.SMTP_SSL(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+                server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
 
-            # Send to all recipients
-            all_recipients = config['NOTIFICATION_RECIPIENTS']
-            server.send_message(msg, to_addrs=all_recipients)
+                # Send to all recipients
+                all_recipients = config['NOTIFICATION_RECIPIENTS']
+                server.send_message(msg, to_addrs=all_recipients)
+        else:
+            # Use SMTP with STARTTLS for port 587
+            with smtplib.SMTP(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+                server.starttls()
+                server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+
+                # Send to all recipients
+                all_recipients = config['NOTIFICATION_RECIPIENTS']
+                server.send_message(msg, to_addrs=all_recipients)
 
         return True, "Email notification sent successfully"
 
