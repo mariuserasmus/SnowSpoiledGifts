@@ -98,7 +98,7 @@
                 <div class="col-md-4 mb-4">
                     <h5>{{ config.SITE_NAME }}</h5>
                     <p>{{ config.TAGLINE }}</p>
-                    <p class="text-muted small">Launching {{ config.LAUNCH_DATE }}</p>
+                    <p class="text-muted small">Launched {{ config.LAUNCH_DATE }}</p>
                 </div>
                 <div class="col-md-4 mb-4">
                     <h5>Quick Links</h5>
@@ -127,6 +127,7 @@
             <div class="row">
                 <div class="col-12 text-center pt-3 border-top">
                     <p class="mb-0">&copy; 2025 {{ config.SITE_NAME }}. All rights reserved.</p>
+                    <p class="text-muted small mt-2">Version: <a href="{{ url_for('version_check') }}" class="text-muted" style="text-decoration: none;">{{ config.get('VERSION', '1.0.0') }}</a></p>
                 </div>
             </div>
         </div>

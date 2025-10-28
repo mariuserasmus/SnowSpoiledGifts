@@ -7,10 +7,9 @@
     <div class="container">
         <div class="row align-items-center">
             <div class="col-lg-8 mx-auto text-center hero-content">
-                <span class="badge coming-soon-badge mb-3">Coming Soon</span>
-                <h1 class="hero-title">Something Amazing is Coming!</h1>
+                <h1 class="hero-title">Something Amazing is Happening!</h1>
                 <p class="hero-subtitle">Get ready for unique, personalized gifts from 3D printing to custom giftboxes. Snow Spoiled Gifts is bringing you something special!</p>
-                <p class="launch-date"><i class="fas fa-rocket"></i> Launching our brand new website with exciting products, custom ordering at your fingertips, and regular updates with fresh creations!</p>
+                <p class="launch-date"><i class="fas fa-rocket"></i> New features being added regularly. Sign up to be the 1st to know about it!</p>
                 <a href="#notify" class="btn btn-primary btn-lg pulse">Get Notified of Major News!</a>
             </div>
         </div>
@@ -225,7 +224,10 @@
                         <i class="fas fa-envelope"></i>
                     </div>
                     <h4>Email</h4>
-                    <p><a href="mailto:{{ config.CONTACT_EMAIL }}">{{ config.CONTACT_EMAIL }}</a></p>
+                    <p>
+                        <a href="mailto:{{ config.CONTACT_EMAIL }}">{{ config.CONTACT_EMAIL }}</a><br>
+                        <a href="mailto:info@snowspoiledgifts.co.za">info@snowspoiledgifts.co.za</a>
+                    </p>
                 </div>
             </div>
             <div class="col-md-4 mb-4">
@@ -240,10 +242,13 @@
             <div class="col-md-4 mb-4">
                 <div class="contact-card">
                     <div class="contact-icon">
-                        <i class="fas fa-map-marker-alt"></i>
+                        <i class="fas fa-globe"></i>
                     </div>
-                    <h4>Website</h4>
-                    <p>{{ config.SITE_URL }}</p>
+                    <h4>Website & Social</h4>
+                    <p>
+                        <a href="{{ config.SITE_URL }}" target="_blank">{{ config.SITE_URL }}</a><br>
+                        <a href="https://facebook.com/snowspoiledgifts" target="_blank">Facebook</a>
+                    </p>
                 </div>
             </div>
         </div>
