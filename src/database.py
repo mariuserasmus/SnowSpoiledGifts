@@ -158,6 +158,19 @@ class Database:
             )
         ''')
 
+        # Create cart_items table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS cart_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT,
+                user_id INTEGER,
+                item_id INTEGER NOT NULL,
+                quantity INTEGER DEFAULT 1,
+                added_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (item_id) REFERENCES cutter_items(id)
+            )
+        ''')
+
         # Create index for faster queries
         cursor.execute('''
             CREATE INDEX IF NOT EXISTS idx_cutter_items_category
@@ -172,6 +185,16 @@ class Database:
         cursor.execute('''
             CREATE INDEX IF NOT EXISTS idx_cutter_item_photos_item
             ON cutter_item_photos(item_id)
+        ''')
+
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_cart_items_session
+            ON cart_items(session_id)
+        ''')
+
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_cart_items_user
+            ON cart_items(user_id)
         ''')
 
         conn.commit()
@@ -1386,9 +1409,211 @@ class Database:
         """Get a single print service request by ID"""
         conn = self.get_connection()
         cursor = conn.cursor()
-        
+
         cursor.execute('SELECT * FROM print_service_requests WHERE id = ?', (quote_id,))
         request = cursor.fetchone()
         conn.close()
-        
+
         return dict(request) if request else None
+
+    # ============================================================================
+    # SHOPPING CART
+    # ============================================================================
+
+    def add_to_cart(self, session_id, item_id, quantity=1, user_id=None):
+        """Add an item to cart or update quantity if already in cart"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Check if item already in cart
+            if user_id:
+                cursor.execute('''
+                    SELECT id, quantity FROM cart_items
+                    WHERE user_id = ? AND item_id = ?
+                ''', (user_id, item_id))
+            else:
+                cursor.execute('''
+                    SELECT id, quantity FROM cart_items
+                    WHERE session_id = ? AND item_id = ? AND user_id IS NULL
+                ''', (session_id, item_id))
+
+            existing = cursor.fetchone()
+
+            if existing:
+                # Update quantity
+                new_quantity = existing['quantity'] + quantity
+                cursor.execute('''
+                    UPDATE cart_items
+                    SET quantity = ?
+                    WHERE id = ?
+                ''', (new_quantity, existing['id']))
+                message = "Cart updated!"
+            else:
+                # Add new item
+                cursor.execute('''
+                    INSERT INTO cart_items (session_id, user_id, item_id, quantity)
+                    VALUES (?, ?, ?, ?)
+                ''', (session_id, user_id, item_id, quantity))
+                message = "Added to cart!"
+
+            conn.commit()
+            conn.close()
+            return True, message
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}"
+
+    def get_cart_items(self, session_id, user_id=None):
+        """Get all items in cart with product details"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            if user_id:
+                cursor.execute('''
+                    SELECT
+                        cart.id as cart_id,
+                        cart.item_id,
+                        cart.quantity,
+                        cart.added_date,
+                        item.name,
+                        item.price,
+                        item.item_number,
+                        item.stock_status,
+                        (SELECT photo_path FROM cutter_item_photos
+                         WHERE item_id = item.id AND is_main = 1 LIMIT 1) as main_photo
+                    FROM cart_items cart
+                    JOIN cutter_items item ON cart.item_id = item.id
+                    WHERE cart.user_id = ? AND item.is_active = 1
+                    ORDER BY cart.added_date DESC
+                ''', (user_id,))
+            else:
+                cursor.execute('''
+                    SELECT
+                        cart.id as cart_id,
+                        cart.item_id,
+                        cart.quantity,
+                        cart.added_date,
+                        item.name,
+                        item.price,
+                        item.item_number,
+                        item.stock_status,
+                        (SELECT photo_path FROM cutter_item_photos
+                         WHERE item_id = item.id AND is_main = 1 LIMIT 1) as main_photo
+                    FROM cart_items cart
+                    JOIN cutter_items item ON cart.item_id = item.id
+                    WHERE cart.session_id = ? AND cart.user_id IS NULL AND item.is_active = 1
+                    ORDER BY cart.added_date DESC
+                ''', (session_id,))
+
+            items = cursor.fetchall()
+            conn.close()
+
+            result = []
+            for item in items:
+                result.append({
+                    'cart_id': item['cart_id'],
+                    'item_id': item['item_id'],
+                    'quantity': item['quantity'],
+                    'name': item['name'],
+                    'price': item['price'],
+                    'item_number': item['item_number'],
+                    'stock_status': item['stock_status'],
+                    'main_photo': item['main_photo'],
+                    'added_date': item['added_date'],
+                    'subtotal': item['price'] * item['quantity']
+                })
+
+            return result
+
+        except Exception as e:
+            conn.close()
+            return []
+
+    def update_cart_quantity(self, cart_id, quantity):
+        """Update quantity of an item in cart"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            if quantity <= 0:
+                # Remove item if quantity is 0 or less
+                cursor.execute('DELETE FROM cart_items WHERE id = ?', (cart_id,))
+                message = "Item removed from cart!"
+            else:
+                cursor.execute('''
+                    UPDATE cart_items
+                    SET quantity = ?
+                    WHERE id = ?
+                ''', (quantity, cart_id))
+                message = "Cart updated!"
+
+            conn.commit()
+            conn.close()
+            return True, message
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}"
+
+    def remove_from_cart(self, cart_id):
+        """Remove an item from cart"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('DELETE FROM cart_items WHERE id = ?', (cart_id,))
+            conn.commit()
+            conn.close()
+            return True, "Item removed from cart!"
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}"
+
+    def get_cart_count(self, session_id, user_id=None):
+        """Get total number of items in cart"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            if user_id:
+                cursor.execute('''
+                    SELECT SUM(quantity) as count FROM cart_items WHERE user_id = ?
+                ''', (user_id,))
+            else:
+                cursor.execute('''
+                    SELECT SUM(quantity) as count FROM cart_items
+                    WHERE session_id = ? AND user_id IS NULL
+                ''', (session_id,))
+
+            result = cursor.fetchone()
+            conn.close()
+
+            count = result['count'] if result['count'] else 0
+            return count
+
+        except Exception as e:
+            conn.close()
+            return 0
+
+    def clear_cart(self, session_id, user_id=None):
+        """Clear all items from cart"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            if user_id:
+                cursor.execute('DELETE FROM cart_items WHERE user_id = ?', (user_id,))
+            else:
+                cursor.execute('DELETE FROM cart_items WHERE session_id = ? AND user_id IS NULL', (session_id,))
+
+            conn.commit()
+            conn.close()
+            return True, "Cart cleared!"
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}"

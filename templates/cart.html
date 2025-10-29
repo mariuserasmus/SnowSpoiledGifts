@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+
+{% block title %}Shopping Cart - {{ config.SITE_NAME }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Category Header - Match 3D Printing Page */
+    .category-header {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: white;
+        padding: 40px 0 20px;
+        margin-top: 76px;
+    }
+
+    .category-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .category-description {
+        font-size: 0.95rem;
+        opacity: 0.9;
+        margin: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Cart Header -->
+<section class="category-header">
+    <div class="container">
+        <h1 class="category-title"><i class="fas fa-shopping-cart"></i> Shopping Cart</h1>
+        <p class="category-description">Review your items before checkout</p>
+    </div>
+</section>
+
+<!-- Cart Content -->
+<section class="cart-section py-5">
+    <div class="container">
+        {% if cart_items %}
+        <div class="row">
+            <!-- Cart Items Column -->
+            <div class="col-lg-8 mb-4">
+                <div class="card shadow-sm" style="overflow-x: auto;">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-list"></i> Cart Items ({{ cart_items|length }})</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0" style="width: 100%;">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 80px; min-width: 80px;">Image</th>
+                                        <th style="min-width: 150px;">Product</th>
+                                        <th style="width: 90px; min-width: 90px; white-space: nowrap;">Price</th>
+                                        <th style="width: 130px; min-width: 130px;">Qty</th>
+                                        <th style="width: 90px; min-width: 90px; white-space: nowrap;">Total</th>
+                                        <th style="width: 50px; min-width: 50px; text-align: center;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in cart_items %}
+                                    <tr data-cart-id="{{ item.cart_id }}">
+                                        <td>
+                                            {% if item.main_photo %}
+                                            <img src="/{{ item.main_photo.replace('\\', '/') }}"
+                                                 alt="{{ item.name }}"
+                                                 class="img-thumbnail"
+                                                 style="width: 80px; height: 80px; object-fit: cover; cursor: pointer;"
+                                                 onclick="showImageZoom(this.src, '{{ item.name }}')"
+                                                 onerror="this.src='https://images.unsplash.com/photo-1551754655-cd27e38d2076?w=80&h=80&fit=crop&q=80'">
+                                            {% else %}
+                                            <img src="https://images.unsplash.com/photo-1551754655-cd27e38d2076?w=80&h=80&fit=crop&q=80"
+                                                 alt="{{ item.name }}"
+                                                 class="img-thumbnail"
+                                                 style="width: 80px; height: 80px; object-fit: cover;">
+                                            {% endif %}
+                                        </td>
+                                        <td class="align-middle">
+                                            <h6 class="mb-1" style="word-wrap: break-word; overflow-wrap: break-word; white-space: normal;">{{ item.name }}</h6>
+                                            <small class="text-muted" style="word-wrap: break-word;">{{ item.item_number }}</small>
+                                        </td>
+                                        <td class="align-middle">
+                                            <strong>R{{ "%.2f"|format(item.price) }}</strong>
+                                        </td>
+                                        <td class="align-middle">
+                                            <div class="input-group input-group-sm" style="max-width: 120px;">
+                                                <button class="btn btn-outline-secondary btn-sm" type="button"
+                                                        onclick="updateQuantity({{ item.cart_id }}, {{ item.quantity - 1 }})"
+                                                        style="padding: 0.25rem 0.4rem;">
+                                                    <i class="fas fa-minus"></i>
+                                                </button>
+                                                <input type="number" class="form-control form-control-sm text-center"
+                                                       value="{{ item.quantity }}"
+                                                       min="1" max="999"
+                                                       id="qty-{{ item.cart_id }}"
+                                                       onchange="updateQuantity({{ item.cart_id }}, this.value)"
+                                                       style="max-width: 50px; padding: 0.25rem;">
+                                                <button class="btn btn-outline-secondary btn-sm" type="button"
+                                                        onclick="updateQuantity({{ item.cart_id }}, {{ item.quantity + 1 }})"
+                                                        style="padding: 0.25rem 0.4rem;">
+                                                    <i class="fas fa-plus"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                        <td class="align-middle">
+                                            <strong class="item-subtotal">R{{ "%.2f"|format(item.subtotal) }}</strong>
+                                        </td>
+                                        <td class="align-middle text-center">
+                                            <button class="btn btn-outline-danger btn-sm"
+                                                    onclick="removeItem({{ item.cart_id }}, '{{ item.name }}')"
+                                                    title="Remove from cart">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Continue Shopping Button -->
+                <div class="mt-3">
+                    <a href="{{ url_for('printing_3d') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-arrow-left"></i> Continue Shopping
+                    </a>
+                </div>
+            </div>
+
+            <!-- Cart Summary Column -->
+            <div class="col-lg-4">
+                <div class="card shadow-sm sticky-top" style="top: 100px;">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-calculator"></i> Order Summary</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Subtotal:</span>
+                            <strong id="cart-subtotal">R{{ "%.2f"|format(subtotal) }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Shipping:</span>
+                            <span class="text-muted">Calculated at checkout</span>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between mb-3">
+                            <h5>Total:</h5>
+                            <h5 class="text-success" id="cart-total">R{{ "%.2f"|format(subtotal) }}</h5>
+                        </div>
+
+                        <button class="btn btn-success btn-lg w-100 mb-2" disabled>
+                            <i class="fas fa-lock"></i> Proceed to Checkout
+                        </button>
+                        <p class="text-center text-muted small mb-0">
+                            <i class="fas fa-info-circle"></i> Checkout coming soon!
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% else %}
+        <!-- Empty Cart -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow-sm text-center py-5">
+                    <div class="card-body">
+                        <i class="fas fa-shopping-cart fa-5x text-muted mb-4"></i>
+                        <h3>Your cart is empty</h3>
+                        <p class="text-muted mb-4">Start adding some items to your cart!</p>
+                        <a href="{{ url_for('printing_3d') }}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-shopping-bag"></i> Start Shopping
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- Image Zoom Modal -->
+<div class="modal fade" id="imageZoomModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageZoomTitle">Product Image</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-0">
+                <img id="imageZoomImg" src="" alt="" class="img-fluid" style="max-height: 70vh;">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Show image zoom modal
+    function showImageZoom(imageSrc, productName) {
+        document.getElementById('imageZoomTitle').textContent = productName;
+        document.getElementById('imageZoomImg').src = imageSrc;
+        document.getElementById('imageZoomImg').alt = productName;
+
+        const modal = new bootstrap.Modal(document.getElementById('imageZoomModal'));
+        modal.show();
+    }
+
+    // Update quantity in cart
+    function updateQuantity(cartId, newQuantity) {
+        newQuantity = parseInt(newQuantity);
+
+        // Validate quantity
+        if (isNaN(newQuantity) || newQuantity < 1) {
+            newQuantity = 1;
+        } else if (newQuantity > 999) {
+            newQuantity = 999;
+        }
+
+        // Update input value
+        const input = document.getElementById(`qty-${cartId}`);
+        if (input) {
+            input.value = newQuantity;
+        }
+
+        // Show loading state
+        const row = document.querySelector(`tr[data-cart-id="${cartId}"]`);
+        if (row) {
+            row.style.opacity = '0.5';
+        }
+
+        // Send update to server
+        fetch('/cart/update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                cart_id: cartId,
+                quantity: newQuantity
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update cart badge
+                if (typeof updateCartBadge === 'function') {
+                    updateCartBadge(data.cart_count);
+                }
+
+                // Update subtotal display
+                document.getElementById('cart-subtotal').textContent = `R${data.subtotal.toFixed(2)}`;
+                document.getElementById('cart-total').textContent = `R${data.subtotal.toFixed(2)}`;
+
+                // If quantity was set to 0, reload page to remove item
+                if (newQuantity === 0 || data.cart_count === 0) {
+                    location.reload();
+                } else {
+                    // Restore row opacity
+                    if (row) {
+                        row.style.opacity = '1';
+                    }
+                }
+            } else {
+                alert(data.message || 'Failed to update quantity');
+                location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please refresh the page.');
+            location.reload();
+        });
+    }
+
+    // Remove item from cart
+    function removeItem(cartId, itemName) {
+        if (!confirm(`Remove "${itemName}" from cart?`)) {
+            return;
+        }
+
+        // Show loading state
+        const row = document.querySelector(`tr[data-cart-id="${cartId}"]`);
+        if (row) {
+            row.style.opacity = '0.5';
+        }
+
+        // Send remove request
+        fetch('/cart/remove', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                cart_id: cartId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update cart badge
+                if (typeof updateCartBadge === 'function') {
+                    updateCartBadge(data.cart_count);
+                }
+
+                // Reload page to update cart display
+                location.reload();
+            } else {
+                alert(data.message || 'Failed to remove item');
+                location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please refresh the page.');
+            location.reload();
+        });
+    }
+</script>
+{% endblock %}

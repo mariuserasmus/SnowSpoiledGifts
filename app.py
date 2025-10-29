@@ -13,8 +13,21 @@ import random
 app = Flask(__name__)
 app.config.from_object(Config)
 
+# Configure session settings
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+app.config['PERMANENT_SESSION_LIFETIME'] = 86400 * 30  # 30 days
+
 # Initialize database
 db = Database(app.config['DATABASE_PATH'])
+
+
+def get_session_id():
+    """Get or create a session ID for cart tracking"""
+    if 'cart_session_id' not in session:
+        session['cart_session_id'] = os.urandom(24).hex()
+        session.permanent = True
+    return session['cart_session_id']
 
 
 def admin_required(f):
@@ -1000,6 +1013,146 @@ def email_customer(request_type, quote_id):
         flash(f'Failed to send email: {result_message}', 'error')
 
     return redirect(url_for('admin_quotes'))
+
+
+# ============================================================================
+# SHOPPING CART ROUTES
+# ============================================================================
+
+@app.route('/cart/add', methods=['POST'])
+def cart_add():
+    """Add an item to the shopping cart"""
+    from flask import jsonify
+
+    try:
+        data = request.get_json()
+        item_id = data.get('item_id')
+        quantity = data.get('quantity', 1)
+
+        if not item_id:
+            return jsonify({'success': False, 'message': 'Item ID required'}), 400
+
+        # Get or create session ID
+        session_id = get_session_id()
+
+        # Add to cart (user_id will be None for guest users)
+        user_id = session.get('user_id')  # For future user authentication
+        success, message = db.add_to_cart(session_id, item_id, quantity, user_id)
+
+        if success:
+            # Get updated cart count
+            cart_count = db.get_cart_count(session_id, user_id)
+            return jsonify({
+                'success': True,
+                'message': message,
+                'cart_count': cart_count
+            })
+        else:
+            return jsonify({'success': False, 'message': message}), 500
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/cart')
+def cart():
+    """Display shopping cart page"""
+    session_id = get_session_id()
+    user_id = session.get('user_id')  # For future user authentication
+
+    # Get cart items
+    cart_items = db.get_cart_items(session_id, user_id)
+
+    # Calculate totals
+    subtotal = sum(item['subtotal'] for item in cart_items)
+
+    return render_template('cart.html',
+                          cart_items=cart_items,
+                          subtotal=subtotal,
+                          config=app.config)
+
+
+@app.route('/cart/update', methods=['POST'])
+def cart_update():
+    """Update quantity of item in cart"""
+    from flask import jsonify
+
+    try:
+        data = request.get_json()
+        cart_id = data.get('cart_id')
+        quantity = data.get('quantity')
+
+        if not cart_id or quantity is None:
+            return jsonify({'success': False, 'message': 'Cart ID and quantity required'}), 400
+
+        success, message = db.update_cart_quantity(cart_id, quantity)
+
+        if success:
+            # Get updated cart info
+            session_id = get_session_id()
+            user_id = session.get('user_id')
+            cart_count = db.get_cart_count(session_id, user_id)
+            cart_items = db.get_cart_items(session_id, user_id)
+            subtotal = sum(item['subtotal'] for item in cart_items)
+
+            return jsonify({
+                'success': True,
+                'message': message,
+                'cart_count': cart_count,
+                'subtotal': subtotal
+            })
+        else:
+            return jsonify({'success': False, 'message': message}), 500
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/cart/remove', methods=['POST'])
+def cart_remove():
+    """Remove an item from cart"""
+    from flask import jsonify
+
+    try:
+        data = request.get_json()
+        cart_id = data.get('cart_id')
+
+        if not cart_id:
+            return jsonify({'success': False, 'message': 'Cart ID required'}), 400
+
+        success, message = db.remove_from_cart(cart_id)
+
+        if success:
+            # Get updated cart info
+            session_id = get_session_id()
+            user_id = session.get('user_id')
+            cart_count = db.get_cart_count(session_id, user_id)
+            cart_items = db.get_cart_items(session_id, user_id)
+            subtotal = sum(item['subtotal'] for item in cart_items)
+
+            return jsonify({
+                'success': True,
+                'message': message,
+                'cart_count': cart_count,
+                'subtotal': subtotal
+            })
+        else:
+            return jsonify({'success': False, 'message': message}), 500
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/cart/count')
+def cart_count():
+    """Get current cart count (for AJAX updates)"""
+    from flask import jsonify
+
+    session_id = get_session_id()
+    user_id = session.get('user_id')
+    count = db.get_cart_count(session_id, user_id)
+
+    return jsonify({'count': count})
 
 
 if __name__ == '__main__':
