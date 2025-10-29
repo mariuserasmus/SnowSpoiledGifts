@@ -87,7 +87,7 @@
                                         <td class="align-middle">
                                             <div class="input-group input-group-sm" style="max-width: 120px;">
                                                 <button class="btn btn-outline-secondary btn-sm" type="button"
-                                                        onclick="updateQuantity({{ item.cart_id }}, {{ item.quantity - 1 }})"
+                                                        onclick="changeQuantity({{ item.cart_id }}, -1)"
                                                         style="padding: 0.25rem 0.4rem;">
                                                     <i class="fas fa-minus"></i>
                                                 </button>
@@ -98,7 +98,7 @@
                                                        onchange="updateQuantity({{ item.cart_id }}, this.value)"
                                                        style="max-width: 50px; padding: 0.25rem;">
                                                 <button class="btn btn-outline-secondary btn-sm" type="button"
-                                                        onclick="updateQuantity({{ item.cart_id }}, {{ item.quantity + 1 }})"
+                                                        onclick="changeQuantity({{ item.cart_id }}, 1)"
                                                         style="padding: 0.25rem 0.4rem;">
                                                     <i class="fas fa-plus"></i>
                                                 </button>
@@ -206,6 +206,17 @@
 
         const modal = new bootstrap.Modal(document.getElementById('imageZoomModal'));
         modal.show();
+    }
+
+    // Change quantity by delta (+1 or -1)
+    function changeQuantity(cartId, delta) {
+        const input = document.getElementById(`qty-${cartId}`);
+        if (!input) return;
+
+        const currentQty = parseInt(input.value) || 1;
+        const newQuantity = currentQty + delta;
+
+        updateQuantity(cartId, newQuantity);
     }
 
     // Update quantity in cart

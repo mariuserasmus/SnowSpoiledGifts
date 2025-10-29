@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Login - {{ config.SITE_NAME }}{% endblock %}
+
+{% block content %}
+<section class="admin-login-section">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-4 col-md-6 mx-auto">
+                <div class="login-card">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-sign-in-alt admin-icon" style="color: #8b5cf6;"></i>
+                        <h2>Welcome Back</h2>
+                        <p class="text-muted">Sign in to your account</p>
+                    </div>
+                    <form method="POST" action="{{ url_for('login') }}">
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">{{ form.email.label.text }}</label>
+                            {{ form.email(class="form-control", placeholder="your@email.com") }}
+                            {% if form.email.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.email.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">{{ form.password.label.text }}</label>
+                            {{ form.password(class="form-control", placeholder="Enter your password") }}
+                            {% if form.password.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.password.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 mb-3">
+                            <i class="fas fa-sign-in-alt"></i> Sign In
+                        </button>
+
+                        <div class="text-center">
+                            <p class="text-muted mb-2">Don't have an account?</p>
+                            <a href="{{ url_for('register') }}" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-user-plus"></i> Create Account
+                            </a>
+                        </div>
+                    </form>
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('index') }}" class="text-muted">
+                            <i class="fas fa-arrow-left"></i> Back to Home
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

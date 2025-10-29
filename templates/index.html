@@ -7,11 +7,109 @@
     <div class="container">
         <div class="row align-items-center">
             <div class="col-lg-8 mx-auto text-center hero-content">
-                <h1 class="hero-title">Something Amazing is Happening!</h1>
-                <p class="hero-subtitle">Get ready for unique, personalized gifts from 3D printing to custom giftboxes. Snow Spoiled Gifts is bringing you something special!</p>
-                <p class="launch-date"><i class="fas fa-rocket"></i> New features being added regularly. Sign up to be the 1st to know about it!</p>
-                <a href="#notify" class="btn btn-primary btn-lg pulse">Get Notified of Major News!</a>
+                <h1 class="hero-title">Welcome to<br>Snow Spoiled Gifts! 🎁</h1>
+                <p class="hero-subtitle">Unique cookie cutters, 3D printing services & personalized gifts ready to order. Create something special today!</p>
+                <div class="hero-buttons mt-4">
+                    <a href="#categories" class="btn btn-primary btn-lg me-2 mb-2">
+                        <i class="fas fa-shopping-bag"></i> Shop Now
+                    </a>
+                    <a href="#notify" class="btn btn-outline-light btn-lg mb-2">
+                        <i class="fas fa-bell"></i> Get Updates
+                    </a>
+                </div>
+                <p class="launch-date mt-3"><i class="fas fa-sparkles"></i> New products added regularly!</p>
             </div>
+        </div>
+    </div>
+</section>
+
+<!-- Stats Counter Section -->
+<section class="stats-section py-5" style="background: #2a2a2a;">
+    <div class="container">
+        <div class="row text-center g-4">
+            <div class="col-6 col-md-3">
+                <div class="stat-card">
+                    <i class="fas fa-box-open fa-2x mb-3" style="color: var(--primary-color);"></i>
+                    <h3 class="stat-number" data-target="{{ total_products }}" style="color: #ffffff;">0</h3>
+                    <p class="stat-label mb-0" style="color: #cccccc;">Products Available</p>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-card">
+                    <i class="fas fa-tags fa-2x mb-3" style="color: var(--primary-color);"></i>
+                    <h3 class="stat-number" data-target="6" style="color: #ffffff;">0</h3>
+                    <p class="stat-label mb-0" style="color: #cccccc;">Categories</p>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-card">
+                    <i class="fas fa-users fa-2x mb-3" style="color: var(--primary-color);"></i>
+                    <h3 class="stat-number" data-target="{{ total_customers }}" style="color: #ffffff;">0</h3>
+                    <p class="stat-label mb-0" style="color: #cccccc;">Happy Customers</p>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-card">
+                    <i class="fas fa-fire fa-2x mb-3" style="color: var(--primary-color);"></i>
+                    <h3 class="stat-number" data-target="{{ new_products }}" style="color: #ffffff;">0</h3>
+                    <p class="stat-label mb-0" style="color: #cccccc;">New This Month</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+// Animated counter for stats
+document.addEventListener('DOMContentLoaded', function() {
+    const statsSection = document.querySelector('.stats-section');
+    let hasAnimated = false;
+
+    function animateCounter(element) {
+        const target = parseInt(element.getAttribute('data-target'));
+        const duration = 2000; // 2 seconds
+        const increment = target / (duration / 16); // 60fps
+        let current = 0;
+
+        const timer = setInterval(() => {
+            current += increment;
+            if (current >= target) {
+                element.textContent = target + '+';
+                clearInterval(timer);
+            } else {
+                element.textContent = Math.floor(current) + '+';
+            }
+        }, 16);
+    }
+
+    function checkScroll() {
+        if (hasAnimated) return;
+
+        const rect = statsSection.getBoundingClientRect();
+        const isVisible = rect.top < window.innerHeight && rect.bottom >= 0;
+
+        if (isVisible) {
+            hasAnimated = true;
+            document.querySelectorAll('.stat-number').forEach(animateCounter);
+        }
+    }
+
+    window.addEventListener('scroll', checkScroll);
+    checkScroll(); // Check on load in case already visible
+});
+</script>
+
+<!-- Featured Products Section -->
+<section class="featured-products-section py-5" style="background-color: var(--light-bg);">
+    <div class="container">
+        <div class="text-center mb-4">
+            <h2 class="section-title">Featured Products</h2>
+            <p class="section-subtitle">Check out our popular cookie cutters & 3D creations</p>
+        </div>
+        <div class="text-center">
+            <a href="{{ url_for('printing_3d') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-store"></i> Browse All Products
+            </a>
         </div>
     </div>
 </section>
@@ -20,8 +118,8 @@
 <section id="categories" class="categories-section">
     <div class="container">
         <div class="text-center mb-5">
-            <h2 class="section-title">What We Offer</h2>
-            <p class="section-subtitle">Explore our product categories - 3D Printing is live and ready to order!</p>
+            <h2 class="section-title">Shop by Category</h2>
+            <p class="section-subtitle">3D Printing is live and ready to order! More categories coming soon.</p>
         </div>
         <div class="row g-4">
             <!-- 3D Printing -->
@@ -142,9 +240,9 @@
             <div class="col-lg-6 mx-auto">
                 <div class="notify-card">
                     <div class="text-center mb-4">
-                        <i class="fas fa-bell notification-icon"></i>
-                        <h2 class="section-title">Be the First to Know!</h2>
-                        <p class="section-subtitle">Sign up to get notified when we launch</p>
+                        <i class="fas fa-envelope-open-text notification-icon"></i>
+                        <h2 class="section-title">Stay in the Loop!</h2>
+                        <p class="section-subtitle">Get exclusive updates on new products, special offers & more</p>
                     </div>
                     <form method="POST" action="{{ url_for('signup') }}" id="signupForm">
                         {{ form.hidden_tag() }}
@@ -199,7 +297,7 @@
                 <p class="lead">Welcome to Snow Spoiled Gifts, where creativity meets personalization!</p>
                 <p>We're a passionate home-based business dedicated to creating unique, personalized gifts that make every occasion special. From custom 3D printed cookie cutters to beautiful sublimation products, creative vinyl designs, and curated gift boxes - we pour love into every creation.</p>
                 <p>Our mission is simple: to help you spoil your loved ones (and yourself!) with gifts that are as unique as they are. Each product is crafted with care, attention to detail, and a whole lot of heart.</p>
-                <p><strong>Stay tuned - something amazing is coming your way!</strong></p>
+                <p><strong>Start shopping today and discover something special!</strong></p>
             </div>
             <div class="col-lg-4 mb-4 mb-lg-0 d-flex justify-content-center align-items-center">
                 <div class="about-logo-container">

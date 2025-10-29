@@ -1,8 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, Response
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from functools import wraps
 from src.config import Config
 from src.database import Database
-from src.forms import EmailSignupForm
+from src.forms import EmailSignupForm, RegistrationForm, LoginForm, EditProfileForm
 from src.email_utils import send_quote_notification, send_customer_confirmation, send_signup_confirmation, send_cake_topper_notification, send_print_service_notification, send_admin_reply_to_customer
 from version_check import get_version_info
 from datetime import datetime
@@ -20,6 +21,37 @@ app.config['PERMANENT_SESSION_LIFETIME'] = 86400 * 30  # 30 days
 
 # Initialize database
 db = Database(app.config['DATABASE_PATH'])
+
+# Initialize Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Please log in to access this page.'
+
+
+# User class for Flask-Login
+class User(UserMixin):
+    def __init__(self, user_dict):
+        self.id = user_dict['id']
+        self.email = user_dict['email']
+        self.name = user_dict['name']
+        self.phone = user_dict.get('phone')
+        self._is_active = user_dict.get('is_active', True)
+        self.created_date = user_dict.get('created_date')
+
+    @property
+    def is_active(self):
+        """Override UserMixin's is_active property"""
+        return self._is_active
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    """Load user by ID for Flask-Login"""
+    user_dict = db.get_user_by_id(int(user_id))
+    if user_dict:
+        return User(user_dict)
+    return None
 
 
 def get_session_id():
@@ -44,7 +76,23 @@ def admin_required(f):
 def index():
     """Main landing page"""
     form = EmailSignupForm()
-    return render_template('index.html', form=form, config=app.config)
+
+    # Get stats for homepage counters
+    total_products = len(db.get_all_cutter_items(active_only=True))
+    total_customers = db.get_signup_count()  # Using email signups as customer count for now
+
+    # Calculate new products this month (created in last 30 days)
+    from datetime import datetime, timedelta
+    thirty_days_ago = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+    all_products = db.get_all_cutter_items(active_only=True)
+    new_products = len([p for p in all_products if p['created_date'] and p['created_date'] >= thirty_days_ago])
+
+    return render_template('index.html',
+                          form=form,
+                          config=app.config,
+                          total_products=total_products,
+                          total_customers=total_customers,
+                          new_products=new_products)
 
 
 @app.route('/signup', methods=['POST'])
@@ -102,6 +150,136 @@ def signup():
 def thank_you():
     """Thank you page after signup"""
     return render_template('thank-you.html', config=app.config)
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    """User registration page"""
+    # Redirect if already logged in
+    if current_user.is_authenticated:
+        flash('You are already logged in!', 'info')
+        return redirect(url_for('index'))
+
+    form = RegistrationForm()
+
+    if form.validate_on_submit():
+        name = form.name.data
+        email = form.email.data
+        phone = form.phone.data if form.phone.data else None
+        password = form.password.data
+
+        # Create user
+        success, message, user_id = db.create_user(email, password, name, phone)
+
+        if success:
+            # Get the newly created user
+            user_dict = db.get_user_by_id(user_id)
+            if user_dict:
+                user = User(user_dict)
+                login_user(user)
+
+                # Migrate guest cart to user if exists
+                session_id = get_session_id()
+                db.migrate_guest_cart_to_user(session_id, user_id)
+
+                flash(f'Registration successful! Welcome to {app.config["SITE_NAME"]}!', 'success')
+                return redirect(url_for('index'))
+            else:
+                flash('An error occurred after registration. Please try logging in.', 'error')
+                return redirect(url_for('login'))
+        else:
+            flash(message, 'error')
+            return render_template('register.html', form=form, config=app.config)
+
+    return render_template('register.html', form=form, config=app.config)
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """User login page"""
+    # Redirect if already logged in
+    if current_user.is_authenticated:
+        flash('You are already logged in!', 'info')
+        return redirect(url_for('index'))
+
+    form = LoginForm()
+
+    if form.validate_on_submit():
+        email = form.email.data
+        password = form.password.data
+
+        # Verify credentials
+        is_valid, user_dict = db.verify_password(email, password)
+
+        if is_valid and user_dict:
+            user = User(user_dict)
+            login_user(user)
+
+            # Migrate guest cart to user if exists
+            session_id = get_session_id()
+            db.migrate_guest_cart_to_user(session_id, user_dict['id'])
+
+            flash(f'Welcome back, {user.name}!', 'success')
+
+            # Redirect to next page if specified, otherwise to home
+            next_page = request.args.get('next')
+            if next_page:
+                return redirect(next_page)
+            return redirect(url_for('index'))
+        else:
+            flash('Invalid email or password. Please try again.', 'error')
+            return render_template('login.html', form=form, config=app.config)
+
+    return render_template('login.html', form=form, config=app.config)
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    """User logout"""
+    logout_user()
+    flash('You have been logged out successfully.', 'success')
+    return redirect(url_for('index'))
+
+
+@app.route('/account', methods=['GET', 'POST'])
+@login_required
+def account():
+    """User account dashboard"""
+    form = EditProfileForm()
+
+    if form.validate_on_submit():
+        # Update user profile
+        update_data = {
+            'name': form.name.data,
+            'email': form.email.data,
+            'phone': form.phone.data if form.phone.data else None
+        }
+
+        success, message = db.update_user(current_user.id, update_data)
+
+        if success:
+            flash('Profile updated successfully!', 'success')
+            # Refresh current user data
+            user_dict = db.get_user_by_id(current_user.id)
+            if user_dict:
+                current_user.name = user_dict['name']
+                current_user.email = user_dict['email']
+                current_user.phone = user_dict.get('phone')
+            return redirect(url_for('account'))
+        else:
+            flash(message, 'error')
+
+    # Pre-populate form with current user data
+    if request.method == 'GET':
+        form.name.data = current_user.name
+        form.email.data = current_user.email
+        form.phone.data = current_user.phone
+
+    # Get order history (placeholder for now)
+    orders = []  # TODO: Implement in Phase 3
+
+    return render_template('account.html', form=form, orders=orders, config=app.config)
 
 
 @app.route('/unsubscribe', methods=['GET', 'POST'])
@@ -1035,8 +1213,8 @@ def cart_add():
         # Get or create session ID
         session_id = get_session_id()
 
-        # Add to cart (user_id will be None for guest users)
-        user_id = session.get('user_id')  # For future user authentication
+        # Use Flask-Login's current_user
+        user_id = current_user.id if current_user.is_authenticated else None
         success, message = db.add_to_cart(session_id, item_id, quantity, user_id)
 
         if success:
@@ -1058,7 +1236,7 @@ def cart_add():
 def cart():
     """Display shopping cart page"""
     session_id = get_session_id()
-    user_id = session.get('user_id')  # For future user authentication
+    user_id = current_user.id if current_user.is_authenticated else None
 
     # Get cart items
     cart_items = db.get_cart_items(session_id, user_id)
@@ -1090,7 +1268,7 @@ def cart_update():
         if success:
             # Get updated cart info
             session_id = get_session_id()
-            user_id = session.get('user_id')
+            user_id = current_user.id if current_user.is_authenticated else None
             cart_count = db.get_cart_count(session_id, user_id)
             cart_items = db.get_cart_items(session_id, user_id)
             subtotal = sum(item['subtotal'] for item in cart_items)
@@ -1125,7 +1303,7 @@ def cart_remove():
         if success:
             # Get updated cart info
             session_id = get_session_id()
-            user_id = session.get('user_id')
+            user_id = current_user.id if current_user.is_authenticated else None
             cart_count = db.get_cart_count(session_id, user_id)
             cart_items = db.get_cart_items(session_id, user_id)
             subtotal = sum(item['subtotal'] for item in cart_items)
@@ -1149,7 +1327,7 @@ def cart_count():
     from flask import jsonify
 
     session_id = get_session_id()
-    user_id = session.get('user_id')
+    user_id = current_user.id if current_user.is_authenticated else None
     count = db.get_cart_count(session_id, user_id)
 
     return jsonify({'count': count})

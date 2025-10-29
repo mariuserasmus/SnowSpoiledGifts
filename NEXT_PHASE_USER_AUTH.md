@@ -1,7 +1,8 @@
-# NEXT PHASE: User Authentication
+# Phase 2: User Authentication
 
-**Status:** Ready to start
-**Estimated Time:** 6-8 hours
+**Status:** ✅ COMPLETE
+**Completion Date:** 2025-10-29
+**Actual Time:** ~6 hours
 **Priority:** High (needed before checkout)
 
 ---
@@ -18,50 +19,52 @@
 
 ## Phase 2: User Authentication - Implementation Plan
 
-### Checkpoint 2A: Database & Core Auth (45-60 min)
-- [ ] Create `users` table in database
+### Checkpoint 2A: Database & Core Auth ✅
+- ✅ Create `users` table in database
   - id, email, password_hash, name, phone, created_date
   - is_active, email_verified
-- [ ] Install `bcrypt` for password hashing
-- [ ] Add user management methods to `database.py`:
+- ✅ Install `bcrypt` for password hashing
+- ✅ Add user management methods to `database.py`:
   - `create_user(email, password, name, phone)`
   - `get_user_by_email(email)`
   - `get_user_by_id(user_id)`
   - `verify_password(email, password)`
   - `update_user(user_id, data)`
-- [ ] Create registration form in `src/forms.py`
-- [ ] Create `/register` route
-- [ ] Create `register.html` template
-- [ ] **TEST:** Register new user, verify in database
+  - `migrate_guest_cart_to_user(session_id, user_id)`
+- ✅ Create registration form in `src/forms.py`
+- ✅ Create `/register` route
+- ✅ Create `register.html` template
+- ✅ **TEST:** Register new user, verify in database
 
-### Checkpoint 2B: Login/Logout (30-45 min)
-- [ ] Install `flask-login` extension
-- [ ] Configure UserLoader in `app.py`
-- [ ] Create login form
-- [ ] Create `/login` route
-- [ ] Create `/logout` route
-- [ ] Create `login.html` template
-- [ ] Add login/logout links to navbar
-- [ ] Update navbar to show username when logged in
-- [ ] **TEST:** Login, logout, verify sessions work
+### Checkpoint 2B: Login/Logout ✅
+- ✅ Install `flask-login` extension
+- ✅ Configure UserLoader in `app.py`
+- ✅ Create login form
+- ✅ Create `/login` route
+- ✅ Create `/logout` route
+- ✅ Create `login.html` template
+- ✅ Add login/logout links to navbar
+- ✅ Update navbar to show username when logged in
+- ✅ **TEST:** Login, logout, verify sessions work
 
-### Checkpoint 2C: Member Dashboard (45-60 min)
-- [ ] Create `/account` route (login required)
-- [ ] Create `account.html` template showing:
+### Checkpoint 2C: Member Dashboard ✅
+- ✅ Create `/account` route (login required)
+- ✅ Create `account.html` template showing:
   - User profile information
   - Edit profile form
   - Order history (placeholder for now)
-- [ ] Add "My Account" dropdown in navbar
-- [ ] Migrate guest cart to user cart on login
+- ✅ Add "My Account" dropdown in navbar
+- ✅ Migrate guest cart to user cart on login
   - Transfer cart_items from session_id to user_id
-- [ ] **TEST:** Login, view dashboard, add items to cart
+- ✅ **TEST:** Login, view dashboard, add items to cart
 
-### Checkpoint 2D: Integration with Existing System (30-45 min)
-- [ ] Update cart routes to check for logged-in user
-- [ ] Update `get_cart_items()` calls to use user_id when available
-- [ ] Add decorator for login-required routes
-- [ ] Test guest → member cart migration
-- [ ] **TEST:** Full flow - guest cart → register → cart preserved
+### Checkpoint 2D: Integration with Existing System ✅
+- ✅ Update cart routes to check for logged-in user
+- ✅ Update `get_cart_items()` calls to use user_id when available
+- ✅ Add decorator for login-required routes
+- ✅ Test guest → member cart migration
+- ✅ **TEST:** Full flow - guest cart → register → cart preserved
+- ✅ **BUG FIX:** Cart quantity +/- buttons
 
 ### Checkpoint 2E: Password Reset (Optional - 45-60 min)
 *Can defer this if needed*

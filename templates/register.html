@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Register - {{ config.SITE_NAME }}{% endblock %}
+
+{% block content %}
+<section class="admin-login-section">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-5 col-md-7 mx-auto">
+                <div class="login-card">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-user-plus admin-icon" style="color: #8b5cf6;"></i>
+                        <h2>Create Account</h2>
+                        <p class="text-muted">Join {{ config.SITE_NAME }} today</p>
+                    </div>
+                    <form method="POST" action="{{ url_for('register') }}">
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            <label for="name" class="form-label">{{ form.name.label.text }}</label>
+                            {{ form.name(class="form-control", placeholder="John Doe") }}
+                            {% if form.name.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.name.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">{{ form.email.label.text }}</label>
+                            {{ form.email(class="form-control", placeholder="john@example.com") }}
+                            {% if form.email.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.email.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">{{ form.phone.label.text }} (Optional)</label>
+                            {{ form.phone(class="form-control", placeholder="+27 12 345 6789") }}
+                            {% if form.phone.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.phone.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">{{ form.password.label.text }}</label>
+                            {{ form.password(class="form-control", placeholder="Minimum 6 characters") }}
+                            {% if form.password.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.password.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="confirm_password" class="form-label">{{ form.confirm_password.label.text }}</label>
+                            {{ form.confirm_password(class="form-control", placeholder="Re-enter password") }}
+                            {% if form.confirm_password.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.confirm_password.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 mb-3">
+                            <i class="fas fa-user-plus"></i> Create Account
+                        </button>
+
+                        <div class="text-center">
+                            <p class="text-muted mb-2">Already have an account?</p>
+                            <a href="{{ url_for('login') }}" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-sign-in-alt"></i> Sign In
+                            </a>
+                        </div>
+                    </form>
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('index') }}" class="text-muted">
+                            <i class="fas fa-arrow-left"></i> Back to Home
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

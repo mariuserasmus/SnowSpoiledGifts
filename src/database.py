@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 import json
 import secrets
+import bcrypt
 
 class Database:
     """Handle all database operations"""
@@ -195,6 +196,26 @@ class Database:
         cursor.execute('''
             CREATE INDEX IF NOT EXISTS idx_cart_items_user
             ON cart_items(user_id)
+        ''')
+
+        # Create users table for authentication
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                name TEXT NOT NULL,
+                phone TEXT,
+                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_active INTEGER DEFAULT 1,
+                email_verified INTEGER DEFAULT 0
+            )
+        ''')
+
+        # Create index for faster email lookups
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_users_email
+            ON users(email)
         ''')
 
         conn.commit()
@@ -1613,6 +1634,216 @@ class Database:
             conn.commit()
             conn.close()
             return True, "Cart cleared!"
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}"
+
+    # ============================================================================
+    # USER AUTHENTICATION
+    # ============================================================================
+
+    def create_user(self, email, password, name, phone=None):
+        """Create a new user with hashed password"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Hash the password using bcrypt
+            password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+
+            cursor.execute('''
+                INSERT INTO users (email, password_hash, name, phone)
+                VALUES (?, ?, ?, ?)
+            ''', (email.lower(), password_hash, name, phone))
+
+            conn.commit()
+            user_id = cursor.lastrowid
+            conn.close()
+            return True, "User created successfully!", user_id
+
+        except sqlite3.IntegrityError:
+            conn.close()
+            return False, "Email already exists!", None
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}", None
+
+    def get_user_by_email(self, email):
+        """Get user by email address"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('''
+                SELECT id, email, password_hash, name, phone, created_date, is_active, email_verified
+                FROM users
+                WHERE email = ?
+            ''', (email.lower(),))
+
+            user = cursor.fetchone()
+            conn.close()
+
+            if user:
+                return {
+                    'id': user['id'],
+                    'email': user['email'],
+                    'password_hash': user['password_hash'],
+                    'name': user['name'],
+                    'phone': user['phone'],
+                    'created_date': user['created_date'],
+                    'is_active': bool(user['is_active']),
+                    'email_verified': bool(user['email_verified'])
+                }
+            return None
+
+        except Exception as e:
+            conn.close()
+            return None
+
+    def get_user_by_id(self, user_id):
+        """Get user by ID"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('''
+                SELECT id, email, password_hash, name, phone, created_date, is_active, email_verified
+                FROM users
+                WHERE id = ?
+            ''', (user_id,))
+
+            user = cursor.fetchone()
+            conn.close()
+
+            if user:
+                return {
+                    'id': user['id'],
+                    'email': user['email'],
+                    'password_hash': user['password_hash'],
+                    'name': user['name'],
+                    'phone': user['phone'],
+                    'created_date': user['created_date'],
+                    'is_active': bool(user['is_active']),
+                    'email_verified': bool(user['email_verified'])
+                }
+            return None
+
+        except Exception as e:
+            conn.close()
+            return None
+
+    def verify_password(self, email, password):
+        """Verify user password and return user if valid"""
+        user = self.get_user_by_email(email)
+
+        if not user:
+            return False, None
+
+        if not user['is_active']:
+            return False, None
+
+        # Check password using bcrypt
+        if bcrypt.checkpw(password.encode('utf-8'), user['password_hash']):
+            return True, user
+
+        return False, None
+
+    def update_user(self, user_id, data):
+        """Update user information"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Build dynamic update query based on provided data
+            update_fields = []
+            values = []
+
+            if 'name' in data:
+                update_fields.append('name = ?')
+                values.append(data['name'])
+
+            if 'phone' in data:
+                update_fields.append('phone = ?')
+                values.append(data['phone'])
+
+            if 'email' in data:
+                update_fields.append('email = ?')
+                values.append(data['email'].lower())
+
+            if not update_fields:
+                conn.close()
+                return False, "No fields to update!"
+
+            # Add user_id to values
+            values.append(user_id)
+
+            query = f"UPDATE users SET {', '.join(update_fields)} WHERE id = ?"
+            cursor.execute(query, values)
+
+            conn.commit()
+            conn.close()
+            return True, "User updated successfully!"
+
+        except sqlite3.IntegrityError:
+            conn.close()
+            return False, "Email already exists!"
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}"
+
+    def migrate_guest_cart_to_user(self, session_id, user_id):
+        """Transfer guest cart items to logged-in user"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Get all guest cart items for this session
+            cursor.execute('''
+                SELECT item_id, quantity
+                FROM cart_items
+                WHERE session_id = ? AND user_id IS NULL
+            ''', (session_id,))
+
+            guest_items = cursor.fetchall()
+
+            for item in guest_items:
+                item_id = item['item_id']
+                quantity = item['quantity']
+
+                # Check if user already has this item in cart
+                cursor.execute('''
+                    SELECT id, quantity FROM cart_items
+                    WHERE user_id = ? AND item_id = ?
+                ''', (user_id, item_id))
+
+                existing = cursor.fetchone()
+
+                if existing:
+                    # Merge quantities
+                    new_quantity = existing['quantity'] + quantity
+                    cursor.execute('''
+                        UPDATE cart_items
+                        SET quantity = ?
+                        WHERE id = ?
+                    ''', (new_quantity, existing['id']))
+                else:
+                    # Transfer item to user cart
+                    cursor.execute('''
+                        UPDATE cart_items
+                        SET user_id = ?, session_id = NULL
+                        WHERE session_id = ? AND item_id = ? AND user_id IS NULL
+                    ''', (user_id, session_id, item_id))
+
+            # Delete any remaining guest cart items for this session
+            cursor.execute('''
+                DELETE FROM cart_items
+                WHERE session_id = ? AND user_id IS NULL
+            ''', (session_id,))
+
+            conn.commit()
+            conn.close()
+            return True, "Cart migrated successfully!"
 
         except Exception as e:
             conn.close()
