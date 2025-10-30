@@ -129,6 +129,24 @@
 
             <!-- Right Column: Actions & Summary -->
             <div class="col-lg-4">
+                <!-- Delete Order -->
+                <div class="card mb-4 border-danger">
+                    <div class="card-header bg-danger text-white">
+                        <h5><i class="fas fa-trash"></i> Delete Order</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            <i class="fas fa-exclamation-triangle text-warning"></i>
+                            Permanently delete this order. This action cannot be undone.
+                        </p>
+                        <form method="POST" action="{{ url_for('admin_delete_order', order_number=order.order_number) }}" onsubmit="return confirm('Are you sure you want to delete order {{ order.order_number }}? This action cannot be undone and will remove all order data including items.');">
+                            <button type="submit" class="btn btn-danger w-100">
+                                <i class="fas fa-trash"></i> Delete Order
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
                 <!-- Update Status -->
                 <div class="card mb-4">
                     <div class="card-header">

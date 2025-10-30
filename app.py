@@ -769,6 +769,20 @@ def admin_update_order_status(order_number):
     return redirect(url_for('admin_order_detail', order_number=order_number))
 
 
+@app.route('/admin/orders/<order_number>/delete', methods=['POST'])
+@admin_required
+def admin_delete_order(order_number):
+    """Delete an order"""
+    success, message = db.delete_order(order_number)
+
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'error')
+
+    return redirect(url_for('admin_orders'))
+
+
 @app.route('/admin/quotes')
 @admin_required
 def admin_quotes():

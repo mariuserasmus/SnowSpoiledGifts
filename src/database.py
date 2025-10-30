@@ -2213,3 +2213,33 @@ class Database:
         except Exception as e:
             conn.close()
             return False, f"An error occurred: {str(e)}"
+
+    def delete_order(self, order_number):
+        """Delete an order and its associated order items"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # First get the order ID
+            cursor.execute('SELECT id FROM orders WHERE order_number = ?', (order_number,))
+            order = cursor.fetchone()
+
+            if not order:
+                conn.close()
+                return False, "Order not found"
+
+            order_id = order['id']
+
+            # Delete order items first (foreign key constraint)
+            cursor.execute('DELETE FROM order_items WHERE order_id = ?', (order_id,))
+
+            # Then delete the order
+            cursor.execute('DELETE FROM orders WHERE id = ?', (order_id,))
+
+            conn.commit()
+            conn.close()
+            return True, f"Order {order_number} deleted successfully!"
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}"
