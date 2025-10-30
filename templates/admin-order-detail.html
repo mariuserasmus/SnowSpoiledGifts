@@ -180,7 +180,7 @@
                                 <i class="fas fa-download"></i> Download Invoice PDF
                             </a>
                             <form method="POST" action="{{ url_for('admin_send_invoice_email', order_number=order.order_number) }}" class="mb-2">
-                                <button type="submit" class="btn btn-success w-100">
+                                <button type="submit" class="btn btn-outline-primary w-100">
                                     <i class="fas fa-envelope"></i> Email Invoice to Customer
                                 </button>
                             </form>
@@ -289,10 +289,17 @@
 }
 
 .card-header {
-    background: var(--accent-color);
+    background: var(--primary-color);
     border-bottom: 2px solid var(--primary-color);
     border-radius: 15px 15px 0 0 !important;
-    color: var(--text-color);
+    color: white;
+}
+
+/* Keep Delete Order card red */
+.card.border-danger .card-header {
+    background: #dc3545;
+    border-bottom: 2px solid #dc3545;
+    color: white;
 }
 
 .card-body {
