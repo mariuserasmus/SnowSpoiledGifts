@@ -251,8 +251,15 @@
             <!-- Filters & Search Bar -->
             <div class="row mb-4">
                 <div class="col-12">
-                    <div class="product-filters-card">
-                        <div class="row g-3 align-items-end">
+                    <!-- Mobile: Collapsible Filter Button -->
+                    <button class="btn btn-outline-primary w-100 mb-3 d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="false" aria-controls="filterCollapse">
+                        <i class="fas fa-filter"></i> Show Filters & Search
+                    </button>
+
+                    <!-- Filter Section -->
+                    <div class="collapse d-md-block" id="filterCollapse">
+                        <div class="product-filters-card">
+                            <div class="row g-3 align-items-end">
                             <div class="col-md-3">
                                 <label class="form-label"><strong>Category</strong></label>
                                 <select class="form-select" id="filterCategory">
@@ -293,6 +300,7 @@
                             <div class="col-12">
                                 <p class="mb-0 text-muted"><strong>Showing {{ items|length }} products</strong></p>
                             </div>
+                        </div>
                         </div>
                     </div>
                 </div>
@@ -342,11 +350,11 @@
                                 </p>
                                 <div class="product-price">R{{ "%.2f"|format(item.price) }}</div>
                                 <div class="product-actions">
-                                    <button class="btn btn-primary btn-sm w-100 mb-2 add-to-cart-btn" data-item-id="{{ item.id }}" onclick="event.stopPropagation(); addToCart({{ item.id }}, '{{ item.name }}')">
-                                        <i class="fas fa-shopping-cart"></i> Add to Cart
+                                    <button class="btn btn-primary btn-sm add-to-cart-btn" data-item-id="{{ item.id }}" onclick="event.stopPropagation(); addToCart({{ item.id }}, '{{ item.name }}')">
+                                        <i class="fas fa-shopping-cart"></i> <span class="btn-text">Add to Cart</span>
                                     </button>
-                                    <button class="btn btn-outline-secondary btn-sm w-100" onclick="event.stopPropagation(); openCustomizeModal('{{ item.name }}')">
-                                        <i class="fas fa-pencil-alt"></i> Customize This
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="event.stopPropagation(); openCustomizeModal('{{ item.name }}')">
+                                        <i class="fas fa-pencil-alt"></i> <span class="btn-text">Customize This</span>
                                     </button>
                                 </div>
                             </div>
@@ -1085,6 +1093,44 @@
 
     .product-actions {
         margin-top: auto;
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    /* Desktop: Full width buttons with text */
+    @media (min-width: 768px) {
+        .product-actions {
+            flex-direction: column;
+        }
+
+        .product-actions .btn {
+            width: 100%;
+        }
+
+        .product-actions .add-to-cart-btn {
+            margin-bottom: 0.5rem;
+        }
+    }
+
+    /* Mobile: Icon-only buttons side by side */
+    @media (max-width: 767.98px) {
+        .product-actions {
+            flex-direction: row;
+            justify-content: space-between;
+        }
+
+        .product-actions .btn {
+            flex: 1;
+            padding: 0.5rem;
+        }
+
+        .product-actions .btn-text {
+            display: none;
+        }
+
+        .product-actions .btn i {
+            font-size: 1.1rem;
+        }
     }
 
     /* Print Config Section */

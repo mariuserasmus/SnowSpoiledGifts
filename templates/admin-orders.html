@@ -16,7 +16,8 @@
         <!-- Filter Buttons -->
         <div class="row mb-4">
             <div class="col">
-                <div class="btn-group btn-group-wrap" role="group">
+                <!-- Desktop: Button Group -->
+                <div class="btn-group d-none d-md-flex" role="group">
                     <a href="{{ url_for('admin_orders') }}" class="btn {% if not status_filter %}btn-primary{% else %}btn-outline-primary{% endif %}">
                         <i class="fas fa-list"></i> All
                     </a>
@@ -41,6 +42,36 @@
                     <a href="{{ url_for('admin_orders', status='delivered') }}" class="btn {% if status_filter == 'delivered' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
                         <i class="fas fa-box-open"></i> Delivered
                     </a>
+                </div>
+
+                <!-- Mobile: Dropdown -->
+                <div class="d-md-none">
+                    <select class="form-select form-select-lg" onchange="window.location.href=this.value">
+                        <option value="{{ url_for('admin_orders') }}" {% if not status_filter %}selected{% endif %}>
+                            📋 Filter: All Orders
+                        </option>
+                        <option value="{{ url_for('admin_orders', status='pending') }}" {% if status_filter == 'pending' %}selected{% endif %}>
+                            🕐 Pending
+                        </option>
+                        <option value="{{ url_for('admin_orders', status='confirmed') }}" {% if status_filter == 'confirmed' %}selected{% endif %}>
+                            ✅ Confirmed
+                        </option>
+                        <option value="{{ url_for('admin_orders', status='awaiting_payment') }}" {% if status_filter == 'awaiting_payment' %}selected{% endif %}>
+                            💳 Awaiting Payment
+                        </option>
+                        <option value="{{ url_for('admin_orders', status='paid') }}" {% if status_filter == 'paid' %}selected{% endif %}>
+                            ✔️ Paid
+                        </option>
+                        <option value="{{ url_for('admin_orders', status='processing') }}" {% if status_filter == 'processing' %}selected{% endif %}>
+                            ⚙️ Processing
+                        </option>
+                        <option value="{{ url_for('admin_orders', status='shipped') }}" {% if status_filter == 'shipped' %}selected{% endif %}>
+                            🚚 Shipped
+                        </option>
+                        <option value="{{ url_for('admin_orders', status='delivered') }}" {% if status_filter == 'delivered' %}selected{% endif %}>
+                            📦 Delivered
+                        </option>
+                    </select>
                 </div>
             </div>
         </div>
@@ -211,26 +242,11 @@
     background: var(--hover-bg);
 }
 
-/* Fix button group wrapping on mobile */
-.btn-group-wrap {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
-@media (max-width: 768px) {
-    .btn-group-wrap {
-        justify-content: center;
-    }
-
-    .btn-group-wrap .btn {
-        flex: 0 0 auto;
-        font-size: 0.85rem;
-        padding: 0.375rem 0.75rem;
-    }
-
-    .btn-group-wrap .btn i {
-        display: none; /* Hide icons on mobile to save space */
+/* Mobile dropdown styling */
+@media (max-width: 767.98px) {
+    .form-select-lg {
+        font-size: 1rem;
+        padding: 0.75rem 2.5rem 0.75rem 1rem;
     }
 }
 </style>
