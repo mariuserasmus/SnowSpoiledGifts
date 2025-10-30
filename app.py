@@ -37,6 +37,7 @@ class User(UserMixin):
         self.name = user_dict['name']
         self.phone = user_dict.get('phone')
         self._is_active = user_dict.get('is_active', True)
+        self.is_admin = user_dict.get('is_admin', False)
         self.created_date = user_dict.get('created_date')
 
     @property
@@ -705,6 +706,67 @@ def admin_signups():
                           signups=signups,
                           total_count=total_count,
                           config=app.config)
+
+
+@app.route('/admin/orders')
+@admin_required
+def admin_orders():
+    """Admin page to view and manage orders"""
+    status_filter = request.args.get('status', None)
+    orders = db.get_all_orders(status_filter)
+
+    return render_template('admin-orders.html',
+                          orders=orders,
+                          status_filter=status_filter,
+                          config=app.config)
+
+
+@app.route('/admin/orders/<order_number>')
+@admin_required
+def admin_order_detail(order_number):
+    """Admin page to view order details"""
+    order = db.get_order_by_number(order_number)
+
+    if not order:
+        flash('Order not found.', 'error')
+        return redirect(url_for('admin_orders'))
+
+    # Get customer info
+    customer = db.get_user_by_id(order['user_id'])
+
+    order_items = db.get_order_items(order['id'])
+
+    return render_template('admin-order-detail.html',
+                          order=order,
+                          customer=customer,
+                          order_items=order_items,
+                          config=app.config)
+
+
+@app.route('/admin/orders/<order_number>/update-status', methods=['POST'])
+@admin_required
+def admin_update_order_status(order_number):
+    """Update order status"""
+    new_status = request.form.get('status')
+    send_email = request.form.get('send_email') == 'on'
+
+    order = db.get_order_by_number(order_number)
+    if not order:
+        flash('Order not found.', 'error')
+        return redirect(url_for('admin_orders'))
+
+    # Update the status
+    db.update_order_status(order['id'], new_status)
+
+    # Send status update email if requested
+    if send_email:
+        from src.email_utils import send_order_status_update
+        user = db.get_user_by_id(order['user_id'])
+        if user:
+            send_order_status_update(app.config, user['email'], order_number, new_status, user['name'])
+
+    flash(f'Order {order_number} status updated to {new_status}.', 'success')
+    return redirect(url_for('admin_order_detail', order_number=order_number))
 
 
 @app.route('/admin/quotes')

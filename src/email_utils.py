@@ -1257,3 +1257,164 @@ Please log in to the admin panel to view full order details.
         error_msg = f"Failed to send order confirmation: {str(e)}"
         print(error_msg)
         return False, error_msg
+
+
+def send_order_status_update(config, customer_email, order_number, new_status, customer_name):
+    """
+    Send order status update email to customer.
+
+    Args:
+        config: Flask app config object
+        customer_email: Customer's email address
+        order_number: Order number
+        new_status: New order status (pending, confirmed, shipped, delivered)
+        customer_name: Customer's name
+
+    Returns:
+        Tuple (success: bool, message: str)
+    """
+    # Check if email password is configured
+    if not config['MAIL_PASSWORD']:
+        print("Warning: Email password not configured. Skipping status update email.")
+        return False, "Email not configured"
+
+    try:
+        # Define status-specific messages
+        status_info = {
+            'pending': {
+                'title': 'Order Received',
+                'icon': '⏳',
+                'color': '#fbbf24',
+                'message': 'We have received your order and will begin processing it shortly.'
+            },
+            'confirmed': {
+                'title': 'Order Confirmed',
+                'icon': '✓',
+                'color': '#3b82f6',
+                'message': 'Your order has been confirmed and is being prepared for shipment.'
+            },
+            'shipped': {
+                'title': 'Order Shipped',
+                'icon': '📦',
+                'color': '#10b981',
+                'message': 'Great news! Your order has been shipped and is on its way to you.'
+            },
+            'delivered': {
+                'title': 'Order Delivered',
+                'icon': '🎉',
+                'color': '#8b5cf6',
+                'message': 'Your order has been delivered! We hope you love your purchase.'
+            }
+        }
+
+        status_data = status_info.get(new_status, status_info['pending'])
+
+        # Create message
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"{status_data['title']} - Order {order_number}"
+        msg['From'] = config['MAIL_DEFAULT_SENDER']
+        msg['To'] = customer_email
+
+        # Create HTML email body
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: linear-gradient(135deg, {status_data['color']} 0%, {status_data['color']}dd 100%);
+                          color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
+                .header h1 {{ margin: 0; font-size: 28px; }}
+                .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }}
+                .status-badge {{ background: {status_data['color']}; color: white; padding: 10px 20px;
+                               border-radius: 20px; display: inline-block; margin: 20px 0; font-weight: bold; }}
+                .order-number {{ font-size: 20px; font-weight: bold; color: {status_data['color']}; margin: 20px 0; }}
+                .message-box {{ background: white; padding: 20px; border-radius: 8px; margin: 20px 0;
+                              border-left: 4px solid {status_data['color']}; }}
+                .footer {{ text-align: center; margin-top: 30px; color: #666; font-size: 12px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>{status_data['icon']} {status_data['title']}</h1>
+                </div>
+                <div class="content">
+                    <p>Hi {customer_name},</p>
+
+                    <div class="order-number">Order: {order_number}</div>
+
+                    <div class="status-badge">{new_status.upper()}</div>
+
+                    <div class="message-box">
+                        <p>{status_data['message']}</p>
+                    </div>
+
+                    <h3>What's Next?</h3>
+                    <ul>
+                        {'<li>We will contact you with payment details shortly.</li>' if new_status == 'confirmed' else ''}
+                        {'<li>You will receive a tracking number once your order is in transit.</li>' if new_status == 'shipped' else ''}
+                        {'<li>If you have any questions or concerns, please contact us.</li>' if new_status == 'delivered' else ''}
+                        <li>Track your order status anytime in "My Account" on our website.</li>
+                    </ul>
+
+                    <p>Thank you for choosing Snow Spoiled Gifts!</p>
+                </div>
+                <div class="footer">
+                    <p>Snow Spoiled Gifts<br>
+                    Email: info@snowspoiledgifts.co.za<br>
+                    This is an automated notification.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        # Create plain text version as fallback
+        text_body = f"""
+{status_data['title'].upper()}
+
+Hi {customer_name},
+
+Order: {order_number}
+Status: {new_status.upper()}
+
+{status_data['message']}
+
+What's Next?
+{'- We will contact you with payment details shortly.' if new_status == 'confirmed' else ''}
+{'- You will receive a tracking number once your order is in transit.' if new_status == 'shipped' else ''}
+{'- If you have any questions or concerns, please contact us.' if new_status == 'delivered' else ''}
+- Track your order status anytime in "My Account" on our website.
+
+Thank you for choosing Snow Spoiled Gifts!
+
+---
+Snow Spoiled Gifts
+Email: info@snowspoiledgifts.co.za
+        """
+
+        # Attach both HTML and plain text versions
+        part1 = MIMEText(text_body, 'plain')
+        part2 = MIMEText(html_body, 'html')
+        msg.attach(part1)
+        msg.attach(part2)
+
+        # Send email using SSL or TLS
+        if config.get('MAIL_USE_SSL'):
+            with smtplib.SMTP_SSL(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+                server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+                server.starttls()
+                server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+                server.send_message(msg)
+
+        return True, "Status update email sent successfully"
+
+    except Exception as e:
+        error_msg = f"Failed to send status update email: {str(e)}"
+        print(error_msg)
+        return False, error_msg

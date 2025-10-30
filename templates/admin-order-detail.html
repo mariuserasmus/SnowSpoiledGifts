@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Order {{ order.order_number }} - Admin - {{ config.SITE_NAME }}{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <div class="container-fluid">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <a href="{{ url_for('admin_orders') }}" class="btn btn-outline-secondary mb-2">
+                            <i class="fas fa-arrow-left"></i> Back to Orders
+                        </a>
+                        <h2><i class="fas fa-shopping-bag"></i> Order {{ order.order_number }}</h2>
+                    </div>
+                    <div>
+                        {% if order.status == 'pending' %}
+                            <span class="badge bg-warning text-dark fs-5">Pending</span>
+                        {% elif order.status == 'confirmed' %}
+                            <span class="badge bg-info fs-5">Confirmed</span>
+                        {% elif order.status == 'shipped' %}
+                            <span class="badge bg-success fs-5">Shipped</span>
+                        {% elif order.status == 'delivered' %}
+                            <span class="badge bg-secondary fs-5">Delivered</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Left Column: Order Details -->
+            <div class="col-lg-8">
+                <!-- Customer Info -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-user"></i> Customer Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Name:</strong> {{ customer.name if customer else 'N/A' }}</p>
+                        <p><strong>Email:</strong> {{ customer.email if customer else 'N/A' }}</p>
+                        <p><strong>Phone:</strong> {{ customer.phone if customer else 'N/A' }}</p>
+                        <p><strong>Order Date:</strong> {{ order.created_date }}</p>
+                    </div>
+                </div>
+
+                <!-- Shipping Info -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-shipping-fast"></i> Shipping Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Method:</strong>
+                            {% if order.shipping_method == 'pickup' %}
+                                <i class="fas fa-store"></i> Pickup in George
+                            {% elif order.shipping_method == 'own_courier' %}
+                                <i class="fas fa-truck"></i> Own Courier
+                            {% elif order.shipping_method == 'pudo' %}
+                                <i class="fas fa-box"></i> PUDO / Courier Guy
+                            {% endif %}
+                        </p>
+
+                        {% if order.shipping_method == 'pudo' %}
+                            <p><strong>PUDO Option:</strong>
+                                {% if order.pudo_option == 'locker_to_locker' %}
+                                    Locker-to-Locker (R69)
+                                {% elif order.pudo_option == 'locker_to_kiosk' %}
+                                    Locker-to-Kiosk (R79)
+                                {% elif order.pudo_option == 'locker_to_door' %}
+                                    Locker-to-Door (R109)
+                                {% elif order.pudo_option == 'kiosk_to_door' %}
+                                    Kiosk-to-Door (R119)
+                                {% endif %}
+                            </p>
+
+                            {% if order.pudo_option in ['locker_to_locker', 'locker_to_kiosk'] %}
+                                <p><strong>Locker Location:</strong><br>{{ order.locker_location|replace('\n', '<br>')|safe }}</p>
+                            {% elif order.pudo_option in ['locker_to_door', 'kiosk_to_door'] %}
+                                <p><strong>Delivery Address:</strong><br>
+                                {{ order.shipping_address }}<br>
+                                {{ order.shipping_city }}, {{ order.shipping_state }} {{ order.shipping_postal_code }}<br>
+                                {{ order.shipping_country }}
+                                </p>
+                            {% endif %}
+                        {% endif %}
+
+                        <p><strong>Shipping Cost:</strong> R{{ "%.2f"|format(order.shipping_cost) }}</p>
+                    </div>
+                </div>
+
+                <!-- Order Items -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-box-open"></i> Order Items</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th>Price</th>
+                                        <th>Quantity</th>
+                                        <th>Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in order_items %}
+                                    <tr>
+                                        <td>
+                                            {% if item.image_url %}
+                                                <img src="/{{ item.image_url }}" alt="{{ item.name }}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 5px; margin-right: 10px;">
+                                            {% endif %}
+                                            {{ item.name }}
+                                        </td>
+                                        <td>R{{ "%.2f"|format(item.price) }}</td>
+                                        <td>{{ item.quantity }}</td>
+                                        <td>R{{ "%.2f"|format(item.price * item.quantity) }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Actions & Summary -->
+            <div class="col-lg-4">
+                <!-- Update Status -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-edit"></i> Update Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('admin_update_order_status', order_number=order.order_number) }}">
+                            <div class="mb-3">
+                                <label for="status" class="form-label">New Status</label>
+                                <select name="status" id="status" class="form-select" required>
+                                    <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>Pending</option>
+                                    <option value="confirmed" {% if order.status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                                    <option value="shipped" {% if order.status == 'shipped' %}selected{% endif %}>Shipped</option>
+                                    <option value="delivered" {% if order.status == 'delivered' %}selected{% endif %}>Delivered</option>
+                                </select>
+                            </div>
+                            <div class="form-check mb-3" style="padding-left: 1.5rem;">
+                                <input type="checkbox" name="send_email" class="form-check-input" id="send_email" checked style="position: relative; margin-left: -1.5rem;">
+                                <label class="form-check-label" for="send_email" style="padding-left: 0.25rem;">
+                                    Send status update email to customer
+                                </label>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-save"></i> Update Status
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Order Summary -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-calculator"></i> Order Summary</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Subtotal:</span>
+                            <strong>R{{ "%.2f"|format(order.subtotal) }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Shipping:</span>
+                            <strong {% if order.shipping_cost == 0 %}class="text-success"{% endif %}>
+                                {% if order.shipping_cost == 0 %}
+                                    FREE
+                                {% else %}
+                                    R{{ "%.2f"|format(order.shipping_cost) }}
+                                {% endif %}
+                            </strong>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="fs-5"><strong>Total:</strong></span>
+                            <span class="fs-5"><strong>R{{ "%.2f"|format(order.total_amount) }}</strong></span>
+                        </div>
+
+                        <hr>
+
+                        <div class="alert alert-info mb-0" role="alert">
+                            <strong><i class="fas fa-info-circle"></i> Payment Method:</strong><br>
+                            EFT / Bank Transfer
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+.admin-section {
+    padding: 100px 20px 60px;
+    min-height: 100vh;
+    background: linear-gradient(135deg, var(--background-color) 0%, var(--accent-color) 100%);
+}
+
+.card {
+    background: var(--card-bg);
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    background: var(--accent-color);
+    border-bottom: 2px solid var(--primary-color);
+    border-radius: 15px 15px 0 0 !important;
+    color: var(--text-color);
+}
+
+.card-body {
+    color: var(--text-color);
+}
+
+.table {
+    color: var(--text-color);
+}
+</style>
+{% endblock %}

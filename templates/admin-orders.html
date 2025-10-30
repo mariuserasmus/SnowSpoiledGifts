@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}Orders - Admin - {{ config.SITE_NAME }}{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <div class="container-fluid">
+        <div class="row mb-3">
+            <div class="col">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2><i class="fas fa-shopping-bag"></i> Order Management</h2>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Buttons -->
+        <div class="row mb-4">
+            <div class="col">
+                <div class="btn-group" role="group">
+                    <a href="{{ url_for('admin_orders') }}" class="btn {% if not status_filter %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                        <i class="fas fa-list"></i> All Orders
+                    </a>
+                    <a href="{{ url_for('admin_orders', status='pending') }}" class="btn {% if status_filter == 'pending' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+                        <i class="fas fa-clock"></i> Pending
+                    </a>
+                    <a href="{{ url_for('admin_orders', status='confirmed') }}" class="btn {% if status_filter == 'confirmed' %}btn-info{% else %}btn-outline-info{% endif %}">
+                        <i class="fas fa-check-circle"></i> Confirmed
+                    </a>
+                    <a href="{{ url_for('admin_orders', status='shipped') }}" class="btn {% if status_filter == 'shipped' %}btn-success{% else %}btn-outline-success{% endif %}">
+                        <i class="fas fa-shipping-fast"></i> Shipped
+                    </a>
+                    <a href="{{ url_for('admin_orders', status='delivered') }}" class="btn {% if status_filter == 'delivered' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+                        <i class="fas fa-box-open"></i> Delivered
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-icon">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    <div class="stats-content">
+                        <h3>{{ orders|length }}</h3>
+                        <p>{% if status_filter %}{{ status_filter.title() }} Orders{% else %}Total Orders{% endif %}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-icon">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <div class="stats-content">
+                        <h3>R{{ "%.2f"|format(orders|sum(attribute='total_amount') or 0) }}</h3>
+                        <p>Total Value</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Orders Table -->
+        <div class="row">
+            <div class="col">
+                <div class="table-card">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Order #</th>
+                                    <th>Date</th>
+                                    <th>Customer</th>
+                                    <th>Status</th>
+                                    <th>Shipping Method</th>
+                                    <th>Total</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if orders %}
+                                    {% for order in orders %}
+                                    <tr>
+                                        <td><strong>{{ order.order_number }}</strong></td>
+                                        <td>{{ order.created_date[:10] }}</td>
+                                        <td>
+                                            {{ order.customer_name }}<br>
+                                            <small class="text-muted">{{ order.customer_email }}</small>
+                                        </td>
+                                        <td>
+                                            {% if order.status == 'pending' %}
+                                                <span class="badge bg-warning text-dark">Pending</span>
+                                            {% elif order.status == 'confirmed' %}
+                                                <span class="badge bg-info">Confirmed</span>
+                                            {% elif order.status == 'shipped' %}
+                                                <span class="badge bg-success">Shipped</span>
+                                            {% elif order.status == 'delivered' %}
+                                                <span class="badge bg-secondary">Delivered</span>
+                                            {% else %}
+                                                <span class="badge bg-light text-dark">{{ order.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if order.shipping_method == 'pickup' %}
+                                                <i class="fas fa-store"></i> Pickup
+                                            {% elif order.shipping_method == 'own_courier' %}
+                                                <i class="fas fa-truck"></i> Own Courier
+                                            {% elif order.shipping_method == 'pudo' %}
+                                                <i class="fas fa-box"></i> PUDO
+                                                {% if order.pudo_option %}
+                                                    <br><small class="text-muted">{{ order.pudo_option.upper().replace('_', '-') }}</small>
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+                                        <td><strong>R{{ "%.2f"|format(order.total_amount) }}</strong></td>
+                                        <td>
+                                            <a href="{{ url_for('admin_order_detail', order_number=order.order_number) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye"></i> View
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-4">
+                                            <i class="fas fa-inbox fa-3x mb-3"></i>
+                                            <p>No orders found.</p>
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+.admin-section {
+    padding: 100px 20px 60px;
+    min-height: 100vh;
+    background: linear-gradient(135deg, var(--background-color) 0%, var(--accent-color) 100%);
+}
+
+.table-card {
+    background: var(--card-bg);
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    padding: 30px;
+    margin-bottom: 30px;
+}
+
+.stats-card {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    border-radius: 15px;
+    padding: 25px;
+    color: white;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    margin-bottom: 20px;
+}
+
+.stats-icon {
+    font-size: 3rem;
+    margin-right: 20px;
+    opacity: 0.8;
+}
+
+.stats-content h3 {
+    font-size: 2.5rem;
+    margin: 0;
+    font-weight: bold;
+}
+
+.stats-content p {
+    margin: 0;
+    opacity: 0.9;
+}
+
+.table {
+    color: var(--text-color);
+}
+
+.table thead {
+    background: var(--accent-color);
+}
+
+.table tbody tr:hover {
+    background: var(--hover-bg);
+}
+</style>
+{% endblock %}

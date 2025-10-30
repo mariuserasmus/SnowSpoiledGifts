@@ -335,6 +335,10 @@ class Database:
                 if 'shipping_country' not in columns:
                     cursor.execute("ALTER TABLE users ADD COLUMN shipping_country TEXT DEFAULT 'South Africa'")
 
+                # Add is_admin column if missing
+                if 'is_admin' not in columns:
+                    cursor.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0")
+
         except Exception as e:
             # Migrations are optional, don't fail if they error
             print(f"Migration warning: {str(e)}")
@@ -1794,7 +1798,7 @@ class Database:
 
         try:
             cursor.execute('''
-                SELECT id, email, password_hash, name, phone, created_date, is_active, email_verified
+                SELECT id, email, password_hash, name, phone, created_date, is_active, email_verified, is_admin
                 FROM users
                 WHERE email = ?
             ''', (email.lower(),))
@@ -1811,13 +1815,37 @@ class Database:
                     'phone': user['phone'],
                     'created_date': user['created_date'],
                     'is_active': bool(user['is_active']),
-                    'email_verified': bool(user['email_verified'])
+                    'email_verified': bool(user['email_verified']),
+                    'is_admin': bool(user['is_admin']) if 'is_admin' in user.keys() else False
                 }
             return None
 
         except Exception as e:
             conn.close()
+            print(f"Error in get_user_by_email: {str(e)}")
             return None
+
+    def set_user_admin(self, email, is_admin=True):
+        """Set or unset admin status for a user by email"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('''
+                UPDATE users
+                SET is_admin = ?
+                WHERE email = ?
+            ''', (1 if is_admin else 0, email.lower()))
+
+            conn.commit()
+            rows_affected = cursor.rowcount
+            conn.close()
+            return rows_affected > 0
+
+        except Exception as e:
+            conn.close()
+            print(f"Error setting admin status: {str(e)}")
+            return False
 
     def get_user_by_id(self, user_id):
         """Get user by ID"""
@@ -1826,7 +1854,7 @@ class Database:
 
         try:
             cursor.execute('''
-                SELECT id, email, password_hash, name, phone, created_date, is_active, email_verified
+                SELECT id, email, password_hash, name, phone, created_date, is_active, email_verified, is_admin
                 FROM users
                 WHERE id = ?
             ''', (user_id,))
@@ -1843,12 +1871,14 @@ class Database:
                     'phone': user['phone'],
                     'created_date': user['created_date'],
                     'is_active': bool(user['is_active']),
-                    'email_verified': bool(user['email_verified'])
+                    'email_verified': bool(user['email_verified']),
+                    'is_admin': bool(user['is_admin']) if 'is_admin' in user.keys() else False
                 }
             return None
 
         except Exception as e:
             conn.close()
+            print(f"Error in get_user_by_id: {str(e)}")
             return None
 
     def verify_password(self, email, password):
@@ -1862,7 +1892,8 @@ class Database:
             return False, None
 
         # Check password using bcrypt
-        if bcrypt.checkpw(password.encode('utf-8'), user['password_hash']):
+        password_hash_bytes = user['password_hash'].encode('utf-8') if isinstance(user['password_hash'], str) else user['password_hash']
+        if bcrypt.checkpw(password.encode('utf-8'), password_hash_bytes):
             return True, user
 
         return False, None
@@ -2085,6 +2116,32 @@ class Database:
             WHERE user_id = ?
             ORDER BY created_date DESC
         ''', (user_id,))
+
+        orders = cursor.fetchall()
+        conn.close()
+
+        return [dict(order) for order in orders]
+
+    def get_all_orders(self, status_filter=None):
+        """Get all orders for admin (optionally filtered by status)"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        if status_filter:
+            cursor.execute('''
+                SELECT o.*, u.name as customer_name, u.email as customer_email
+                FROM orders o
+                LEFT JOIN users u ON o.user_id = u.id
+                WHERE o.status = ?
+                ORDER BY o.created_date DESC
+            ''', (status_filter,))
+        else:
+            cursor.execute('''
+                SELECT o.*, u.name as customer_name, u.email as customer_email
+                FROM orders o
+                LEFT JOIN users u ON o.user_id = u.id
+                ORDER BY o.created_date DESC
+            ''')
 
         orders = cursor.fetchall()
         conn.close()

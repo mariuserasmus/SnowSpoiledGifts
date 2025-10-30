@@ -49,5 +49,11 @@ class Config:
         'elmienerasmus@gmail.com,mariuserasmus69@gmail.com'
     ).split(',')
 
+    # Admin email for order notifications
+    ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'elmienerasmus@gmail.com')
+
     # Base URL for links in emails (unsubscribe, etc.)
     BASE_URL = os.getenv('BASE_URL', 'www.snowspoiledgifts.co.za')
+
+    # Version
+    VERSION = "1.4.0"  # Phase 4: Admin Order Management
