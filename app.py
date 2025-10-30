@@ -678,6 +678,7 @@ def admin_login():
 
         if (username == app.config['ADMIN_USERNAME'] and
             password == app.config['ADMIN_PASSWORD']):
+            session.permanent = True  # Make session persistent across browser sessions
             session['admin_logged_in'] = True
             flash('Successfully logged in!', 'success')
             return redirect(url_for('admin_signups'))

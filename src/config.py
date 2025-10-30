@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -9,6 +10,10 @@ class Config:
 
     # Flask settings
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+    PERMANENT_SESSION_LIFETIME = timedelta(days=7)  # Keep session for 7 days
+    SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+    SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to cookies
+    SESSION_COOKIE_SAMESITE = 'Lax'  # Allow cookies on navigation from external sites
 
     # Database settings
     DATABASE_PATH = os.getenv('DATABASE_PATH', 'database/signups.db')
