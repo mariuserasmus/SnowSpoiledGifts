@@ -131,7 +131,7 @@
                                             {% elif quote.status == 'quoted' %}
                                                 <span class="badge bg-info">Quoted</span>
                                             {% elif quote.status == 'converted' %}
-                                                <span class="badge bg-success">Converted to Sale</span>
+                                                <span class="badge bg-primary">Converted to Sale</span>
                                             {% elif quote.status == 'completed' %}
                                                 <span class="badge bg-success">Completed</span>
                                             {% elif quote.status == 'cancelled' %}
@@ -200,6 +200,8 @@
                             <span class="badge bg-info">Quoted</span>
                         {% elif quote.status == 'completed' %}
                             <span class="badge bg-success">Completed</span>
+                        {% elif quote.status == 'converted' %}
+                            <span class="badge bg-primary">Converted to Sale</span>
                         {% elif quote.status == 'cancelled' %}
                             <span class="badge bg-danger">Cancelled</span>
                         {% endif %}
@@ -385,6 +387,7 @@
                             <option value="pending" {% if quote.status == 'pending' %}selected{% endif %}>Pending</option>
                             <option value="quoted" {% if quote.status == 'quoted' %}selected{% endif %}>Quoted</option>
                             <option value="completed" {% if quote.status == 'completed' %}selected{% endif %}>Completed</option>
+                            <option value="converted" {% if quote.status == 'converted' %}selected{% endif %}>Converted to Sale</option>
                             <option value="cancelled" {% if quote.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
                         </select>
                         <button type="submit" class="btn btn-sm btn-primary">Update</button>
