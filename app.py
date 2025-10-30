@@ -64,12 +64,17 @@ def get_session_id():
 
 
 def admin_required(f):
-    """Decorator to require admin login"""
+    """Decorator to require admin access (either old admin login or user with is_admin flag)"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not session.get('admin_logged_in'):
-            return redirect(url_for('admin_login'))
-        return f(*args, **kwargs)
+        # Check if logged in via old admin system OR via user system with admin flag
+        if session.get('admin_logged_in'):
+            return f(*args, **kwargs)
+        elif current_user.is_authenticated and current_user.is_admin:
+            return f(*args, **kwargs)
+        else:
+            flash('You need admin privileges to access this page.', 'error')
+            return redirect(url_for('login'))
     return decorated_function
 
 
