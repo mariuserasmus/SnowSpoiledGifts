@@ -1091,3 +1091,169 @@ Contact us: {config['MAIL_DEFAULT_SENDER']}
         error_msg = f"Failed to send email: {str(e)}"
         print(error_msg)
         return False, error_msg
+
+
+def send_order_confirmation(config, order_data, customer_email, customer_name):
+    """
+    Send order confirmation emails to both customer and admin.
+    """
+    try:
+        # Customer Email
+        customer_subject = f"Order Confirmation - {order_data['order_number']}"
+
+        shipping_method_text = {
+            'pickup': 'Pickup in George - FREE',
+            'own_courier': 'Own Courier - FREE',
+            'pudo': f"PUDO Delivery - R{order_data.get('shipping_cost', 0):.2f}"
+        }.get(order_data.get('shipping_method', 'pickup'), 'Pickup')
+
+        customer_html = f"""
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: linear-gradient(135deg, #28a745 0%, #20883b 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
+                .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }}
+                .order-number {{ font-size: 24px; font-weight: bold; color: #28a745; margin: 20px 0; }}
+                .details {{ background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }}
+                .detail-row {{ padding: 10px 0; border-bottom: 1px solid #eee; }}
+                .detail-label {{ font-weight: bold; display: inline-block; width: 150px; }}
+                .total {{ font-size: 20px; font-weight: bold; color: #28a745; text-align: right; padding-top: 20px; }}
+                .footer {{ text-align: center; margin-top: 30px; color: #666; font-size: 12px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>✓ Order Confirmed!</h1>
+                    <p>Thank you for your order</p>
+                </div>
+                <div class="content">
+                    <p>Hi {customer_name},</p>
+                    <p>Your order has been successfully placed!</p>
+
+                    <div class="order-number">Order Number: {order_data['order_number']}</div>
+
+                    <div class="details">
+                        <h3>Order Details</h3>
+                        <div class="detail-row">
+                            <span class="detail-label">Order Date:</span>
+                            {order_data.get('created_date', datetime.now().strftime('%Y-%m-%d %H:%M'))}
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Shipping Method:</span>
+                            {shipping_method_text}
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Subtotal:</span>
+                            R{order_data['subtotal']:.2f}
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Shipping:</span>
+                            R{order_data.get('shipping_cost', 0):.2f}
+                        </div>
+                        <div class="total">
+                            Total: R{order_data['total_amount']:.2f}
+                        </div>
+                    </div>
+
+                    <h3>What's Next?</h3>
+                    <ul>
+                        <li>We'll review your order and contact you shortly</li>
+                        <li>You'll receive payment details via email</li>
+                        <li>Track your order status in "My Account" on our website</li>
+                    </ul>
+
+                    <p>If you have any questions, feel free to reply to this email.</p>
+
+                    <p>Thank you for shopping with Snow Spoiled Gifts!</p>
+                </div>
+                <div class="footer">
+                    <p>Snow Spoiled Gifts<br>
+                    Email: info@snowspoiledgifts.co.za<br>
+                    This is an automated email, please do not reply directly to this message.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        customer_text = f"""
+ORDER CONFIRMED!
+
+Hi {customer_name},
+
+Your order has been successfully placed!
+
+Order Number: {order_data['order_number']}
+Order Date: {order_data.get('created_date', datetime.now().strftime('%Y-%m-%d %H:%M'))}
+Shipping Method: {shipping_method_text}
+
+Subtotal: R{order_data['subtotal']:.2f}
+Shipping: R{order_data.get('shipping_cost', 0):.2f}
+Total: R{order_data['total_amount']:.2f}
+
+What's Next?
+- We'll review your order and contact you shortly
+- You'll receive payment details via email
+- Track your order status in "My Account" on our website
+
+Thank you for shopping with Snow Spoiled Gifts!
+
+---
+Snow Spoiled Gifts
+Email: info@snowspoiledgifts.co.za
+        """
+
+        # Send to customer
+        msg_customer = MIMEMultipart('alternative')
+        msg_customer['Subject'] = customer_subject
+        msg_customer['From'] = config['MAIL_DEFAULT_SENDER']
+        msg_customer['To'] = customer_email
+
+        part1 = MIMEText(customer_text, 'plain')
+        part2 = MIMEText(customer_html, 'html')
+        msg_customer.attach(part1)
+        msg_customer.attach(part2)
+
+        # Admin notification email
+        admin_subject = f"New Order Received - {order_data['order_number']}"
+        admin_body = f"""
+New order received!
+
+Order Number: {order_data['order_number']}
+Customer: {customer_name} ({customer_email})
+Order Date: {order_data.get('created_date', datetime.now().strftime('%Y-%m-%d %H:%M'))}
+
+Shipping Method: {shipping_method_text}
+Total Amount: R{order_data['total_amount']:.2f}
+
+Please log in to the admin panel to view full order details.
+        """
+
+        msg_admin = MIMEMultipart('alternative')
+        msg_admin['Subject'] = admin_subject
+        msg_admin['From'] = config['MAIL_DEFAULT_SENDER']
+        msg_admin['To'] = config['ADMIN_EMAIL']
+        msg_admin.attach(MIMEText(admin_body, 'plain'))
+
+        # Send emails
+        if config.get('MAIL_USE_SSL'):
+            with smtplib.SMTP_SSL(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+                server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+                server.send_message(msg_customer)
+                server.send_message(msg_admin)
+        else:
+            with smtplib.SMTP(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+                server.starttls()
+                server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+                server.send_message(msg_customer)
+                server.send_message(msg_admin)
+
+        return True, "Order confirmation emails sent successfully"
+
+    except Exception as e:
+        error_msg = f"Failed to send order confirmation: {str(e)}"
+        print(error_msg)
+        return False, error_msg

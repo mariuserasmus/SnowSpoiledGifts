@@ -1,0 +1,415 @@
+{% extends "base.html" %}
+
+{% block title %}Checkout - {{ config.SITE_NAME }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Category Header - Match Cart Page */
+    .category-header {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: white;
+        padding: 40px 0 20px;
+        margin-top: 76px;
+    }
+
+    .category-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .category-description {
+        font-size: 0.95rem;
+        opacity: 0.9;
+        margin: 0;
+    }
+
+    .order-summary-card {
+        position: sticky;
+        top: 90px;
+    }
+
+    .checkout-steps {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0;
+        padding: 0 20px;
+    }
+
+    .step {
+        text-align: center;
+        flex: 1;
+        position: relative;
+    }
+
+    .step > div:last-child {
+        color: var(--text-color);
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .step::before {
+        content: '';
+        position: absolute;
+        top: 15px;
+        left: -50%;
+        width: 100%;
+        height: 2px;
+        background: var(--bs-border-color);
+        z-index: -1;
+    }
+
+    .step:first-child::before {
+        display: none;
+    }
+
+    .step-circle {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: var(--bs-secondary-bg);
+        color: var(--bs-secondary-color);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 8px;
+        font-weight: bold;
+        position: relative;
+        z-index: 1;
+    }
+
+    .step.active .step-circle {
+        background: #2563eb;
+        color: white;
+    }
+
+    .step.completed .step-circle {
+        background: #28a745;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Checkout Header -->
+<section class="category-header">
+    <div class="container">
+        <h1 class="category-title"><i class="fas fa-credit-card"></i> Checkout</h1>
+        <p class="category-description">Complete your order</p>
+    </div>
+</section>
+
+<!-- Checkout Steps -->
+<section class="py-1 border-bottom">
+    <div class="container">
+        <div class="checkout-steps">
+            <div class="step completed">
+                <div class="step-circle">1</div>
+                <div>Cart</div>
+            </div>
+            <div class="step active">
+                <div class="step-circle">2</div>
+                <div>Shipping</div>
+            </div>
+            <div class="step">
+                <div class="step-circle">3</div>
+                <div>Confirm</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Checkout Content -->
+<section class="checkout-section py-5">
+    <div class="container">
+        <div class="row">
+            <!-- Shipping Form Column -->
+            <div class="col-lg-7 mb-4">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-shipping-fast"></i> Shipping Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('checkout') }}" id="checkoutForm">
+                            {{ form.hidden_tag() }}
+
+                            <!-- Shipping Method Selection -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">Shipping Method <span class="text-danger">*</span></label>
+                                <div class="card">
+                                    <div class="card-body">
+                                        {% for subfield in form.shipping_method %}
+                                        <div class="form-check mb-2">
+                                            {{ subfield(class="form-check-input") }}
+                                            {{ subfield.label(class="form-check-label") }}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% if form.shipping_method.errors %}
+                                <div class="text-danger small mt-1">{{ form.shipping_method.errors[0] }}</div>
+                                {% endif %}
+
+                            </div>
+
+                            <!-- PUDO Options (shown when PUDO selected) -->
+                            <div id="pudoOptionsSection" style="display: none;">
+                                <h6 class="mb-3 text-muted">PUDO Delivery Options</h6>
+                                <div class="mb-3">
+                                    <label for="pudo_option" class="form-label">Select Delivery Type <span class="text-danger pudo-required">*</span></label>
+                                    {{ form.pudo_option(class="form-select" + (" is-invalid" if form.pudo_option.errors else "")) }}
+                                    {% if form.pudo_option.errors %}
+                                        <div class="invalid-feedback">{{ form.pudo_option.errors[0] }}</div>
+                                    {% endif %}
+                                    <small class="text-muted">Medium parcel: 60cm x 41cm x 19cm</small>
+                                </div>
+
+                                <!-- Locker Location (for non-door delivery) -->
+                                <div id="lockerLocationSection" style="display: none;">
+                                    <div class="mb-3">
+                                        <label for="locker_location" class="form-label">PUDO Locker/Kiosk Name or Location <span class="text-danger">*</span></label>
+                                        {{ form.locker_location(class="form-control", rows="3", placeholder="e.g., PUDO Locker at Clicks Garden Route Mall, George") }}
+                                        {% if form.locker_location.errors %}
+                                            <div class="invalid-feedback">{{ form.locker_location.errors[0] }}</div>
+                                        {% endif %}
+                                        <small class="text-muted">Specify your preferred PUDO Locker or Kiosk location for collection.</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h6 class="mb-3 text-muted">Contact Information</h6>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="name" class="form-label">Full Name <span class="text-danger">*</span></label>
+                                    {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else "")) }}
+                                    {% if form.name.errors %}
+                                        <div class="invalid-feedback">{{ form.name.errors[0] }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label for="phone" class="form-label">Phone Number <span class="text-danger">*</span></label>
+                                    {{ form.phone(class="form-control" + (" is-invalid" if form.phone.errors else "")) }}
+                                    {% if form.phone.errors %}
+                                        <div class="invalid-feedback">{{ form.phone.errors[0] }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div id="deliveryAddressSection" style="display: none;">
+                                <h6 class="mb-3 text-muted mt-4">Delivery Address</h6>
+                                <div class="mb-3">
+                                    <label for="address" class="form-label">Street Address <span class="text-danger delivery-required">*</span></label>
+                                    {{ form.address(class="form-control" + (" is-invalid" if form.address.errors else "")) }}
+                                    {% if form.address.errors %}
+                                        <div class="invalid-feedback">{{ form.address.errors[0] }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="city" class="form-label">City <span class="text-danger delivery-required">*</span></label>
+                                        {{ form.city(class="form-control" + (" is-invalid" if form.city.errors else "")) }}
+                                        {% if form.city.errors %}
+                                            <div class="invalid-feedback">{{ form.city.errors[0] }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="col-md-6 mb-3">
+                                        <label for="state" class="form-label">Province/State <span class="text-danger delivery-required">*</span></label>
+                                        {{ form.state(class="form-control" + (" is-invalid" if form.state.errors else "")) }}
+                                        {% if form.state.errors %}
+                                            <div class="invalid-feedback">{{ form.state.errors[0] }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="postal_code" class="form-label">Postal Code <span class="text-danger delivery-required">*</span></label>
+                                        {{ form.postal_code(class="form-control" + (" is-invalid" if form.postal_code.errors else "")) }}
+                                        {% if form.postal_code.errors %}
+                                            <div class="invalid-feedback">{{ form.postal_code.errors[0] }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="col-md-6 mb-3">
+                                        <label for="country" class="form-label">Country <span class="text-danger delivery-required">*</span></label>
+                                        {{ form.country(class="form-control" + (" is-invalid" if form.country.errors else "")) }}
+                                        {% if form.country.errors %}
+                                            <div class="invalid-feedback">{{ form.country.errors[0] }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-between mt-4">
+                                <a href="{{ url_for('cart') }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-arrow-left"></i> Back to Cart
+                                </a>
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-check"></i> Place Order
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Summary Column -->
+            <div class="col-lg-5">
+                <div class="card shadow-sm order-summary-card">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0"><i class="fas fa-receipt"></i> Order Summary</h5>
+                    </div>
+                    <div class="card-body">
+                        {% for item in cart_items %}
+                        <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
+                            <div class="d-flex align-items-center">
+                                {% if item.image_url %}
+                                <img src="{{ item.image_url }}" alt="{{ item.name }}"
+                                     style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;"
+                                     class="me-3">
+                                {% endif %}
+                                <div>
+                                    <div class="fw-bold">{{ item.name }}</div>
+                                    <small class="text-muted">Qty: {{ item.quantity }}</small>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-bold">R{{ "%.2f"|format(item.subtotal) }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Subtotal:</span>
+                            <span id="order-subtotal">R{{ "%.2f"|format(subtotal) }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Shipping:</span>
+                            <span id="shipping-cost" class="text-success fw-bold">FREE</span>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong>Total:</strong>
+                            <strong class="text-primary fs-5" id="order-total">R{{ "%.2f"|format(subtotal) }}</strong>
+                        </div>
+
+                        <div class="alert alert-info mt-3 mb-2">
+                            <i class="fas fa-university"></i> <small><strong>Payment Method:</strong> EFT (Electronic Funds Transfer). An invoice with banking details will be sent to your email after order placement.</small>
+                        </div>
+
+                        <div class="alert alert-warning mb-0">
+                            <i class="fas fa-info-circle"></i> <small><strong>Please Note:</strong> Shipping costs may be adjusted on final invoice if your order exceeds the PUDO limitations (Medium parcel: 60cm x 41cm x 19cm).</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const shippingMethodRadios = document.querySelectorAll('input[name="shipping_method"]');
+    const pudoOptionsSection = document.getElementById('pudoOptionsSection');
+    const deliveryAddressSection = document.getElementById('deliveryAddressSection');
+    const lockerLocationSection = document.getElementById('lockerLocationSection');
+    const pudoOptionSelect = document.querySelector('select[name="pudo_option"]');
+
+    // Order summary elements
+    const shippingCostElement = document.getElementById('shipping-cost');
+    const orderTotalElement = document.getElementById('order-total');
+    const subtotal = {{ subtotal }};
+
+    // PUDO pricing
+    const pudoRates = {
+        'locker_to_locker': 69,
+        'locker_to_kiosk': 79,
+        'locker_to_door': 109,
+        'kiosk_to_door': 119
+    };
+
+    function updateShippingCost() {
+        const selectedMethod = document.querySelector('input[name="shipping_method"]:checked').value;
+        let shippingCost = 0;
+        let shippingText = 'FREE';
+
+        if (selectedMethod === 'pudo') {
+            const pudoOption = pudoOptionSelect.value;
+            if (pudoOption && pudoRates[pudoOption]) {
+                shippingCost = pudoRates[pudoOption];
+                shippingText = `R${shippingCost.toFixed(2)}`;
+                shippingCostElement.className = 'text-info fw-bold';
+            } else {
+                shippingText = 'Select option';
+                shippingCostElement.className = 'text-muted';
+            }
+        } else {
+            shippingCostElement.className = 'text-success fw-bold';
+        }
+
+        // Update shipping cost display
+        shippingCostElement.textContent = shippingText;
+
+        // Update total
+        const total = subtotal + shippingCost;
+        orderTotalElement.textContent = `R${total.toFixed(2)}`;
+    }
+
+    function toggleSections() {
+        const selectedMethod = document.querySelector('input[name="shipping_method"]:checked').value;
+
+        // Show/hide PUDO options based on shipping method
+        if (selectedMethod === 'pudo') {
+            pudoOptionsSection.style.display = 'block';
+            togglePudoSections(); // Check which PUDO sub-section to show
+        } else {
+            pudoOptionsSection.style.display = 'none';
+            deliveryAddressSection.style.display = 'none';
+            lockerLocationSection.style.display = 'none';
+        }
+
+        // Update shipping cost
+        updateShippingCost();
+    }
+
+    function togglePudoSections() {
+        const pudoOption = pudoOptionSelect.value;
+
+        if (!pudoOption) {
+            // No PUDO option selected yet
+            deliveryAddressSection.style.display = 'none';
+            lockerLocationSection.style.display = 'none';
+            return;
+        }
+
+        // Check if it's a to-Door option (needs address)
+        if (pudoOption === 'locker_to_door' || pudoOption === 'kiosk_to_door') {
+            deliveryAddressSection.style.display = 'block';
+            lockerLocationSection.style.display = 'none';
+        } else {
+            // Locker-to-Locker or Locker-to-Kiosk (needs locker location)
+            deliveryAddressSection.style.display = 'none';
+            lockerLocationSection.style.display = 'block';
+        }
+
+        // Update shipping cost when PUDO option changes
+        updateShippingCost();
+    }
+
+    // Add event listeners
+    shippingMethodRadios.forEach(radio => {
+        radio.addEventListener('change', toggleSections);
+    });
+
+    pudoOptionSelect.addEventListener('change', togglePudoSections);
+
+    // Set initial state
+    toggleSections();
+});
+</script>
+{% endblock %}

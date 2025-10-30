@@ -3,8 +3,8 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from functools import wraps
 from src.config import Config
 from src.database import Database
-from src.forms import EmailSignupForm, RegistrationForm, LoginForm, EditProfileForm
-from src.email_utils import send_quote_notification, send_customer_confirmation, send_signup_confirmation, send_cake_topper_notification, send_print_service_notification, send_admin_reply_to_customer
+from src.forms import EmailSignupForm, RegistrationForm, LoginForm, EditProfileForm, CheckoutForm
+from src.email_utils import send_quote_notification, send_customer_confirmation, send_signup_confirmation, send_cake_topper_notification, send_print_service_notification, send_admin_reply_to_customer, send_order_confirmation
 from version_check import get_version_info
 from datetime import datetime
 import os
@@ -276,8 +276,8 @@ def account():
         form.email.data = current_user.email
         form.phone.data = current_user.phone
 
-    # Get order history (placeholder for now)
-    orders = []  # TODO: Implement in Phase 3
+    # Get order history
+    orders = db.get_user_orders(current_user.id)
 
     return render_template('account.html', form=form, orders=orders, config=app.config)
 
@@ -1331,6 +1331,147 @@ def cart_count():
     count = db.get_cart_count(session_id, user_id)
 
     return jsonify({'count': count})
+
+
+@app.route('/checkout', methods=['GET', 'POST'])
+@login_required
+def checkout():
+    """Checkout page with shipping address"""
+    form = CheckoutForm()
+
+    # Pre-fill form with user data if available
+    if request.method == 'GET' and current_user.is_authenticated:
+        user = db.get_user_by_id(current_user.id)
+        if user:
+            form.name.data = user.get('name', '')
+            form.phone.data = user.get('phone', '')
+            form.address.data = user.get('shipping_address', '')
+            form.city.data = user.get('shipping_city', '')
+            form.state.data = user.get('shipping_state', '')
+            form.postal_code.data = user.get('shipping_postal_code', '')
+            form.country.data = user.get('shipping_country', 'South Africa')
+
+    if form.validate_on_submit():
+        # Validate PUDO options
+        if form.shipping_method.data == 'pudo':
+            if not form.pudo_option.data:
+                flash('Please select a PUDO delivery option!', 'danger')
+                return render_template('checkout.html',
+                                      form=form,
+                                      cart_items=db.get_cart_items(get_session_id(), current_user.id),
+                                      subtotal=sum(item['subtotal'] for item in db.get_cart_items(get_session_id(), current_user.id)),
+                                      config=app.config)
+
+            # Check if address or locker location is required
+            if form.pudo_option.data in ['locker_to_door', 'kiosk_to_door']:
+                # to-Door options require full address
+                if not form.address.data or not form.city.data or not form.state.data or not form.postal_code.data:
+                    flash('Please provide a complete delivery address for door delivery!', 'danger')
+                    return render_template('checkout.html',
+                                          form=form,
+                                          cart_items=db.get_cart_items(get_session_id(), current_user.id),
+                                          subtotal=sum(item['subtotal'] for item in db.get_cart_items(get_session_id(), current_user.id)),
+                                          config=app.config)
+            else:
+                # Locker/Kiosk options require locker location
+                if not form.locker_location.data:
+                    flash('Please provide your PUDO Locker/Kiosk location!', 'danger')
+                    return render_template('checkout.html',
+                                          form=form,
+                                          cart_items=db.get_cart_items(get_session_id(), current_user.id),
+                                          subtotal=sum(item['subtotal'] for item in db.get_cart_items(get_session_id(), current_user.id)),
+                                          config=app.config)
+
+        # Prepare shipping info
+        is_door_delivery = (form.shipping_method.data == 'pudo' and
+                           form.pudo_option.data in ['locker_to_door', 'kiosk_to_door'])
+
+        shipping_info = {
+            'method': form.shipping_method.data,
+            'pudo_option': form.pudo_option.data if form.shipping_method.data == 'pudo' else None,
+            'locker_location': form.locker_location.data if form.shipping_method.data == 'pudo' else None,
+            'address': form.address.data if is_door_delivery else None,
+            'city': form.city.data if is_door_delivery else None,
+            'state': form.state.data if is_door_delivery else None,
+            'postal_code': form.postal_code.data if is_door_delivery else None,
+            'country': form.country.data if is_door_delivery else 'South Africa'
+        }
+
+        # Update user's info for future use
+        user_update = {
+            'name': form.name.data,
+            'phone': form.phone.data
+        }
+
+        if is_door_delivery:
+            user_update.update({
+                'shipping_address': form.address.data,
+                'shipping_city': form.city.data,
+                'shipping_state': form.state.data,
+                'shipping_postal_code': form.postal_code.data,
+                'shipping_country': form.country.data
+            })
+
+        db.update_user(current_user.id, user_update)
+
+        # Create order
+        success, message, order_number = db.create_order(current_user.id, shipping_info)
+
+        if success:
+            # Get order details for email
+            order = db.get_order_by_number(order_number)
+
+            # Send order confirmation emails
+            try:
+                send_order_confirmation(
+                    app.config,
+                    order,
+                    current_user.email,
+                    current_user.name
+                )
+            except Exception as e:
+                print(f"Failed to send order confirmation email: {str(e)}")
+                # Don't fail the order if email fails
+
+            flash(f'Order {order_number} created successfully!', 'success')
+            return redirect(url_for('order_confirmation', order_number=order_number))
+        else:
+            flash(message, 'danger')
+            return redirect(url_for('cart'))
+
+    # Get cart items for display
+    session_id = get_session_id()
+    cart_items = db.get_cart_items(session_id, current_user.id)
+    subtotal = sum(item['subtotal'] for item in cart_items)
+
+    # Check if cart is empty
+    if not cart_items:
+        flash('Your cart is empty!', 'warning')
+        return redirect(url_for('printing_3d'))
+
+    return render_template('checkout.html',
+                          form=form,
+                          cart_items=cart_items,
+                          subtotal=subtotal,
+                          config=app.config)
+
+
+@app.route('/order/<order_number>')
+@login_required
+def order_confirmation(order_number):
+    """Order confirmation page"""
+    order = db.get_order_by_number(order_number)
+
+    if not order or order['user_id'] != current_user.id:
+        flash('Order not found!', 'danger')
+        return redirect(url_for('index'))
+
+    order_items = db.get_order_items(order['id'])
+
+    return render_template('order_confirmation.html',
+                          order=order,
+                          order_items=order_items,
+                          config=app.config)
 
 
 if __name__ == '__main__':

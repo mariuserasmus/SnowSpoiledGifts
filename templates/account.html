@@ -79,18 +79,46 @@
                         {% if orders %}
                             <div class="list-group">
                                 {% for order in orders %}
-                                <div class="list-group-item">
+                                <a href="{{ url_for('order_confirmation', order_number=order.order_number) }}" class="list-group-item list-group-item-action">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div>
-                                            <h6 class="mb-1">Order #{{ order.id }}</h6>
-                                            <small class="text-muted">{{ order.date }}</small>
+                                            <h6 class="mb-1">{{ order.order_number }}</h6>
+                                            <small class="text-muted">
+                                                <i class="far fa-calendar"></i> {{ order.created_date }}
+                                            </small>
+                                            <br>
+                                            <small class="text-muted">
+                                                <i class="fas fa-shipping-fast"></i>
+                                                {% if order.shipping_method == 'pickup' %}
+                                                Pickup in George
+                                                {% elif order.shipping_method == 'own_courier' %}
+                                                Own Courier
+                                                {% elif order.shipping_method == 'pudo' %}
+                                                PUDO
+                                                {% if order.pudo_option == 'locker_to_locker' %}(L2L)
+                                                {% elif order.pudo_option == 'locker_to_kiosk' %}(L2K)
+                                                {% elif order.pudo_option == 'locker_to_door' %}(L2D)
+                                                {% elif order.pudo_option == 'kiosk_to_door' %}(K2D)
+                                                {% endif %}
+                                                {% endif %}
+                                            </small>
                                         </div>
                                         <div class="text-end">
-                                            <strong>R{{ "%.2f"|format(order.total) }}</strong><br>
-                                            <span class="badge bg-info">{{ order.status }}</span>
+                                            <strong class="d-block">R{{ "%.2f"|format(order.total_amount) }}</strong>
+                                            {% if order.status == 'pending' %}
+                                            <span class="badge bg-warning text-dark">{{ order.status|upper }}</span>
+                                            {% elif order.status == 'confirmed' %}
+                                            <span class="badge bg-info">{{ order.status|upper }}</span>
+                                            {% elif order.status == 'shipped' %}
+                                            <span class="badge bg-primary">{{ order.status|upper }}</span>
+                                            {% elif order.status == 'delivered' %}
+                                            <span class="badge bg-success">{{ order.status|upper }}</span>
+                                            {% else %}
+                                            <span class="badge bg-secondary">{{ order.status|upper }}</span>
+                                            {% endif %}
                                         </div>
                                     </div>
-                                </div>
+                                </a>
                                 {% endfor %}
                             </div>
                         {% else %}

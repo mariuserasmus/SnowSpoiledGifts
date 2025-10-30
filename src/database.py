@@ -208,7 +208,12 @@ class Database:
                 phone TEXT,
                 created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 is_active INTEGER DEFAULT 1,
-                email_verified INTEGER DEFAULT 0
+                email_verified INTEGER DEFAULT 0,
+                shipping_address TEXT,
+                shipping_city TEXT,
+                shipping_state TEXT,
+                shipping_postal_code TEXT,
+                shipping_country TEXT DEFAULT 'South Africa'
             )
         ''')
 
@@ -218,8 +223,121 @@ class Database:
             ON users(email)
         ''')
 
+        # Create orders table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS orders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                order_number TEXT UNIQUE NOT NULL,
+                status TEXT DEFAULT 'pending',
+                subtotal REAL NOT NULL,
+                shipping_method TEXT DEFAULT 'pickup',
+                pudo_option TEXT,
+                locker_location TEXT,
+                shipping_cost REAL DEFAULT 0,
+                total_amount REAL NOT NULL,
+                shipping_address TEXT,
+                shipping_city TEXT,
+                shipping_state TEXT,
+                shipping_postal_code TEXT,
+                shipping_country TEXT,
+                payment_method TEXT,
+                payment_status TEXT DEFAULT 'pending',
+                payment_reference TEXT,
+                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        ''')
+
+        # Create order_items table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS order_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                order_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                quantity INTEGER NOT NULL,
+                price REAL NOT NULL,
+                FOREIGN KEY (order_id) REFERENCES orders(id),
+                FOREIGN KEY (product_id) REFERENCES products(id)
+            )
+        ''')
+
+        # Create indexes for orders
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_orders_user
+            ON orders(user_id)
+        ''')
+
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_orders_number
+            ON orders(order_number)
+        ''')
+
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_order_items_order
+            ON order_items(order_id)
+        ''')
+
+        # Run migrations for existing tables
+        self._run_migrations(conn)
+
         conn.commit()
         conn.close()
+
+    def _run_migrations(self, conn):
+        """Run database migrations for schema updates"""
+        cursor = conn.cursor()
+        try:
+            # Check if orders table exists and needs migration
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='orders'")
+            if cursor.fetchone():
+                # Check if new columns exist
+                cursor.execute("PRAGMA table_info(orders)")
+                columns = [col[1] for col in cursor.fetchall()]
+
+                # Add shipping_method column if missing
+                if 'shipping_method' not in columns:
+                    cursor.execute("ALTER TABLE orders ADD COLUMN shipping_method TEXT DEFAULT 'pickup'")
+
+                # Add pudo_option column if missing
+                if 'pudo_option' not in columns:
+                    cursor.execute("ALTER TABLE orders ADD COLUMN pudo_option TEXT")
+
+                # Add locker_location column if missing
+                if 'locker_location' not in columns:
+                    cursor.execute("ALTER TABLE orders ADD COLUMN locker_location TEXT")
+
+                # Add shipping_cost column if missing
+                if 'shipping_cost' not in columns:
+                    cursor.execute("ALTER TABLE orders ADD COLUMN shipping_cost REAL DEFAULT 0")
+
+                # Add subtotal column if missing
+                if 'subtotal' not in columns:
+                    cursor.execute("ALTER TABLE orders ADD COLUMN subtotal REAL DEFAULT 0")
+                    # Update existing orders to have subtotal = total_amount
+                    cursor.execute("UPDATE orders SET subtotal = total_amount WHERE subtotal = 0 OR subtotal IS NULL")
+
+            # Check if users table needs shipping fields
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+            if cursor.fetchone():
+                cursor.execute("PRAGMA table_info(users)")
+                columns = [col[1] for col in cursor.fetchall()]
+
+                if 'shipping_address' not in columns:
+                    cursor.execute("ALTER TABLE users ADD COLUMN shipping_address TEXT")
+                if 'shipping_city' not in columns:
+                    cursor.execute("ALTER TABLE users ADD COLUMN shipping_city TEXT")
+                if 'shipping_state' not in columns:
+                    cursor.execute("ALTER TABLE users ADD COLUMN shipping_state TEXT")
+                if 'shipping_postal_code' not in columns:
+                    cursor.execute("ALTER TABLE users ADD COLUMN shipping_postal_code TEXT")
+                if 'shipping_country' not in columns:
+                    cursor.execute("ALTER TABLE users ADD COLUMN shipping_country TEXT DEFAULT 'South Africa'")
+
+        except Exception as e:
+            # Migrations are optional, don't fail if they error
+            print(f"Migration warning: {str(e)}")
 
     def add_signup(self, name, email, interests=None, ip_address=None):
         """Add a new email signup or update interests if changed"""
@@ -1844,6 +1962,196 @@ class Database:
             conn.commit()
             conn.close()
             return True, "Cart migrated successfully!"
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}"
+
+    def create_order(self, user_id, shipping_info, payment_method='Cash on Delivery'):
+        """Create a new order from user's cart"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Get cart items for user
+            cursor.execute('''
+                SELECT ci.item_id, ci.quantity, item.price, item.name
+                FROM cart_items ci
+                JOIN cutter_items item ON ci.item_id = item.id
+                WHERE ci.user_id = ?
+            ''', (user_id,))
+
+            cart_items = cursor.fetchall()
+
+            if not cart_items:
+                conn.close()
+                return False, "Cart is empty!", None
+
+            # Calculate subtotal
+            subtotal = sum(item['price'] * item['quantity'] for item in cart_items)
+
+            # Determine shipping cost based on method and PUDO option
+            shipping_method = shipping_info.get('method', 'pickup')
+            pudo_option = shipping_info.get('pudo_option')
+
+            # Calculate shipping cost based on PUDO option
+            shipping_cost = 0
+            if shipping_method == 'pudo' and pudo_option:
+                pudo_rates = {
+                    'locker_to_locker': 69,
+                    'locker_to_kiosk': 79,
+                    'locker_to_door': 109,
+                    'kiosk_to_door': 119
+                }
+                shipping_cost = pudo_rates.get(pudo_option, 0)
+
+            # Calculate total
+            total_amount = subtotal + shipping_cost
+
+            # Generate sequential order number: SSG-YYYYMM-001
+            year_month = datetime.now().strftime('%Y%m')
+
+            # Get the count of orders for this month
+            cursor.execute('''
+                SELECT COUNT(*) as count FROM orders
+                WHERE order_number LIKE ?
+            ''', (f'SSG-{year_month}-%',))
+
+            count = cursor.fetchone()['count']
+            order_sequence = count + 1
+            order_number = f"SSG-{year_month}-{order_sequence:03d}"
+
+            # Create order (use empty string for NULL values to handle old NOT NULL constraints)
+            cursor.execute('''
+                INSERT INTO orders (
+                    user_id, order_number, subtotal, shipping_method, pudo_option,
+                    locker_location, shipping_cost, total_amount,
+                    shipping_address, shipping_city, shipping_state,
+                    shipping_postal_code, shipping_country, payment_method
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                user_id, order_number, subtotal, shipping_method, pudo_option,
+                shipping_info.get('locker_location') or '',
+                shipping_cost, total_amount,
+                shipping_info.get('address') or '',
+                shipping_info.get('city') or '',
+                shipping_info.get('state') or '',
+                shipping_info.get('postal_code') or '',
+                shipping_info.get('country') or 'South Africa',
+                payment_method
+            ))
+
+            order_id = cursor.lastrowid
+
+            # Create order items
+            for item in cart_items:
+                cursor.execute('''
+                    INSERT INTO order_items (order_id, product_id, quantity, price)
+                    VALUES (?, ?, ?, ?)
+                ''', (order_id, item['item_id'], item['quantity'], item['price']))
+
+            # Clear user's cart
+            cursor.execute('DELETE FROM cart_items WHERE user_id = ?', (user_id,))
+
+            conn.commit()
+            conn.close()
+            return True, "Order created successfully!", order_number
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}", None
+
+    def get_order_by_number(self, order_number):
+        """Get order details by order number"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM orders WHERE order_number = ?', (order_number,))
+        order = cursor.fetchone()
+        conn.close()
+
+        if order:
+            return dict(order)
+        return None
+
+    def get_user_orders(self, user_id):
+        """Get all orders for a user"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT * FROM orders
+            WHERE user_id = ?
+            ORDER BY created_date DESC
+        ''', (user_id,))
+
+        orders = cursor.fetchall()
+        conn.close()
+
+        return [dict(order) for order in orders]
+
+    def get_order_items(self, order_id):
+        """Get all items in an order"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT oi.*, item.name,
+                   (SELECT photo_path FROM cutter_item_photos
+                    WHERE item_id = item.id AND is_main = 1 LIMIT 1) as image_url
+            FROM order_items oi
+            JOIN cutter_items item ON oi.product_id = item.id
+            WHERE oi.order_id = ?
+        ''', (order_id,))
+
+        items = cursor.fetchall()
+        conn.close()
+
+        return [dict(item) for item in items]
+
+    def update_order_status(self, order_id, status):
+        """Update order status"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('''
+                UPDATE orders
+                SET status = ?, updated_date = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (status, order_id))
+
+            conn.commit()
+            conn.close()
+            return True, "Order status updated!"
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}"
+
+    def update_payment_status(self, order_number, payment_status, payment_reference=None):
+        """Update payment status for an order"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            if payment_reference:
+                cursor.execute('''
+                    UPDATE orders
+                    SET payment_status = ?, payment_reference = ?, updated_date = CURRENT_TIMESTAMP
+                    WHERE order_number = ?
+                ''', (payment_status, payment_reference, order_number))
+            else:
+                cursor.execute('''
+                    UPDATE orders
+                    SET payment_status = ?, updated_date = CURRENT_TIMESTAMP
+                    WHERE order_number = ?
+                ''', (payment_status, order_number))
+
+            conn.commit()
+            conn.close()
+            return True, "Payment status updated!"
 
         except Exception as e:
             conn.close()

@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}Order Confirmation - {{ config.SITE_NAME }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Category Header - Match 3D Printing Page */
+    .category-header {
+        background: linear-gradient(135deg, #28a745 0%, #20883b 100%);
+        color: white;
+        padding: 40px 0 20px;
+        margin-top: 76px;
+    }
+
+    .category-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .category-description {
+        font-size: 0.95rem;
+        opacity: 0.9;
+        margin: 0;
+    }
+
+    .order-status-badge {
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+    }
+
+    .status-pending {
+        background-color: #ffc107;
+        color: #000;
+    }
+
+    .status-confirmed {
+        background-color: #17a2b8;
+        color: #fff;
+    }
+
+    .status-shipped {
+        background-color: #007bff;
+        color: #fff;
+    }
+
+    .status-delivered {
+        background-color: #28a745;
+        color: #fff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Order Confirmation Header -->
+<section class="category-header">
+    <div class="container">
+        <h1 class="category-title"><i class="fas fa-check-circle"></i> Order Confirmed!</h1>
+        <p class="category-description">Thank you for your order</p>
+    </div>
+</section>
+
+<!-- Order Details -->
+<section class="order-confirmation-section py-5">
+    <div class="container">
+        <div class="row">
+            <!-- Order Information Column -->
+            <div class="col-lg-8 mb-4">
+                <!-- Order Summary Card -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-receipt"></i> Order Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <strong>Order Number:</strong><br>
+                                <span class="text-primary fs-5">{{ order.order_number }}</span>
+                            </div>
+                            <div class="col-md-6 text-md-end">
+                                <strong>Order Date:</strong><br>
+                                <span>{{ order.created_date }}</span>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Status:</strong><br>
+                                <span class="order-status-badge status-{{ order.status }}">
+                                    {{ order.status }}
+                                </span>
+                            </div>
+                            <div class="col-md-6 text-md-end">
+                                <strong>Payment Status:</strong><br>
+                                <span class="order-status-badge status-{{ order.payment_status }}">
+                                    {{ order.payment_status }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Shipping Information Card -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0"><i class="fas fa-shipping-fast"></i> Shipping Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <strong>Shipping Method:</strong><br>
+                        {% if order.shipping_method == 'pickup' %}
+                        <span class="badge bg-success mb-2"><i class="fas fa-store"></i> Pickup in George - FREE</span>
+                        <p class="small text-muted mb-0">You can collect your order from our George location.</p>
+
+                        {% elif order.shipping_method == 'own_courier' %}
+                        <span class="badge bg-success mb-2"><i class="fas fa-box"></i> Own Courier - FREE</span>
+                        <p class="small text-muted mb-0">You will arrange your own courier collection.</p>
+
+                        {% elif order.shipping_method == 'pudo' %}
+                        <span class="badge bg-info mb-2"><i class="fas fa-truck"></i> PUDO/Courier Guy</span>
+                        {% if order.pudo_option %}
+                            {% if order.pudo_option == 'locker_to_locker' %}
+                            <p class="small mb-1"><strong>Locker-to-Locker</strong> - R69.00</p>
+                            {% elif order.pudo_option == 'locker_to_kiosk' %}
+                            <p class="small mb-1"><strong>Locker-to-Kiosk</strong> - R79.00</p>
+                            {% elif order.pudo_option == 'locker_to_door' %}
+                            <p class="small mb-1"><strong>Locker-to-Door</strong> - R109.00</p>
+                            {% elif order.pudo_option == 'kiosk_to_door' %}
+                            <p class="small mb-1"><strong>Kiosk-to-Door</strong> - R119.00</p>
+                            {% endif %}
+                        {% endif %}
+
+                        {% if order.locker_location %}
+                        <hr>
+                        <strong>PUDO Locker/Kiosk Location:</strong>
+                        <p class="mb-0 mt-2">{{ order.locker_location }}</p>
+                        {% endif %}
+
+                        {% if order.shipping_address %}
+                        <hr>
+                        <strong>Delivery Address:</strong>
+                        <address class="mt-2">
+                            {{ order.shipping_address }}<br>
+                            {{ order.shipping_city }}, {{ order.shipping_state }}<br>
+                            {{ order.shipping_postal_code }}<br>
+                            {{ order.shipping_country }}
+                        </address>
+                        {% endif %}
+
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Order Items Card -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="fas fa-box-open"></i> Items Ordered</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Product</th>
+                                        <th class="text-center">Quantity</th>
+                                        <th class="text-end">Price</th>
+                                        <th class="text-end">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in order_items %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                {% if item.image_url %}
+                                                <img src="/{{ item.image_url.replace('\\', '/') }}" alt="{{ item.name }}"
+                                                     style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;"
+                                                     class="me-3"
+                                                     onerror="this.style.display='none'">
+                                                {% endif %}
+                                                <span>{{ item.name }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="text-center">{{ item.quantity }}</td>
+                                        <td class="text-end">R{{ "%.2f"|format(item.price) }}</td>
+                                        <td class="text-end">R{{ "%.2f"|format(item.price * item.quantity) }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Total Column -->
+            <div class="col-lg-4">
+                <div class="card shadow-sm mb-4" style="position: sticky; top: 90px;">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-dollar-sign"></i> Order Total</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Subtotal:</span>
+                            <span>R{{ "%.2f"|format(order.subtotal) }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Shipping:</span>
+                            {% if order.shipping_method in ['pickup', 'own_courier'] %}
+                            <span class="text-success fw-bold">FREE</span>
+                            {% else %}
+                            <span class="text-muted">R{{ "%.2f"|format(order.shipping_cost) if order.shipping_cost else 'TBD' }}</span>
+                            {% endif %}
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between">
+                            <strong>Total:</strong>
+                            <strong class="text-success fs-4">R{{ "%.2f"|format(order.total_amount) }}</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h6 class="card-title"><i class="fas fa-info-circle text-info"></i> What's Next?</h6>
+                        <ul class="list-unstyled mb-0">
+                            <li class="mb-2">
+                                <i class="fas fa-check text-success"></i>
+                                We'll send you an email confirmation
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-check text-success"></i>
+                                You'll be contacted for payment details
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-check text-success"></i>
+                                Track your order in "My Orders"
+                            </li>
+                        </ul>
+                        <hr>
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('account') }}" class="btn btn-primary btn-lg">
+                                <i class="fas fa-receipt"></i> View All My Orders
+                            </a>
+                            <a href="{{ url_for('printing_3d') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-shopping-bag"></i> Continue Shopping
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
