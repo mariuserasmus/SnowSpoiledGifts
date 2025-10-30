@@ -758,6 +758,24 @@ def admin_update_order_status(order_number):
     # Update the status
     db.update_order_status(order['id'], new_status)
 
+    # Auto-generate invoice when status changes to confirmed or awaiting_payment
+    if new_status in ['confirmed', 'awaiting_payment'] and not order.get('invoice_number'):
+        from src.invoice_utils import generate_invoice_pdf
+
+        # Generate invoice number
+        success, invoice_number = db.generate_invoice_number(order_number)
+        if success:
+            order['invoice_number'] = invoice_number
+
+            # Get customer and items for PDF generation
+            customer = db.get_user_by_id(order['user_id'])
+            order_items = db.get_order_items(order['id'])
+
+            # Generate PDF
+            pdf_success, pdf_result = generate_invoice_pdf(order, customer, order_items, app.config)
+            if pdf_success:
+                flash(f'Invoice {invoice_number} auto-generated!', 'info')
+
     # Send status update email if requested
     if send_email:
         from src.email_utils import send_order_status_update
@@ -781,6 +799,107 @@ def admin_delete_order(order_number):
         flash(message, 'error')
 
     return redirect(url_for('admin_orders'))
+
+
+@app.route('/admin/orders/<order_number>/generate-invoice', methods=['POST'])
+@admin_required
+def admin_generate_invoice(order_number):
+    """Generate PDF invoice for an order"""
+    from src.invoice_utils import generate_invoice_pdf
+
+    # Get order details
+    order = db.get_order_by_number(order_number)
+    if not order:
+        flash('Order not found.', 'error')
+        return redirect(url_for('admin_orders'))
+
+    # Get customer and items
+    customer = db.get_user_by_id(order['user_id'])
+    order_items = db.get_order_items(order['id'])
+
+    # Generate invoice number if not exists
+    if not order.get('invoice_number'):
+        success, invoice_number = db.generate_invoice_number(order_number)
+        if not success:
+            flash(f'Failed to generate invoice number: {invoice_number}', 'error')
+            return redirect(url_for('admin_order_detail', order_number=order_number))
+        order['invoice_number'] = invoice_number
+
+    # Generate PDF
+    success, result = generate_invoice_pdf(order, customer, order_items, app.config)
+
+    if success:
+        flash(f'Invoice {order["invoice_number"]} generated successfully!', 'success')
+    else:
+        flash(f'Failed to generate invoice: {result}', 'error')
+
+    return redirect(url_for('admin_order_detail', order_number=order_number))
+
+
+@app.route('/admin/orders/<order_number>/download-invoice')
+@admin_required
+def admin_download_invoice(order_number):
+    """Download invoice PDF"""
+    from flask import send_file
+    from src.invoice_utils import get_invoice_path, invoice_exists
+
+    # Get order to check invoice number
+    order = db.get_order_by_number(order_number)
+    if not order or not order.get('invoice_number'):
+        flash('Invoice not found. Please generate it first.', 'error')
+        return redirect(url_for('admin_order_detail', order_number=order_number))
+
+    invoice_path = get_invoice_path(order['invoice_number'])
+
+    if not invoice_exists(order['invoice_number']):
+        flash('Invoice PDF not found. Please generate it again.', 'error')
+        return redirect(url_for('admin_order_detail', order_number=order_number))
+
+    return send_file(invoice_path, as_attachment=True, download_name=f"{order['invoice_number']}.pdf")
+
+
+@app.route('/admin/orders/<order_number>/send-invoice-email', methods=['POST'])
+@admin_required
+def admin_send_invoice_email(order_number):
+    """Send invoice PDF via email to customer"""
+    from src.email_utils import send_invoice_email
+    from src.invoice_utils import get_invoice_path
+
+    # Get order details
+    order = db.get_order_by_number(order_number)
+    if not order:
+        flash('Order not found.', 'error')
+        return redirect(url_for('admin_orders'))
+
+    if not order.get('invoice_number'):
+        flash('Invoice not generated yet. Please generate it first.', 'error')
+        return redirect(url_for('admin_order_detail', order_number=order_number))
+
+    # Get customer details
+    customer = db.get_user_by_id(order['user_id'])
+    if not customer:
+        flash('Customer not found.', 'error')
+        return redirect(url_for('admin_order_detail', order_number=order_number))
+
+    # Get invoice path
+    invoice_path = get_invoice_path(order['invoice_number'])
+
+    # Send email
+    success, message = send_invoice_email(
+        app.config,
+        customer['email'],
+        customer['name'],
+        order_number,
+        order['invoice_number'],
+        invoice_path
+    )
+
+    if success:
+        flash(f'Invoice emailed to {customer["email"]}!', 'success')
+    else:
+        flash(f'Failed to send invoice email: {message}', 'error')
+
+    return redirect(url_for('admin_order_detail', order_number=order_number))
 
 
 @app.route('/admin/quotes')
@@ -1265,6 +1384,58 @@ def email_customer(request_type, quote_id):
         flash(f'Email sent successfully to {quote_details["email"]}!', 'success')
     else:
         flash(f'Failed to send email: {result_message}', 'error')
+
+    return redirect(url_for('admin_quotes'))
+
+
+@app.route('/admin/quotes/convert-to-sale/<string:request_type>/<int:quote_id>', methods=['POST'])
+@admin_required
+def convert_quote_to_sale(request_type, quote_id):
+    """Convert a quote to a sale by adding to customer's cart"""
+    item_name = request.form.get('item_name')
+    item_price = request.form.get('item_price')
+    item_description = request.form.get('item_description', 'Custom quote item')
+
+    if not item_name or not item_price:
+        flash('Item name and price are required!', 'error')
+        return redirect(url_for('admin_quotes'))
+
+    try:
+        item_price = float(item_price)
+    except ValueError:
+        flash('Invalid price format!', 'error')
+        return redirect(url_for('admin_quotes'))
+
+    # Convert quote to sale
+    success, message, result_data = db.convert_quote_to_sale(
+        request_type,
+        quote_id,
+        item_name,
+        item_price,
+        item_description
+    )
+
+    if success:
+        flash(message, 'success')
+
+        # Send email notification to customer
+        from src.email_utils import send_quote_converted_notification
+        if result_data:
+            email_success, email_msg = send_quote_converted_notification(
+                app.config,
+                result_data['customer_email'],
+                result_data['customer_name'],
+                item_name,
+                item_price,
+                result_data.get('user_created', False),
+                result_data.get('temp_password')
+            )
+
+            if not email_success:
+                print(f"Failed to send quote conversion email: {email_msg}")
+
+    else:
+        flash(message, 'error')
 
     return redirect(url_for('admin_quotes'))
 

@@ -20,10 +20,18 @@
                             <span class="badge bg-warning text-dark fs-5">Pending</span>
                         {% elif order.status == 'confirmed' %}
                             <span class="badge bg-info fs-5">Confirmed</span>
+                        {% elif order.status == 'awaiting_payment' %}
+                            <span class="badge bg-warning fs-5">Awaiting Payment</span>
+                        {% elif order.status == 'paid' %}
+                            <span class="badge bg-success fs-5">Paid</span>
+                        {% elif order.status == 'processing' %}
+                            <span class="badge bg-primary fs-5">Processing</span>
                         {% elif order.status == 'shipped' %}
-                            <span class="badge bg-success fs-5">Shipped</span>
+                            <span class="badge bg-info fs-5">Shipped</span>
                         {% elif order.status == 'delivered' %}
                             <span class="badge bg-secondary fs-5">Delivered</span>
+                        {% elif order.status == 'cancelled' %}
+                            <span class="badge bg-danger fs-5">Cancelled</span>
                         {% endif %}
                     </div>
                 </div>
@@ -43,6 +51,15 @@
                         <p><strong>Email:</strong> {{ customer.email if customer else 'N/A' }}</p>
                         <p><strong>Phone:</strong> {{ customer.phone if customer else 'N/A' }}</p>
                         <p><strong>Order Date:</strong> {{ order.created_date }}</p>
+                        {% if order.quote_type and order.quote_id %}
+                        <div class="alert alert-info mt-3 mb-0">
+                            <i class="fas fa-quote-left"></i> <strong>Created from Quote:</strong>
+                            {{ order.quote_type.replace('_', ' ').title() }} #{{ order.quote_id }}
+                            <a href="{{ url_for('admin_quotes') }}" class="btn btn-sm btn-outline-info ms-2">
+                                <i class="fas fa-external-link-alt"></i> View Quote
+                            </a>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -147,6 +164,44 @@
                     </div>
                 </div>
 
+                <!-- Invoice Management -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-file-invoice"></i> Invoice</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if order.invoice_number %}
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle"></i> Invoice Generated<br>
+                                <strong>{{ order.invoice_number }}</strong><br>
+                                <small class="text-muted">Generated: {{ order.invoice_generated_date or 'N/A' }}</small>
+                            </div>
+                            <a href="{{ url_for('admin_download_invoice', order_number=order.order_number) }}" class="btn btn-outline-primary w-100 mb-2">
+                                <i class="fas fa-download"></i> Download Invoice PDF
+                            </a>
+                            <form method="POST" action="{{ url_for('admin_send_invoice_email', order_number=order.order_number) }}" class="mb-2">
+                                <button type="submit" class="btn btn-success w-100">
+                                    <i class="fas fa-envelope"></i> Email Invoice to Customer
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ url_for('admin_generate_invoice', order_number=order.order_number) }}">
+                                <button type="submit" class="btn btn-outline-secondary w-100">
+                                    <i class="fas fa-sync"></i> Regenerate Invoice
+                                </button>
+                            </form>
+                        {% else %}
+                            <p class="text-muted">
+                                <i class="fas fa-info-circle"></i> No invoice generated yet.
+                            </p>
+                            <form method="POST" action="{{ url_for('admin_generate_invoice', order_number=order.order_number) }}">
+                                <button type="submit" class="btn btn-success w-100">
+                                    <i class="fas fa-file-invoice"></i> Generate Invoice
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+
                 <!-- Update Status -->
                 <div class="card mb-4">
                     <div class="card-header">
@@ -159,8 +214,12 @@
                                 <select name="status" id="status" class="form-select" required>
                                     <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>Pending</option>
                                     <option value="confirmed" {% if order.status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                                    <option value="awaiting_payment" {% if order.status == 'awaiting_payment' %}selected{% endif %}>Awaiting Payment</option>
+                                    <option value="paid" {% if order.status == 'paid' %}selected{% endif %}>Paid</option>
+                                    <option value="processing" {% if order.status == 'processing' %}selected{% endif %}>Processing</option>
                                     <option value="shipped" {% if order.status == 'shipped' %}selected{% endif %}>Shipped</option>
                                     <option value="delivered" {% if order.status == 'delivered' %}selected{% endif %}>Delivered</option>
+                                    <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
                                 </select>
                             </div>
                             <div class="form-check mb-3" style="padding-left: 1.5rem;">

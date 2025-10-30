@@ -18,7 +18,7 @@
             <div class="col">
                 <div class="btn-group" role="group">
                     <a href="{{ url_for('admin_orders') }}" class="btn {% if not status_filter %}btn-primary{% else %}btn-outline-primary{% endif %}">
-                        <i class="fas fa-list"></i> All Orders
+                        <i class="fas fa-list"></i> All
                     </a>
                     <a href="{{ url_for('admin_orders', status='pending') }}" class="btn {% if status_filter == 'pending' %}btn-warning{% else %}btn-outline-warning{% endif %}">
                         <i class="fas fa-clock"></i> Pending
@@ -26,7 +26,16 @@
                     <a href="{{ url_for('admin_orders', status='confirmed') }}" class="btn {% if status_filter == 'confirmed' %}btn-info{% else %}btn-outline-info{% endif %}">
                         <i class="fas fa-check-circle"></i> Confirmed
                     </a>
-                    <a href="{{ url_for('admin_orders', status='shipped') }}" class="btn {% if status_filter == 'shipped' %}btn-success{% else %}btn-outline-success{% endif %}">
+                    <a href="{{ url_for('admin_orders', status='awaiting_payment') }}" class="btn {% if status_filter == 'awaiting_payment' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+                        <i class="fas fa-money-bill-wave"></i> Awaiting Payment
+                    </a>
+                    <a href="{{ url_for('admin_orders', status='paid') }}" class="btn {% if status_filter == 'paid' %}btn-success{% else %}btn-outline-success{% endif %}">
+                        <i class="fas fa-check-double"></i> Paid
+                    </a>
+                    <a href="{{ url_for('admin_orders', status='processing') }}" class="btn {% if status_filter == 'processing' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                        <i class="fas fa-cogs"></i> Processing
+                    </a>
+                    <a href="{{ url_for('admin_orders', status='shipped') }}" class="btn {% if status_filter == 'shipped' %}btn-info{% else %}btn-outline-info{% endif %}">
                         <i class="fas fa-shipping-fast"></i> Shipped
                     </a>
                     <a href="{{ url_for('admin_orders', status='delivered') }}" class="btn {% if status_filter == 'delivered' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
@@ -94,10 +103,18 @@
                                                 <span class="badge bg-warning text-dark">Pending</span>
                                             {% elif order.status == 'confirmed' %}
                                                 <span class="badge bg-info">Confirmed</span>
+                                            {% elif order.status == 'awaiting_payment' %}
+                                                <span class="badge bg-warning">Awaiting Payment</span>
+                                            {% elif order.status == 'paid' %}
+                                                <span class="badge bg-success">Paid</span>
+                                            {% elif order.status == 'processing' %}
+                                                <span class="badge bg-primary">Processing</span>
                                             {% elif order.status == 'shipped' %}
-                                                <span class="badge bg-success">Shipped</span>
+                                                <span class="badge bg-info">Shipped</span>
                                             {% elif order.status == 'delivered' %}
                                                 <span class="badge bg-secondary">Delivered</span>
+                                            {% elif order.status == 'cancelled' %}
+                                                <span class="badge bg-danger">Cancelled</span>
                                             {% else %}
                                                 <span class="badge bg-light text-dark">{{ order.status }}</span>
                                             {% endif %}

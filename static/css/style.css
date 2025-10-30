@@ -1238,3 +1238,23 @@ html {
         transform: translateY(0);
     }
 }
+
+/* ===================================
+   Mobile Cart Badge Fix
+   =================================== */
+
+/* Fix cart badge positioning on mobile when navbar is collapsed */
+@media (max-width: 991.98px) {
+    .navbar-collapse .nav-link.position-relative {
+        display: inline-flex;
+        align-items: center;
+        position: relative;
+    }
+
+    .navbar-collapse .cart-badge {
+        position: absolute !important;
+        top: -5px !important;
+        left: 20px !important;
+        right: auto !important;
+    }
+}

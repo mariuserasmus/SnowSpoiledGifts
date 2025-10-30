@@ -1,8 +1,45 @@
 import smtplib
+import os
+import base64
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.image import MIMEImage
 from datetime import datetime
 from flask import url_for
+
+
+def get_logo_embedded():
+    """Get the SSG logo as base64 for embedding in emails"""
+    logo_path = os.path.join('static', 'images', 'logo', 'SSG-Logo.png')
+    try:
+        if os.path.exists(logo_path):
+            with open(logo_path, 'rb') as f:
+                logo_data = base64.b64encode(f.read()).decode()
+                return f'data:image/png;base64,{logo_data}'
+    except Exception as e:
+        print(f"Could not load logo: {e}")
+    return None
+
+
+def add_email_logo_header(config):
+    """Generate HTML header with logo for emails"""
+    logo_base64 = get_logo_embedded()
+
+    if logo_base64:
+        return f'''
+        <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);">
+            <img src="{logo_base64}" alt="{config['SITE_NAME']}" style="width: 60px; height: 60px; margin-bottom: 10px;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">{config['SITE_NAME']}</h1>
+            <p style="color: #dbeafe; margin: 5px 0 0 0;">{config['TAGLINE']}</p>
+        </div>
+        '''
+    else:
+        return f'''
+        <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);">
+            <h1 style="color: white; margin: 0; font-size: 24px;">{config['SITE_NAME']}</h1>
+            <p style="color: #dbeafe; margin: 5px 0 0 0;">{config['TAGLINE']}</p>
+        </div>
+        '''
 
 
 def send_quote_notification(config, quote_data):
@@ -1291,12 +1328,30 @@ def send_order_status_update(config, customer_email, order_number, new_status, c
                 'title': 'Order Confirmed',
                 'icon': '✓',
                 'color': '#3b82f6',
-                'message': 'Your order has been confirmed and is being prepared for shipment.'
+                'message': 'Your order has been confirmed! An invoice has been sent to your email with payment instructions.'
+            },
+            'awaiting_payment': {
+                'title': 'Awaiting Payment',
+                'icon': '💳',
+                'color': '#f59e0b',
+                'message': 'Your order is confirmed and awaiting payment. Please check your invoice for payment instructions.'
+            },
+            'paid': {
+                'title': 'Payment Received',
+                'icon': '✅',
+                'color': '#10b981',
+                'message': 'Thank you! We have received your payment and will start processing your order.'
+            },
+            'processing': {
+                'title': 'Order Processing',
+                'icon': '⚙️',
+                'color': '#6366f1',
+                'message': 'Your order is currently being prepared and will be shipped soon.'
             },
             'shipped': {
                 'title': 'Order Shipped',
                 'icon': '📦',
-                'color': '#10b981',
+                'color': '#0ea5e9',
                 'message': 'Great news! Your order has been shipped and is on its way to you.'
             },
             'delivered': {
@@ -1304,6 +1359,12 @@ def send_order_status_update(config, customer_email, order_number, new_status, c
                 'icon': '🎉',
                 'color': '#8b5cf6',
                 'message': 'Your order has been delivered! We hope you love your purchase.'
+            },
+            'cancelled': {
+                'title': 'Order Cancelled',
+                'icon': '❌',
+                'color': '#ef4444',
+                'message': 'Your order has been cancelled. If you have any questions, please contact us.'
             }
         }
 
@@ -1416,5 +1477,306 @@ Email: info@snowspoiledgifts.co.za
 
     except Exception as e:
         error_msg = f"Failed to send status update email: {str(e)}"
+        print(error_msg)
+        return False, error_msg
+
+
+def send_quote_converted_notification(config, customer_email, customer_name, item_name, item_price, user_created=False, temp_password=None):
+    """
+    Send notification email when quote is converted to cart item.
+    If user was auto-created, include login credentials.
+
+    Args:
+        config: Flask app config object
+        customer_email: Customer's email address
+        customer_name: Customer's name
+        item_name: Name of the item added to cart
+        item_price: Price of the item
+        user_created: Whether a new user account was created
+        temp_password: Temporary password if account was created
+
+    Returns:
+        Tuple (success: bool, message: str)
+    """
+    if not config['MAIL_PASSWORD']:
+        print("Warning: Email password not configured. Skipping quote conversion email.")
+        return False, "Email not configured"
+
+    try:
+        msg = MIMEMultipart('alternative')
+
+        if user_created and temp_password:
+            msg['Subject'] = f"Your Quote is Ready + Account Created - {config['SITE_NAME']}"
+        else:
+            msg['Subject'] = f"Your Quote is Ready for Checkout - {config['SITE_NAME']}"
+
+        msg['From'] = config['MAIL_DEFAULT_SENDER']
+        msg['To'] = customer_email
+
+        # Create HTML email body
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                          color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
+                .header h1 {{ margin: 0; font-size: 28px; }}
+                .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }}
+                .item-box {{ background: white; padding: 20px; border-radius: 8px; margin: 20px 0;
+                           border-left: 4px solid #10b981; }}
+                .price-tag {{ font-size: 24px; font-weight: bold; color: #10b981; }}
+                .credentials-box {{ background: #fef3c7; border: 2px solid #f59e0b; padding: 20px;
+                                   border-radius: 8px; margin: 20px 0; }}
+                .button {{ background: #10b981; color: white; padding: 15px 30px; text-decoration: none;
+                         border-radius: 5px; display: inline-block; margin: 20px 0; font-weight: bold; }}
+                .footer {{ text-align: center; margin-top: 30px; color: #666; font-size: 12px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                {add_email_logo_header(config)}
+                <div class="header" style="margin-top: 0; border-radius: 0;">
+                    <h1>🎉 Your Quote is Ready!</h1>
+                </div>
+                <div class="content">
+                    <p>Hi {customer_name},</p>
+
+                    <p>Great news! We've reviewed your quote request and added it to your cart:</p>
+
+                    <div class="item-box">
+                        <h3>{item_name}</h3>
+                        <div class="price-tag">R{item_price:.2f}</div>
+                    </div>
+
+                    {f'''
+                    <div class="credentials-box">
+                        <h3>⚠️ New Account Created</h3>
+                        <p>We've created an account for you to complete your order:</p>
+                        <p><strong>Email:</strong> {customer_email}<br>
+                        <strong>Temporary Password:</strong> {temp_password}</p>
+                        <p style="font-size: 12px; color: #666;">
+                            <em>Please change your password after logging in from "My Account".</em>
+                        </p>
+                    </div>
+                    ''' if user_created and temp_password else ''}
+
+                    <p><strong>Next Steps:</strong></p>
+                    <ol>
+                        <li>{'Log in with your credentials above' if user_created else 'Log in to your account'}</li>
+                        <li>Review the item in your cart</li>
+                        <li>Choose your shipping method</li>
+                        <li>Complete checkout</li>
+                    </ol>
+
+                    <center>
+                        <a href="{config['SITE_URL']}/cart" class="button">View My Cart</a>
+                    </center>
+
+                    <p>If you have any questions about your quote or need adjustments, please reply to this email.</p>
+
+                    <p>Thank you for choosing {config['SITE_NAME']}!</p>
+                </div>
+                <div class="footer">
+                    <p>{config['SITE_NAME']}<br>
+                    Email: {config['MAIL_DEFAULT_SENDER']}<br>
+                    This is an automated notification.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        # Create plain text version
+        text_body = f"""
+Your Quote is Ready!
+
+Hi {customer_name},
+
+Great news! We've reviewed your quote request and added it to your cart:
+
+Item: {item_name}
+Price: R{item_price:.2f}
+
+{"NEW ACCOUNT CREATED" if user_created else ""}
+{"Email: " + customer_email if user_created else ""}
+{"Temporary Password: " + temp_password if user_created and temp_password else ""}
+{"Please change your password after logging in." if user_created else ""}
+
+Next Steps:
+1. {"Log in with your credentials above" if user_created else "Log in to your account"}
+2. Review the item in your cart
+3. Choose your shipping method
+4. Complete checkout
+
+Visit: {config['SITE_URL']}/cart
+
+If you have any questions, please reply to this email.
+
+Thank you for choosing {config['SITE_NAME']}!
+        """
+
+        msg.attach(MIMEText(text_body, 'plain'))
+        msg.attach(MIMEText(html_body, 'html'))
+
+        # Send email
+        if config.get('MAIL_USE_SSL'):
+            with smtplib.SMTP_SSL(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+                server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+                server.starttls()
+                server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+                server.send_message(msg)
+
+        return True, "Quote conversion email sent successfully"
+
+    except Exception as e:
+        error_msg = f"Failed to send quote conversion email: {str(e)}"
+        print(error_msg)
+        return False, error_msg
+
+
+def send_invoice_email(config, customer_email, customer_name, order_number, invoice_number, invoice_path):
+    """
+    Send invoice PDF via email to customer.
+
+    Args:
+        config: Flask app config object
+        customer_email: Customer's email address
+        customer_name: Customer's name
+        order_number: Order number
+        invoice_number: Invoice number
+        invoice_path: Path to the invoice PDF file
+
+    Returns:
+        Tuple (success: bool, message: str)
+    """
+    if not config['MAIL_PASSWORD']:
+        print("Warning: Email password not configured. Skipping invoice email.")
+        return False, "Email not configured"
+
+    try:
+        msg = MIMEMultipart('mixed')
+        msg['Subject'] = f"Invoice {invoice_number} - {config['SITE_NAME']}"
+        msg['From'] = config['MAIL_DEFAULT_SENDER']
+        msg['To'] = customer_email
+
+        # Create HTML email body
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+                          color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
+                .header h1 {{ margin: 0; font-size: 28px; }}
+                .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }}
+                .invoice-box {{ background: white; padding: 20px; border-radius: 8px; margin: 20px 0;
+                              border-left: 4px solid #2563eb; }}
+                .button {{ background: #2563eb; color: white; padding: 15px 30px; text-decoration: none;
+                         border-radius: 5px; display: inline-block; margin: 20px 0; font-weight: bold; }}
+                .footer {{ text-align: center; margin-top: 30px; color: #666; font-size: 12px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                {add_email_logo_header(config)}
+                <div class="header" style="margin-top: 0; border-radius: 0;">
+                    <h1>📄 Your Invoice</h1>
+                </div>
+                <div class="content">
+                    <p>Hi {customer_name},</p>
+
+                    <p>Thank you for your order! Please find your invoice attached to this email.</p>
+
+                    <div class="invoice-box">
+                        <h3>Invoice Details</h3>
+                        <p><strong>Invoice Number:</strong> {invoice_number}<br>
+                        <strong>Order Number:</strong> {order_number}<br>
+                        <strong>Date:</strong> {datetime.now().strftime('%d %B %Y')}</p>
+                    </div>
+
+                    <p><strong>Payment Instructions:</strong></p>
+                    <ul>
+                        <li>Please review the attached invoice for the total amount due</li>
+                        <li>Payment methods and details are included in the invoice</li>
+                        <li>Once payment is received, we will update your order status</li>
+                    </ul>
+
+                    <p>If you have any questions about this invoice, please don't hesitate to contact us.</p>
+
+                    <p>Thank you for your business!</p>
+                </div>
+                <div class="footer">
+                    <p>{config['SITE_NAME']}<br>
+                    Email: {config['MAIL_DEFAULT_SENDER']}<br>
+                    This is an automated notification.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        # Create plain text version
+        text_body = f"""
+Your Invoice - {invoice_number}
+
+Hi {customer_name},
+
+Thank you for your order! Please find your invoice attached to this email.
+
+Invoice Details:
+- Invoice Number: {invoice_number}
+- Order Number: {order_number}
+- Date: {datetime.now().strftime('%d %B %Y')}
+
+Payment Instructions:
+- Please review the attached invoice for the total amount due
+- Payment methods and details are included in the invoice
+- Once payment is received, we will update your order status
+
+If you have any questions about this invoice, please contact us.
+
+Thank you for your business!
+
+{config['SITE_NAME']}
+{config['MAIL_DEFAULT_SENDER']}
+        """
+
+        # Attach text and HTML parts
+        msg.attach(MIMEText(text_body, 'plain'))
+        msg.attach(MIMEText(html_body, 'html'))
+
+        # Attach PDF invoice
+        if os.path.exists(invoice_path):
+            with open(invoice_path, 'rb') as f:
+                from email.mime.application import MIMEApplication
+                pdf_attachment = MIMEApplication(f.read(), _subtype='pdf')
+                pdf_attachment.add_header('Content-Disposition', 'attachment', filename=f'{invoice_number}.pdf')
+                msg.attach(pdf_attachment)
+        else:
+            return False, "Invoice PDF file not found"
+
+        # Send email
+        if config.get('MAIL_USE_SSL'):
+            with smtplib.SMTP_SSL(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+                server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+                server.starttls()
+                server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+                server.send_message(msg)
+
+        return True, "Invoice email sent successfully"
+
+    except Exception as e:
+        error_msg = f"Failed to send invoice email: {str(e)}"
         print(error_msg)
         return False, error_msg

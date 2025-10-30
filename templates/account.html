@@ -106,13 +106,21 @@
                                         <div class="text-end">
                                             <strong class="d-block">R{{ "%.2f"|format(order.total_amount) }}</strong>
                                             {% if order.status == 'pending' %}
-                                            <span class="badge bg-warning text-dark">{{ order.status|upper }}</span>
+                                            <span class="badge bg-warning text-dark">PENDING</span>
                                             {% elif order.status == 'confirmed' %}
-                                            <span class="badge bg-info">{{ order.status|upper }}</span>
+                                            <span class="badge bg-info">CONFIRMED</span>
+                                            {% elif order.status == 'awaiting_payment' %}
+                                            <span class="badge bg-warning">AWAITING PAYMENT</span>
+                                            {% elif order.status == 'paid' %}
+                                            <span class="badge bg-success">PAID</span>
+                                            {% elif order.status == 'processing' %}
+                                            <span class="badge bg-primary">PROCESSING</span>
                                             {% elif order.status == 'shipped' %}
-                                            <span class="badge bg-primary">{{ order.status|upper }}</span>
+                                            <span class="badge bg-info">SHIPPED</span>
                                             {% elif order.status == 'delivered' %}
-                                            <span class="badge bg-success">{{ order.status|upper }}</span>
+                                            <span class="badge bg-success">DELIVERED</span>
+                                            {% elif order.status == 'cancelled' %}
+                                            <span class="badge bg-danger">CANCELLED</span>
                                             {% else %}
                                             <span class="badge bg-secondary">{{ order.status|upper }}</span>
                                             {% endif %}

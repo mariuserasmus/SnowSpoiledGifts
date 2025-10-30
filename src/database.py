@@ -339,6 +339,42 @@ class Database:
                 if 'is_admin' not in columns:
                     cursor.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0")
 
+            # Add invoice and quote reference fields to orders table
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='orders'")
+            if cursor.fetchone():
+                cursor.execute("PRAGMA table_info(orders)")
+                columns = [col[1] for col in cursor.fetchall()]
+
+                # Add invoice fields
+                if 'invoice_number' not in columns:
+                    cursor.execute("ALTER TABLE orders ADD COLUMN invoice_number TEXT")
+                if 'invoice_generated_date' not in columns:
+                    cursor.execute("ALTER TABLE orders ADD COLUMN invoice_generated_date TIMESTAMP")
+                if 'invoice_sent_date' not in columns:
+                    cursor.execute("ALTER TABLE orders ADD COLUMN invoice_sent_date TIMESTAMP")
+
+                # Add quote reference fields
+                if 'quote_type' not in columns:
+                    cursor.execute("ALTER TABLE orders ADD COLUMN quote_type TEXT")
+                if 'quote_id' not in columns:
+                    cursor.execute("ALTER TABLE orders ADD COLUMN quote_id INTEGER")
+
+                # Add payment received date
+                if 'payment_received_date' not in columns:
+                    cursor.execute("ALTER TABLE orders ADD COLUMN payment_received_date TIMESTAMP")
+
+            # Add order_id reference to quote tables
+            for table in ['quote_requests', 'cake_topper_requests', 'print_service_requests']:
+                cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table}'")
+                if cursor.fetchone():
+                    cursor.execute(f"PRAGMA table_info({table})")
+                    columns = [col[1] for col in cursor.fetchall()]
+
+                    if 'order_number' not in columns:
+                        cursor.execute(f"ALTER TABLE {table} ADD COLUMN order_number TEXT")
+                    if 'converted_to_order_date' not in columns:
+                        cursor.execute(f"ALTER TABLE {table} ADD COLUMN converted_to_order_date TIMESTAMP")
+
         except Exception as e:
             # Migrations are optional, don't fail if they error
             print(f"Migration warning: {str(e)}")
@@ -2042,14 +2078,22 @@ class Database:
             # Generate sequential order number: SSG-YYYYMM-001
             year_month = datetime.now().strftime('%Y%m')
 
-            # Get the count of orders for this month
+            # Get the highest order number for this month to avoid duplicates
             cursor.execute('''
-                SELECT COUNT(*) as count FROM orders
+                SELECT order_number FROM orders
                 WHERE order_number LIKE ?
+                ORDER BY order_number DESC
+                LIMIT 1
             ''', (f'SSG-{year_month}-%',))
 
-            count = cursor.fetchone()['count']
-            order_sequence = count + 1
+            last_order = cursor.fetchone()
+            if last_order:
+                # Extract the sequence number from last order
+                last_sequence = int(last_order['order_number'].split('-')[-1])
+                order_sequence = last_sequence + 1
+            else:
+                order_sequence = 1
+
             order_number = f"SSG-{year_month}-{order_sequence:03d}"
 
             # Create order (use empty string for NULL values to handle old NOT NULL constraints)
@@ -2075,12 +2119,46 @@ class Database:
 
             order_id = cursor.lastrowid
 
-            # Create order items
+            # Create order items and check for quote references
+            quote_reference = None
             for item in cart_items:
                 cursor.execute('''
                     INSERT INTO order_items (order_id, product_id, quantity, price)
                     VALUES (?, ?, ?, ?)
                 ''', (order_id, item['item_id'], item['quantity'], item['price']))
+
+                # Check if this item is from a quote (item_number starts with "QUOTE-")
+                cursor.execute('SELECT item_number FROM cutter_items WHERE id = ?', (item['item_id'],))
+                item_data = cursor.fetchone()
+                if item_data and item_data['item_number'].startswith('QUOTE-'):
+                    # Parse quote reference: QUOTE-CUSTOM_DESIGN-123 or QUOTE-CAKE_TOPPER-456
+                    parts = item_data['item_number'].split('-')
+                    if len(parts) >= 3:
+                        quote_type = parts[1].lower()
+                        quote_id = int(parts[2])
+                        quote_reference = {'type': quote_type, 'id': quote_id}
+
+            # If order contains quote items, link them
+            if quote_reference:
+                cursor.execute('''
+                    UPDATE orders
+                    SET quote_type = ?, quote_id = ?
+                    WHERE id = ?
+                ''', (quote_reference['type'], quote_reference['id'], order_id))
+
+                # Update quote table with order number
+                table_map = {
+                    'custom_design': 'quote_requests',
+                    'cake_topper': 'cake_topper_requests',
+                    'print_service': 'print_service_requests'
+                }
+                table_name = table_map.get(quote_reference['type'])
+                if table_name:
+                    cursor.execute(f'''
+                        UPDATE {table_name}
+                        SET order_number = ?
+                        WHERE id = ?
+                    ''', (order_number, quote_reference['id']))
 
             # Clear user's cart
             cursor.execute('DELETE FROM cart_items WHERE user_id = ?', (user_id,))
@@ -2168,16 +2246,36 @@ class Database:
         return [dict(item) for item in items]
 
     def update_order_status(self, order_id, status):
-        """Update order status"""
+        """Update order status and track payment dates"""
         conn = self.get_connection()
         cursor = conn.cursor()
 
         try:
-            cursor.execute('''
+            # Base update
+            update_fields = ['status = ?', 'updated_date = CURRENT_TIMESTAMP']
+            params = [status]
+
+            # Track payment received date when status changes to 'paid'
+            if status == 'paid':
+                update_fields.append('payment_received_date = CURRENT_TIMESTAMP')
+                update_fields.append('payment_status = ?')
+                params.append('paid')
+
+            # Track invoice sent date when status changes to 'confirmed' or 'awaiting_payment'
+            if status in ['confirmed', 'awaiting_payment']:
+                # Check if invoice_sent_date is not already set
+                cursor.execute('SELECT invoice_sent_date FROM orders WHERE id = ?', (order_id,))
+                result = cursor.fetchone()
+                if result and not result['invoice_sent_date']:
+                    update_fields.append('invoice_sent_date = CURRENT_TIMESTAMP')
+
+            params.append(order_id)
+
+            cursor.execute(f'''
                 UPDATE orders
-                SET status = ?, updated_date = CURRENT_TIMESTAMP
+                SET {', '.join(update_fields)}
                 WHERE id = ?
-            ''', (status, order_id))
+            ''', params)
 
             conn.commit()
             conn.close()
@@ -2239,6 +2337,170 @@ class Database:
             conn.commit()
             conn.close()
             return True, f"Order {order_number} deleted successfully!"
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}"
+
+    def convert_quote_to_sale(self, quote_type, quote_id, item_name, item_price, item_description="Custom quote item"):
+        """
+        Convert a quote to a sale by creating a temporary custom item and adding to customer's cart.
+
+        Args:
+            quote_type: Type of quote ('custom_design', 'cake_topper', 'print_service')
+            quote_id: ID of the quote request
+            item_name: Name for the custom item
+            item_price: Price for the item
+            item_description: Description of the item
+
+        Returns:
+            Tuple (success: bool, message: str, user_id: int or None)
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Get quote details and customer email based on quote type
+            table_map = {
+                'custom_design': 'quote_requests',
+                'cake_topper': 'cake_topper_requests',
+                'print_service': 'print_service_requests'
+            }
+
+            table_name = table_map.get(quote_type)
+            if not table_name:
+                conn.close()
+                return False, "Invalid quote type", None
+
+            # Get quote details
+            cursor.execute(f'SELECT * FROM {table_name} WHERE id = ?', (quote_id,))
+            quote = cursor.fetchone()
+
+            if not quote:
+                conn.close()
+                return False, "Quote not found", None
+
+            customer_email = quote['email']
+            customer_name = quote['name']
+            customer_phone = quote['phone'] if quote['phone'] else ''
+
+            # Check if customer has a user account
+            cursor.execute('SELECT id FROM users WHERE email = ?', (customer_email,))
+            user = cursor.fetchone()
+
+            if not user:
+                # Auto-create user account with temporary password
+                temp_password = secrets.token_urlsafe(12)  # Generate random password
+                password_hash = bcrypt.hashpw(temp_password.encode('utf-8'), bcrypt.gensalt())
+
+                cursor.execute('''
+                    INSERT INTO users (email, password_hash, name, phone, is_active, email_verified)
+                    VALUES (?, ?, ?, ?, 1, 0)
+                ''', (customer_email, password_hash, customer_name, customer_phone))
+
+                user_id = cursor.lastrowid
+                user_created = True
+                user_temp_password = temp_password
+            else:
+                user_id = user['id']
+                user_created = False
+                user_temp_password = None
+
+            # Create a temporary custom item in cutter_items table
+            # Get or create a "Custom Quotes" category
+            cursor.execute("SELECT id FROM cutter_categories WHERE name = 'Custom Quotes'")
+            category = cursor.fetchone()
+
+            if not category:
+                cursor.execute("INSERT INTO cutter_categories (name, description) VALUES (?, ?)",
+                             ('Custom Quotes', 'Items created from custom quote requests'))
+                category_id = cursor.lastrowid
+            else:
+                category_id = category['id']
+
+            # Get or create a "Quote Item" type
+            cursor.execute("SELECT id FROM cutter_types WHERE name = 'Quote Item'")
+            cutter_type = cursor.fetchone()
+
+            if not cutter_type:
+                cursor.execute("INSERT INTO cutter_types (name, description) VALUES (?, ?)",
+                             ('Quote Item', 'Custom items from quotes'))
+                type_id = cursor.lastrowid
+            else:
+                type_id = cutter_type['id']
+
+            # Create custom item
+            cursor.execute('''
+                INSERT INTO cutter_items (
+                    item_number, name, description, price, stock_status,
+                    category_id, type_id, created_date, is_active
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 1)
+            ''', (
+                f"QUOTE-{quote_type.upper()}-{quote_id}",
+                item_name,
+                f"{item_description}\n\nOriginal Quote ID: {quote_id} ({quote_type.replace('_', ' ').title()})",
+                item_price,
+                'in_stock',
+                category_id,
+                type_id
+            ))
+
+            item_id = cursor.lastrowid
+
+            # Add item to customer's cart
+            cursor.execute('''
+                INSERT INTO cart_items (user_id, item_id, quantity, added_date)
+                VALUES (?, ?, 1, CURRENT_TIMESTAMP)
+            ''', (user_id, item_id))
+
+            # Update quote status to 'converted'
+            cursor.execute(f'''
+                UPDATE {table_name}
+                SET status = 'converted', converted_to_order_date = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (quote_id,))
+
+            conn.commit()
+            conn.close()
+
+            # Return success with user creation details
+            result_data = {
+                'user_id': user_id,
+                'user_created': user_created,
+                'temp_password': user_temp_password,
+                'customer_email': customer_email,
+                'customer_name': customer_name
+            }
+
+            if user_created:
+                message = f"Account created for {customer_email} and quote added to cart!"
+            else:
+                message = f"Quote converted to sale and added to {customer_email}'s cart!"
+
+            return True, message, result_data
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}", None
+
+    def generate_invoice_number(self, order_number):
+        """Generate and save invoice number for an order"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            invoice_number = f"INV-{order_number}"
+
+            cursor.execute('''
+                UPDATE orders
+                SET invoice_number = ?, invoice_generated_date = CURRENT_TIMESTAMP
+                WHERE order_number = ?
+            ''', (invoice_number, order_number))
+
+            conn.commit()
+            conn.close()
+            return True, invoice_number
 
         except Exception as e:
             conn.close()
