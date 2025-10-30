@@ -11,11 +11,19 @@ Full-featured Flask e-commerce website for www.snowspoiledgifts.co.za
 - 📸 Multi-image product galleries with carousels
 - 📝 Quote request forms with file uploads
 - 📧 Email signup with interest tracking
+- 👤 User Account System (Registration, Login, Profile)
+- 🛒 Shopping Cart with session persistence
+- 💳 Checkout with multiple shipping options (Pickup, Courier, PUDO)
+- 📦 Order Tracking & History
+- 📧 Order Status Email Notifications
 
 ### Admin Panel
 - 👨‍💼 Comprehensive admin dashboard
 - 📦 Cookie & Clay Cutters management (Categories, Types, Items, Photos)
 - 📊 Quote request management (Custom Design, Cake Topper, Print Service)
+- 🔄 Quote-to-Order conversion with auto-registration
+- 📋 Order Management System (Full lifecycle tracking)
+- 🧾 Invoice Generation & Management (PDF with branding)
 - 📧 Email notification system with multiple recipients
 - ✉️ Email customer directly from admin panel (with branded templates)
 - 🔒 Secure admin authentication
@@ -98,15 +106,20 @@ Visit: http://localhost:5000
 - ✅ Quote request system (3 types)
 - ✅ Email notifications (Afrihost SMTP)
 - ✅ Admin panel (signups, quotes, products)
-- ✅ Admin email customer functionality (Oct 2025)
-- ✅ Consistent UI styling across admin pages (Oct 2025)
-- ✅ Version tracking system (Oct 2025)
+- ✅ Admin email customer functionality
+- ✅ Consistent UI styling across admin pages
+- ✅ Version tracking system
+- ✅ User Authentication & Account System (Oct 2025)
+- ✅ Shopping Cart (Oct 2025)
+- ✅ Checkout & Orders (Oct 2025)
+- ✅ Order Management System (Oct 2025)
+- ✅ Quote-to-Order Conversion (Oct 2025)
+- ✅ Invoice Generation & PDF Export (Oct 2025)
 
 **Next Phase:**
-- 🛒 Shopping Cart (see CHECKPOINT_NEXT_PHASE.md)
-- 👤 User Authentication
-- 💳 Checkout & Payment
-- 📦 Order Management
+- 💳 Payment Gateway Integration (Yoco/PayFast)
+- 📦 Shipping Integration (PUDO/Courier Guy)
+- 📊 Analytics Dashboard
 
 ---
 
@@ -142,10 +155,12 @@ git push origin main
 
 ## 🛠️ Tech Stack
 
-- **Backend:** Flask (Python)
-- **Database:** SQLite
+- **Backend:** Flask (Python), Flask-Login for authentication
+- **Database:** SQLite with comprehensive schema
 - **Frontend:** Bootstrap 5, JavaScript
-- **Email:** SMTP (Afrihost mail server)
+- **Email:** SMTP (Afrihost mail server) with HTML templates
+- **PDF Generation:** ReportLab for invoices
+- **Security:** bcrypt password hashing, CSRF protection
 - **Hosting:** Afrihost (Passenger WSGI)
 
 ---
