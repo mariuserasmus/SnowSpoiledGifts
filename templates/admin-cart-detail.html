@@ -83,10 +83,11 @@
                                     <tr>
                                         <td>
                                             {% if item.main_photo %}
-                                            <img src="{{ url_for('static', filename=item.main_photo) }}"
+                                            <img src="/{{ item.main_photo.replace('\\', '/') }}"
                                                  alt="{{ item.name }}"
                                                  class="img-thumbnail"
-                                                 style="width: 60px; height: 60px; object-fit: cover;">
+                                                 style="width: 60px; height: 60px; object-fit: cover;"
+                                                 onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'bg-light d-flex align-items-center justify-content-center\' style=\'width: 60px; height: 60px; border-radius: 4px;\'><i class=\'fas fa-image text-muted\'></i></div>';">
                                             {% else %}
                                             <div class="bg-light d-flex align-items-center justify-content-center"
                                                  style="width: 60px; height: 60px; border-radius: 4px;">
