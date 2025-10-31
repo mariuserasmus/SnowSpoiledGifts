@@ -1797,6 +1797,169 @@ class Database:
             conn.close()
             return False, f"An error occurred: {str(e)}"
 
+    def get_all_active_carts(self):
+        """Get all active carts with user info and cart details - for admin view"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Get registered user carts
+            cursor.execute('''
+                SELECT
+                    cart.user_id,
+                    cart.session_id,
+                    u.name as user_name,
+                    u.email as user_email,
+                    COUNT(DISTINCT cart.id) as item_count,
+                    SUM(cart.quantity) as total_quantity,
+                    SUM(cart.quantity * item.price) as cart_total,
+                    MIN(cart.added_date) as first_added,
+                    MAX(cart.added_date) as last_added,
+                    'registered' as cart_type
+                FROM cart_items cart
+                JOIN cutter_items item ON cart.item_id = item.id
+                LEFT JOIN users u ON cart.user_id = u.id
+                WHERE cart.user_id IS NOT NULL AND item.is_active = 1
+                GROUP BY cart.user_id
+
+                UNION ALL
+
+                SELECT
+                    NULL as user_id,
+                    cart.session_id,
+                    'Guest User' as user_name,
+                    NULL as user_email,
+                    COUNT(DISTINCT cart.id) as item_count,
+                    SUM(cart.quantity) as total_quantity,
+                    SUM(cart.quantity * item.price) as cart_total,
+                    MIN(cart.added_date) as first_added,
+                    MAX(cart.added_date) as last_added,
+                    'guest' as cart_type
+                FROM cart_items cart
+                JOIN cutter_items item ON cart.item_id = item.id
+                WHERE cart.user_id IS NULL AND cart.session_id IS NOT NULL AND item.is_active = 1
+                GROUP BY cart.session_id
+
+                ORDER BY last_added DESC
+            ''')
+
+            carts = cursor.fetchall()
+            conn.close()
+
+            result = []
+            for cart in carts:
+                result.append({
+                    'user_id': cart['user_id'],
+                    'session_id': cart['session_id'],
+                    'user_name': cart['user_name'],
+                    'user_email': cart['user_email'],
+                    'item_count': cart['item_count'],
+                    'total_quantity': cart['total_quantity'],
+                    'cart_total': cart['cart_total'],
+                    'first_added': cart['first_added'],
+                    'last_added': cart['last_added'],
+                    'cart_type': cart['cart_type']
+                })
+
+            return result
+
+        except Exception as e:
+            conn.close()
+            return []
+
+    def get_cart_details_for_admin(self, user_id=None, session_id=None):
+        """Get detailed cart items for a specific user or session - for admin view"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            if user_id:
+                cursor.execute('''
+                    SELECT
+                        cart.id as cart_id,
+                        cart.item_id,
+                        cart.quantity,
+                        cart.added_date,
+                        item.name,
+                        item.price,
+                        item.item_number,
+                        (cart.quantity * item.price) as subtotal,
+                        (SELECT photo_path FROM cutter_item_photos
+                         WHERE item_id = item.id AND is_main = 1 LIMIT 1) as main_photo
+                    FROM cart_items cart
+                    JOIN cutter_items item ON cart.item_id = item.id
+                    WHERE cart.user_id = ? AND item.is_active = 1
+                    ORDER BY cart.added_date DESC
+                ''', (user_id,))
+            else:
+                cursor.execute('''
+                    SELECT
+                        cart.id as cart_id,
+                        cart.item_id,
+                        cart.quantity,
+                        cart.added_date,
+                        item.name,
+                        item.price,
+                        item.item_number,
+                        (cart.quantity * item.price) as subtotal,
+                        (SELECT photo_path FROM cutter_item_photos
+                         WHERE item_id = item.id AND is_main = 1 LIMIT 1) as main_photo
+                    FROM cart_items cart
+                    JOIN cutter_items item ON cart.item_id = item.id
+                    WHERE cart.session_id = ? AND cart.user_id IS NULL AND item.is_active = 1
+                    ORDER BY cart.added_date DESC
+                ''', (session_id,))
+
+            items = cursor.fetchall()
+            conn.close()
+
+            result = []
+            for item in items:
+                result.append({
+                    'cart_id': item['cart_id'],
+                    'item_id': item['item_id'],
+                    'quantity': item['quantity'],
+                    'added_date': item['added_date'],
+                    'name': item['name'],
+                    'price': item['price'],
+                    'item_number': item['item_number'],
+                    'subtotal': item['subtotal'],
+                    'main_photo': item['main_photo']
+                })
+
+            return result
+
+        except Exception as e:
+            conn.close()
+            return []
+
+    def admin_clear_cart(self, user_id=None, session_id=None):
+        """Admin function to clear a specific user's or guest's cart"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            if user_id:
+                cursor.execute('DELETE FROM cart_items WHERE user_id = ?', (user_id,))
+            elif session_id:
+                cursor.execute('DELETE FROM cart_items WHERE session_id = ? AND user_id IS NULL', (session_id,))
+            else:
+                conn.close()
+                return False, "No user_id or session_id provided"
+
+            conn.commit()
+            deleted_count = cursor.rowcount
+            conn.close()
+
+            if deleted_count > 0:
+                return True, f"Cart cleared! ({deleted_count} items removed)"
+            else:
+                return False, "Cart was already empty"
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}"
+
     # ============================================================================
     # USER AUTHENTICATION
     # ============================================================================

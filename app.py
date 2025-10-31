@@ -1625,6 +1625,87 @@ def convert_quote_to_sale(request_type, quote_id):
 
 
 # ============================================================================
+# ADMIN CART TRACKING ROUTES
+# ============================================================================
+
+@app.route('/admin/carts')
+@admin_required
+def admin_carts():
+    """View all active carts (registered users and guests)"""
+    carts = db.get_all_active_carts()
+
+    # Calculate some statistics
+    total_carts = len(carts)
+    registered_carts = len([c for c in carts if c['cart_type'] == 'registered'])
+    guest_carts = len([c for c in carts if c['cart_type'] == 'guest'])
+    total_value = sum(c['cart_total'] for c in carts)
+
+    return render_template('admin-carts.html',
+                          carts=carts,
+                          total_carts=total_carts,
+                          registered_carts=registered_carts,
+                          guest_carts=guest_carts,
+                          total_value=total_value,
+                          config=app.config)
+
+
+@app.route('/admin/carts/view')
+@admin_required
+def admin_view_cart():
+    """View detailed cart items for a specific user or guest"""
+    user_id = request.args.get('user_id', type=int)
+    session_id = request.args.get('session_id')
+
+    if not user_id and not session_id:
+        flash('Invalid cart reference!', 'error')
+        return redirect(url_for('admin_carts'))
+
+    # Get cart details
+    cart_items = db.get_cart_details_for_admin(user_id=user_id, session_id=session_id)
+
+    if not cart_items:
+        flash('Cart is empty or not found!', 'warning')
+        return redirect(url_for('admin_carts'))
+
+    # Get user info if registered user
+    user_info = None
+    if user_id:
+        user_info = db.get_user_by_id(user_id)
+
+    # Calculate total
+    cart_total = sum(item['subtotal'] for item in cart_items)
+
+    return render_template('admin-cart-detail.html',
+                          cart_items=cart_items,
+                          cart_total=cart_total,
+                          user_info=user_info,
+                          user_id=user_id,
+                          session_id=session_id,
+                          config=app.config)
+
+
+@app.route('/admin/carts/clear', methods=['POST'])
+@admin_required
+def admin_clear_cart():
+    """Clear a specific user's or guest's cart"""
+    user_id = request.form.get('user_id', type=int)
+    session_id = request.form.get('session_id')
+
+    if not user_id and not session_id:
+        flash('Invalid cart reference!', 'error')
+        return redirect(url_for('admin_carts'))
+
+    success, message = db.admin_clear_cart(user_id=user_id, session_id=session_id)
+
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'error')
+
+    return redirect(url_for('admin_carts'))
+
+
+# ============================================================================
 # SHOPPING CART ROUTES
 # ============================================================================
 

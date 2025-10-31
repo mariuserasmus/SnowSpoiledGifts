@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}Cart Details - Admin - {{ config.SITE_NAME }}{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <div class="container-fluid">
+        <!-- Back Button and Header -->
+        <div class="row mb-3">
+            <div class="col">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <a href="{{ url_for('admin_carts') }}" class="btn btn-outline-secondary mb-2">
+                            <i class="fas fa-arrow-left"></i> Back to Carts
+                        </a>
+                        <h2>
+                            <i class="fas fa-shopping-cart"></i> Cart Details
+                            {% if user_info %}
+                                - {{ user_info.name }}
+                            {% else %}
+                                - Guest User
+                            {% endif %}
+                        </h2>
+                    </div>
+                    <div>
+                        <button type="button"
+                                class="btn btn-danger"
+                                onclick="confirmClearCart()">
+                            <i class="fas fa-trash"></i> Clear Cart
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Info Card (if registered user) -->
+        {% if user_info %}
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-user"></i> Customer Information</h5>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <p><strong>Name:</strong> {{ user_info.name }}</p>
+                            </div>
+                            <div class="col-md-4">
+                                <p><strong>Email:</strong> {{ user_info.email }}</p>
+                            </div>
+                            <div class="col-md-4">
+                                <p><strong>Phone:</strong> {{ user_info.phone or 'Not provided' }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Cart Items -->
+        <div class="row">
+            <div class="col">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Cart Items</h5>
+
+                        {% if cart_items %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 80px;">Image</th>
+                                        <th>Product</th>
+                                        <th>Item Number</th>
+                                        <th class="text-center">Quantity</th>
+                                        <th class="text-end">Price</th>
+                                        <th class="text-end">Subtotal</th>
+                                        <th>Added</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in cart_items %}
+                                    <tr>
+                                        <td>
+                                            {% if item.main_photo %}
+                                            <img src="{{ url_for('static', filename=item.main_photo) }}"
+                                                 alt="{{ item.name }}"
+                                                 class="img-thumbnail"
+                                                 style="width: 60px; height: 60px; object-fit: cover;">
+                                            {% else %}
+                                            <div class="bg-light d-flex align-items-center justify-content-center"
+                                                 style="width: 60px; height: 60px; border-radius: 4px;">
+                                                <i class="fas fa-image text-muted"></i>
+                                            </div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <strong>{{ item.name }}</strong>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">{{ item.item_number }}</small>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-primary">{{ item.quantity }}</span>
+                                        </td>
+                                        <td class="text-end">
+                                            R{{ "%.2f"|format(item.price) }}
+                                        </td>
+                                        <td class="text-end">
+                                            <strong>R{{ "%.2f"|format(item.subtotal) }}</strong>
+                                        </td>
+                                        <td>
+                                            <small>{{ item.added_date }}</small>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+
+                                    <!-- Cart Total Row -->
+                                    <tr class="table-secondary">
+                                        <td colspan="5" class="text-end"><strong>Cart Total:</strong></td>
+                                        <td class="text-end">
+                                            <strong class="fs-5 text-success">R{{ "%.2f"|format(cart_total) }}</strong>
+                                        </td>
+                                        <td></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
+                            <h4 class="text-muted">Cart is Empty</h4>
+                            <p class="text-muted">This cart has no items.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Clear Cart Confirmation Modal -->
+<div class="modal fade" id="clearCartModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Clear Cart</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to clear this cart?</p>
+                <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> This will remove all {{ cart_items|length }} item(s) and cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="{{ url_for('admin_clear_cart') }}">
+                    <input type="hidden" name="user_id" value="{{ user_id or '' }}">
+                    <input type="hidden" name="session_id" value="{{ session_id or '' }}">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Clear Cart
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmClearCart() {
+    const modal = new bootstrap.Modal(document.getElementById('clearCartModal'));
+    modal.show();
+}
+</script>
+
+<style>
+.card {
+    border: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.img-thumbnail {
+    border: 1px solid #dee2e6;
+}
+
+/* Dark mode support */
+[data-bs-theme="dark"] .card {
+    background: #2b3035;
+    color: white;
+}
+
+[data-bs-theme="dark"] .table th {
+    background-color: #1a1d20;
+    color: white;
+}
+
+[data-bs-theme="dark"] .img-thumbnail {
+    border-color: #495057;
+}
+
+[data-bs-theme="dark"] .table-secondary {
+    background-color: #495057 !important;
+    color: white;
+}
+</style>
+{% endblock %}

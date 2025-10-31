@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Active Carts - Admin - {{ config.SITE_NAME }}{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <div class="container-fluid">
+        <div class="row mb-3">
+            <div class="col">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2><i class="fas fa-shopping-cart"></i> Active Carts</h2>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-icon">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    <div class="stats-content">
+                        <h3>{{ total_carts }}</h3>
+                        <p>Total Carts</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-icon">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="stats-content">
+                        <h3>{{ registered_carts }}</h3>
+                        <p>Registered Users</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-icon">
+                        <i class="fas fa-user-secret"></i>
+                    </div>
+                    <div class="stats-content">
+                        <h3>{{ guest_carts }}</h3>
+                        <p>Guest Users</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="stats-icon">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <div class="stats-content">
+                        <h3>R{{ "%.2f"|format(total_value) }}</h3>
+                        <p>Total Value</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Carts Table -->
+        <div class="row">
+            <div class="col">
+                <div class="card">
+                    <div class="card-body">
+                        {% if carts %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>User</th>
+                                        <th>Email</th>
+                                        <th>Type</th>
+                                        <th class="text-center">Items</th>
+                                        <th class="text-center">Qty</th>
+                                        <th class="text-end">Cart Total</th>
+                                        <th>First Added</th>
+                                        <th>Last Activity</th>
+                                        <th class="text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for cart in carts %}
+                                    <tr>
+                                        <td>
+                                            {% if cart.cart_type == 'registered' %}
+                                                <i class="fas fa-user text-success"></i> {{ cart.user_name }}
+                                            {% else %}
+                                                <i class="fas fa-user-secret text-muted"></i> {{ cart.user_name }}
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if cart.user_email %}
+                                                <small>{{ cart.user_email }}</small>
+                                            {% else %}
+                                                <small class="text-muted">Session: {{ cart.session_id[:12] }}...</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if cart.cart_type == 'registered' %}
+                                                <span class="badge bg-success">Registered</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Guest</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-info">{{ cart.item_count }}</span>
+                                        </td>
+                                        <td class="text-center">
+                                            {{ cart.total_quantity }}
+                                        </td>
+                                        <td class="text-end">
+                                            <strong>R{{ "%.2f"|format(cart.cart_total) }}</strong>
+                                        </td>
+                                        <td>
+                                            <small>{{ cart.first_added }}</small>
+                                        </td>
+                                        <td>
+                                            <small>{{ cart.last_added }}</small>
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="btn-group" role="group">
+                                                <!-- View Cart Button -->
+                                                <a href="{{ url_for('admin_view_cart', user_id=cart.user_id, session_id=cart.session_id) }}"
+                                                   class="btn btn-sm btn-outline-primary"
+                                                   title="View Cart Items">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+
+                                                <!-- Clear Cart Button -->
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-danger"
+                                                        onclick="confirmClearCart('{{ cart.user_name }}', {{ cart.user_id|tojson }}, '{{ cart.session_id }}')"
+                                                        title="Clear Cart">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
+                            <h4 class="text-muted">No Active Carts</h4>
+                            <p class="text-muted">There are currently no items in any carts.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Clear Cart Confirmation Modal -->
+<div class="modal fade" id="clearCartModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Clear Cart</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to clear the cart for <strong id="cartUserName"></strong>?</p>
+                <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="clearCartForm" method="POST" action="{{ url_for('admin_clear_cart') }}">
+                    <input type="hidden" name="user_id" id="clearCartUserId">
+                    <input type="hidden" name="session_id" id="clearCartSessionId">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Clear Cart
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmClearCart(userName, userId, sessionId) {
+    // Set the user name in the modal
+    document.getElementById('cartUserName').textContent = userName;
+
+    // Set the form values
+    document.getElementById('clearCartUserId').value = userId || '';
+    document.getElementById('clearCartSessionId').value = sessionId || '';
+
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('clearCartModal'));
+    modal.show();
+}
+</script>
+
+<style>
+.stats-card {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.stats-icon {
+    font-size: 2.5rem;
+    margin-right: 20px;
+    color: var(--bs-primary);
+}
+
+.stats-content h3 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.stats-content p {
+    margin: 0;
+    color: #666;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.btn-group .btn {
+    border-radius: 0;
+}
+
+.btn-group .btn:first-child {
+    border-top-left-radius: 0.25rem;
+    border-bottom-left-radius: 0.25rem;
+}
+
+.btn-group .btn:last-child {
+    border-top-right-radius: 0.25rem;
+    border-bottom-right-radius: 0.25rem;
+}
+
+/* Dark mode support */
+[data-bs-theme="dark"] .stats-card {
+    background: #2b3035;
+    color: white;
+}
+
+[data-bs-theme="dark"] .stats-content p {
+    color: #adb5bd;
+}
+
+[data-bs-theme="dark"] .card {
+    background: #2b3035;
+    color: white;
+}
+
+[data-bs-theme="dark"] .table th {
+    background-color: #1a1d20;
+    color: white;
+}
+</style>
+{% endblock %}
