@@ -15,16 +15,16 @@
     }
 
     /* Dark mode support for modal cards */
-    [data-bs-theme="dark"] #bulkEmailModal .card {
+    [data-theme="dark"] #bulkEmailModal .card {
         background-color: #2b3035;
         border-color: #404449;
     }
 
-    [data-bs-theme="dark"] #bulkEmailModal .card-body {
+    [data-theme="dark"] #bulkEmailModal .card-body {
         color: #e5e7eb;
     }
 
-    [data-bs-theme="dark"] #bulkEmailModal .card-title {
+    [data-theme="dark"] #bulkEmailModal .card-title {
         color: #f3f4f6;
     }
 
@@ -33,13 +33,33 @@
         border: 2px solid #e5e7eb;
     }
 
-    [data-bs-theme="dark"] #bulkEmailModal .card:last-of-type .card-body > div {
+    [data-theme="dark"] #bulkEmailModal .card:last-of-type .card-body > div {
         border-color: #404449;
     }
 
     /* Ensure modal body has max height for scrolling */
     #bulkEmailModal .modal-body {
         max-height: calc(100vh - 200px);
+    }
+
+    /* Dark mode support for form elements - FIXED SELECTOR */
+    [data-theme="dark"] #bulkEmailModal .form-text,
+    [data-theme="dark"] #bulkEmailModal .form-text *,
+    [data-theme="dark"] #recipientCount {
+        color: #d1d5db !important;
+    }
+
+    [data-theme="dark"] #bulkEmailModal .text-muted {
+        color: #9ca3af !important;
+    }
+
+    [data-theme="dark"] #bulkEmailModal .form-label {
+        color: #e5e7eb !important;
+    }
+
+    /* Ensure icons are visible */
+    [data-theme="dark"] #bulkEmailModal .form-text i {
+        opacity: 0.9;
     }
 
     /* Mobile responsive adjustments */
