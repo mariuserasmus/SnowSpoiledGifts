@@ -1917,6 +1917,116 @@ class Database:
             print(f"Error in get_user_by_id: {str(e)}")
             return None
 
+    def get_all_users(self):
+        """
+        Get all users with order statistics
+
+        Returns:
+            List of user dictionaries with order counts
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('''
+                SELECT
+                    u.id,
+                    u.email,
+                    u.name,
+                    u.phone,
+                    u.created_date,
+                    u.is_active,
+                    u.email_verified,
+                    u.is_admin,
+                    COUNT(DISTINCT o.id) as order_count,
+                    COALESCE(SUM(o.total_amount), 0) as total_spent
+                FROM users u
+                LEFT JOIN orders o ON u.id = o.user_id
+                GROUP BY u.id
+                ORDER BY u.created_date DESC
+            ''')
+
+            users = []
+            for row in cursor.fetchall():
+                users.append({
+                    'id': row['id'],
+                    'email': row['email'],
+                    'name': row['name'],
+                    'phone': row['phone'],
+                    'created_date': row['created_date'],
+                    'is_active': bool(row['is_active']),
+                    'email_verified': bool(row['email_verified']),
+                    'is_admin': bool(row['is_admin']) if 'is_admin' in row.keys() else False,
+                    'order_count': row['order_count'],
+                    'total_spent': row['total_spent']
+                })
+
+            conn.close()
+            return users
+
+        except Exception as e:
+            conn.close()
+            print(f"Error in get_all_users: {str(e)}")
+            return []
+
+    def get_user_statistics(self):
+        """
+        Get user statistics for admin dashboard
+
+        Returns:
+            Dictionary with user statistics
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Total users
+            cursor.execute('SELECT COUNT(*) as count FROM users')
+            total_users = cursor.fetchone()['count']
+
+            # Active users
+            cursor.execute('SELECT COUNT(*) as count FROM users WHERE is_active = 1')
+            active_users = cursor.fetchone()['count']
+
+            # Admin users
+            cursor.execute('SELECT COUNT(*) as count FROM users WHERE is_admin = 1')
+            admin_users = cursor.fetchone()['count']
+
+            # Users with orders
+            cursor.execute('SELECT COUNT(DISTINCT user_id) as count FROM orders')
+            users_with_orders = cursor.fetchone()['count']
+
+            # New users (last 30 days)
+            cursor.execute('''
+                SELECT COUNT(*) as count
+                FROM users
+                WHERE created_date >= date('now', '-30 days')
+            ''')
+            new_users_30d = cursor.fetchone()['count']
+
+            conn.close()
+
+            return {
+                'total_users': total_users,
+                'active_users': active_users,
+                'admin_users': admin_users,
+                'users_with_orders': users_with_orders,
+                'new_users_30d': new_users_30d,
+                'inactive_users': total_users - active_users
+            }
+
+        except Exception as e:
+            conn.close()
+            print(f"Error in get_user_statistics: {str(e)}")
+            return {
+                'total_users': 0,
+                'active_users': 0,
+                'admin_users': 0,
+                'users_with_orders': 0,
+                'new_users_30d': 0,
+                'inactive_users': 0
+            }
+
     def verify_password(self, email, password):
         """Verify user password and return user if valid"""
         user = self.get_user_by_email(email)
@@ -1973,6 +2083,205 @@ class Database:
         except sqlite3.IntegrityError:
             conn.close()
             return False, "Email already exists!"
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}"
+
+    def change_password(self, user_id, current_password, new_password):
+        """
+        Change user password after verifying current password
+
+        Args:
+            user_id: User's ID
+            current_password: Current password for verification
+            new_password: New password to set
+
+        Returns:
+            Tuple (success: bool, message: str)
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Get user
+            user = self.get_user_by_id(user_id)
+            if not user:
+                conn.close()
+                return False, "User not found!"
+
+            # Verify current password
+            password_hash_bytes = user['password_hash'].encode('utf-8') if isinstance(user['password_hash'], str) else user['password_hash']
+            if not bcrypt.checkpw(current_password.encode('utf-8'), password_hash_bytes):
+                conn.close()
+                return False, "Current password is incorrect!"
+
+            # Hash new password
+            new_password_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
+
+            # Update password
+            cursor.execute('''
+                UPDATE users
+                SET password_hash = ?
+                WHERE id = ?
+            ''', (new_password_hash, user_id))
+
+            conn.commit()
+            conn.close()
+            return True, "Password changed successfully!"
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}"
+
+    def admin_reset_user_password(self, user_id):
+        """
+        Admin function to reset a user's password to a random temporary password
+
+        Args:
+            user_id: User's ID
+
+        Returns:
+            Tuple (success: bool, message: str, temp_password: str or None)
+        """
+        import random
+        import string
+
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Get user
+            user = self.get_user_by_id(user_id)
+            if not user:
+                conn.close()
+                return False, "User not found!", None
+
+            # Generate random temporary password (8 characters)
+            temp_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+
+            # Hash new password
+            password_hash = bcrypt.hashpw(temp_password.encode('utf-8'), bcrypt.gensalt())
+
+            # Update password
+            cursor.execute('''
+                UPDATE users
+                SET password_hash = ?
+                WHERE id = ?
+            ''', (password_hash, user_id))
+
+            conn.commit()
+            conn.close()
+            return True, "Password reset successfully!", temp_password
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}", None
+
+    def admin_toggle_user_status(self, user_id):
+        """
+        Admin function to toggle user active status
+
+        Args:
+            user_id: User's ID
+
+        Returns:
+            Tuple (success: bool, message: str, new_status: bool)
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Get user
+            user = self.get_user_by_id(user_id)
+            if not user:
+                conn.close()
+                return False, "User not found!", None
+
+            # Toggle status
+            new_status = not user['is_active']
+
+            cursor.execute('''
+                UPDATE users
+                SET is_active = ?
+                WHERE id = ?
+            ''', (1 if new_status else 0, user_id))
+
+            conn.commit()
+            conn.close()
+
+            status_text = "activated" if new_status else "deactivated"
+            return True, f"User {status_text} successfully!", new_status
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}", None
+
+    def admin_toggle_admin_status(self, user_id):
+        """
+        Admin function to toggle user admin privileges
+
+        Args:
+            user_id: User's ID
+
+        Returns:
+            Tuple (success: bool, message: str, new_status: bool)
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Get user
+            user = self.get_user_by_id(user_id)
+            if not user:
+                conn.close()
+                return False, "User not found!", None
+
+            # Toggle admin status
+            new_admin_status = not user['is_admin']
+
+            cursor.execute('''
+                UPDATE users
+                SET is_admin = ?
+                WHERE id = ?
+            ''', (1 if new_admin_status else 0, user_id))
+
+            conn.commit()
+            conn.close()
+
+            status_text = "granted" if new_admin_status else "revoked"
+            return True, f"Admin privileges {status_text} successfully!", new_admin_status
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}", None
+
+    def admin_delete_user(self, user_id):
+        """
+        Admin function to delete a user
+
+        Args:
+            user_id: User's ID
+
+        Returns:
+            Tuple (success: bool, message: str)
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Get user first to check if exists
+            user = self.get_user_by_id(user_id)
+            if not user:
+                conn.close()
+                return False, "User not found!"
+
+            # Delete user (cascade will handle related records if configured)
+            cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
+
+            conn.commit()
+            conn.close()
+            return True, f"User '{user['name']}' deleted successfully!"
+
         except Exception as e:
             conn.close()
             return False, f"An error occurred: {str(e)}"

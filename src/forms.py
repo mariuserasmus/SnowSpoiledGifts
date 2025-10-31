@@ -212,3 +212,30 @@ class CheckoutForm(FlaskForm):
             Length(max=100, message='Country must be less than 100 characters')
         ]
     )
+
+
+class ChangePasswordForm(FlaskForm):
+    """Form for changing user password"""
+
+    current_password = PasswordField(
+        'Current Password',
+        validators=[
+            DataRequired(message='Please enter your current password')
+        ]
+    )
+
+    new_password = PasswordField(
+        'New Password',
+        validators=[
+            DataRequired(message='Please enter a new password'),
+            Length(min=6, max=100, message='Password must be at least 6 characters')
+        ]
+    )
+
+    confirm_password = PasswordField(
+        'Confirm New Password',
+        validators=[
+            DataRequired(message='Please confirm your new password'),
+            EqualTo('new_password', message='Passwords must match')
+        ]
+    )

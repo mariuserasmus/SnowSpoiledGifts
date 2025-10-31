@@ -425,7 +425,7 @@
                 <h5 class="modal-title">Send Email to {{ quote.name }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="{{ url_for('email_customer', request_type=quote.request_type|replace(' ', '_')|lower, quote_id=quote.id) }}">
+            <form method="POST" action="{{ url_for('email_customer', request_type=quote.request_type|replace(' ', '_')|lower, quote_id=quote.id) }}" enctype="multipart/form-data">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label"><strong>To:</strong></label>
@@ -441,6 +441,14 @@
                         <textarea class="form-control" id="email_message_{{ quote.id }}" name="email_message"
                                   rows="8" required placeholder="Enter your message here..."></textarea>
                         <small class="text-muted">This email will be sent with your professional Snow Spoiled Gifts branding.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email_attachments_{{ quote.id }}" class="form-label">
+                            <i class="fas fa-paperclip"></i> Attach Files (optional):
+                        </label>
+                        <input type="file" class="form-control" id="email_attachments_{{ quote.id }}" name="email_attachments" multiple
+                               accept="image/*,.pdf,.doc,.docx,.txt,.stl">
+                        <small class="text-muted">You can attach multiple files (images, PDFs, documents, STL files). Max 10MB per file.</small>
                     </div>
                 </div>
                 <div class="modal-footer">

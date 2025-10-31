@@ -11,7 +11,7 @@ Full-featured Flask e-commerce website for www.snowspoiledgifts.co.za
 - 📸 Multi-image product galleries with carousels
 - 📝 Quote request forms with file uploads
 - 📧 Email signup with interest tracking
-- 👤 User Account System (Registration, Login, Profile)
+- 👤 User Account System (Registration, Login, Profile, Password Change)
 - 🛒 Shopping Cart with session persistence
 - 💳 Checkout with multiple shipping options (Pickup, Courier, PUDO)
 - 📦 Order Tracking & History
@@ -21,12 +21,14 @@ Full-featured Flask e-commerce website for www.snowspoiledgifts.co.za
 - 👨‍💼 Comprehensive admin dashboard
 - 📦 Cookie & Clay Cutters management (Categories, Types, Items, Photos)
 - 📊 Quote request management (Custom Design, Cake Topper, Print Service)
+- 🖼️ View/download uploaded quote reference images
 - 🔄 Quote-to-Order conversion with auto-registration
 - 📋 Order Management System (Full lifecycle tracking)
 - 🧾 Invoice Generation & Management (PDF with branding)
 - 📧 Email notification system with multiple recipients
-- ✉️ Email customer directly from admin panel (with branded templates)
-- 🔒 Secure admin authentication
+- ✉️ Email customer directly from admin panel (with branded templates & file attachments)
+- 👥 User Management System (View, Edit, Reset Passwords, Toggle Status/Admin, Delete)
+- 🔐 Secure admin authentication (dual system: admin login + user-based admin)
 - 📊 CSV export of signups and quotes
 - 🎨 Consistent UI styling (light & dark mode)
 

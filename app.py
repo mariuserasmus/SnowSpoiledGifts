@@ -3,7 +3,7 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from functools import wraps
 from src.config import Config
 from src.database import Database
-from src.forms import EmailSignupForm, RegistrationForm, LoginForm, EditProfileForm, CheckoutForm
+from src.forms import EmailSignupForm, RegistrationForm, LoginForm, EditProfileForm, CheckoutForm, ChangePasswordForm
 from src.email_utils import send_quote_notification, send_customer_confirmation, send_signup_confirmation, send_cake_topper_notification, send_print_service_notification, send_admin_reply_to_customer, send_order_confirmation
 from version_check import get_version_info
 from datetime import datetime
@@ -253,6 +253,7 @@ def logout():
 def account():
     """User account dashboard"""
     form = EditProfileForm()
+    password_form = ChangePasswordForm()
 
     if form.validate_on_submit():
         # Update user profile
@@ -285,7 +286,33 @@ def account():
     # Get order history
     orders = db.get_user_orders(current_user.id)
 
-    return render_template('account.html', form=form, orders=orders, config=app.config)
+    return render_template('account.html', form=form, password_form=password_form, orders=orders, config=app.config)
+
+
+@app.route('/change-password', methods=['POST'])
+@login_required
+def change_password():
+    """Handle password change request"""
+    form = ChangePasswordForm()
+
+    if form.validate_on_submit():
+        success, message = db.change_password(
+            current_user.id,
+            form.current_password.data,
+            form.new_password.data
+        )
+
+        if success:
+            flash(message, 'success')
+        else:
+            flash(message, 'error')
+    else:
+        # Show validation errors
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(error, 'error')
+
+    return redirect(url_for('account'))
 
 
 @app.route('/unsubscribe', methods=['GET', 'POST'])
@@ -908,6 +935,134 @@ def admin_send_invoice_email(order_number):
     return redirect(url_for('admin_order_detail', order_number=order_number))
 
 
+@app.route('/admin/users')
+@admin_required
+def admin_users():
+    """Admin page to view and manage all registered users"""
+    # Get all users with order statistics
+    users = db.get_all_users()
+
+    # Get user statistics
+    stats = db.get_user_statistics()
+
+    return render_template('admin-users.html',
+                          users=users,
+                          stats=stats,
+                          config=app.config)
+
+
+@app.route('/admin/users/<int:user_id>/edit', methods=['POST'])
+@admin_required
+def admin_edit_user(user_id):
+    """Admin function to edit user details"""
+    name = request.form.get('name')
+    email = request.form.get('email')
+    phone = request.form.get('phone')
+
+    if not name or not email:
+        flash('Name and email are required!', 'error')
+        return redirect(url_for('admin_users'))
+
+    update_data = {
+        'name': name,
+        'email': email,
+        'phone': phone if phone else None
+    }
+
+    success, message = db.update_user(user_id, update_data)
+
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'error')
+
+    return redirect(url_for('admin_users'))
+
+
+@app.route('/admin/users/<int:user_id>/reset-password', methods=['POST'])
+@admin_required
+def admin_reset_password(user_id):
+    """Admin function to reset user password"""
+    success, message, temp_password = db.admin_reset_user_password(user_id)
+
+    if success:
+        # Get user details for email
+        user = db.get_user_by_id(user_id)
+        if user:
+            # Send email with temporary password
+            try:
+                from src.email_utils import send_admin_reply_to_customer
+                email_success, email_message = send_admin_reply_to_customer(
+                    app.config,
+                    user['email'],
+                    user['name'],
+                    'Your Password Has Been Reset',
+                    f"""Your password has been reset by an administrator.
+
+Your temporary password is: {temp_password}
+
+Please log in with this temporary password and change it immediately in your account settings.
+
+For security reasons, we recommend using a strong password with at least 6 characters.
+"""
+                )
+
+                if email_success:
+                    flash(f'{message} Temporary password sent to {user["email"]}', 'success')
+                else:
+                    flash(f'{message} Temporary password: {temp_password} (Email failed to send)', 'warning')
+            except Exception as e:
+                flash(f'{message} Temporary password: {temp_password} (Unable to send email)', 'warning')
+        else:
+            flash(message, 'success')
+    else:
+        flash(message, 'error')
+
+    return redirect(url_for('admin_users'))
+
+
+@app.route('/admin/users/<int:user_id>/toggle-status', methods=['POST'])
+@admin_required
+def admin_toggle_status(user_id):
+    """Admin function to toggle user active status"""
+    success, message, new_status = db.admin_toggle_user_status(user_id)
+
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'error')
+
+    return redirect(url_for('admin_users'))
+
+
+@app.route('/admin/users/<int:user_id>/toggle-admin', methods=['POST'])
+@admin_required
+def admin_toggle_admin(user_id):
+    """Admin function to toggle user admin privileges"""
+    success, message, new_status = db.admin_toggle_admin_status(user_id)
+
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'error')
+
+    return redirect(url_for('admin_users'))
+
+
+@app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
+@admin_required
+def admin_delete_user(user_id):
+    """Admin function to delete a user"""
+    success, message = db.admin_delete_user(user_id)
+
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'error')
+
+    return redirect(url_for('admin_users'))
+
+
 @app.route('/admin/quotes')
 @admin_required
 def admin_quotes():
@@ -1377,13 +1532,36 @@ def email_customer(request_type, quote_id):
         flash('Quote not found', 'error')
         return redirect(url_for('admin_quotes'))
 
+    # Handle file attachments
+    attachments = []
+    uploaded_files = request.files.getlist('email_attachments')
+    if uploaded_files:
+        for file in uploaded_files:
+            if file and file.filename:
+                # Read file into memory
+                file_data = file.read()
+                file_name = file.filename
+
+                # Get MIME type based on file extension
+                import mimetypes
+                mime_type, _ = mimetypes.guess_type(file_name)
+                if not mime_type:
+                    mime_type = 'application/octet-stream'
+
+                attachments.append({
+                    'filename': file_name,
+                    'data': file_data,
+                    'mime_type': mime_type
+                })
+
     # Send email
     success, result_message = send_admin_reply_to_customer(
         app.config,
         quote_details['email'],
         quote_details['name'],
         subject,
-        message
+        message,
+        attachments=attachments
     )
 
     if success:

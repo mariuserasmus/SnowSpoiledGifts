@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - Admin - {{ config.SITE_NAME }}{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <div class="container-fluid">
+        <div class="row mb-3">
+            <div class="col">
+                <h2><i class="fas fa-users"></i> User Management</h2>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="row mb-4">
+            <div class="col-md-2 col-sm-4 col-6 mb-3">
+                <div class="stats-card">
+                    <div class="stats-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stats-content">
+                        <h3>{{ stats.total_users }}</h3>
+                        <p>Total Users</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 col-sm-4 col-6 mb-3">
+                <div class="stats-card">
+                    <div class="stats-icon">
+                        <i class="fas fa-check-circle text-success"></i>
+                    </div>
+                    <div class="stats-content">
+                        <h3>{{ stats.active_users }}</h3>
+                        <p>Active</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 col-sm-4 col-6 mb-3">
+                <div class="stats-card">
+                    <div class="stats-icon">
+                        <i class="fas fa-user-shield text-warning"></i>
+                    </div>
+                    <div class="stats-content">
+                        <h3>{{ stats.admin_users }}</h3>
+                        <p>Admins</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 col-sm-4 col-6 mb-3">
+                <div class="stats-card">
+                    <div class="stats-icon">
+                        <i class="fas fa-shopping-bag text-primary"></i>
+                    </div>
+                    <div class="stats-content">
+                        <h3>{{ stats.users_with_orders }}</h3>
+                        <p>With Orders</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 col-sm-4 col-6 mb-3">
+                <div class="stats-card">
+                    <div class="stats-icon">
+                        <i class="fas fa-user-plus text-info"></i>
+                    </div>
+                    <div class="stats-content">
+                        <h3>{{ stats.new_users_30d }}</h3>
+                        <p>New (30d)</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 col-sm-4 col-6 mb-3">
+                <div class="stats-card">
+                    <div class="stats-icon">
+                        <i class="fas fa-user-slash text-danger"></i>
+                    </div>
+                    <div class="stats-content">
+                        <h3>{{ stats.inactive_users }}</h3>
+                        <p>Inactive</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" id="userSearch" placeholder="Search users by name or email...">
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Table -->
+        <div class="row">
+            <div class="col">
+                <div class="table-card">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Registered</th>
+                                    <th>Orders</th>
+                                    <th>Total Spent</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody">
+                                {% if users %}
+                                    {% for user in users %}
+                                    <tr data-user-search="{{ user.name|lower }} {{ user.email|lower }}">
+                                        <td>{{ user.id }}</td>
+                                        <td>
+                                            <strong>{{ user.name }}</strong>
+                                            {% if user.is_admin %}
+                                            <span class="badge bg-warning text-dark ms-1">ADMIN</span>
+                                            {% endif %}
+                                        </td>
+                                        <td><small>{{ user.email }}</small></td>
+                                        <td><small>{{ user.phone if user.phone else '-' }}</small></td>
+                                        <td><small>{{ user.created_date.split()[0] if user.created_date else 'N/A' }}</small></td>
+                                        <td>
+                                            {% if user.order_count > 0 %}
+                                            <span class="badge bg-primary">{{ user.order_count }}</span>
+                                            {% else %}
+                                            <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if user.total_spent > 0 %}
+                                            <strong>R{{ "%.2f"|format(user.total_spent) }}</strong>
+                                            {% else %}
+                                            <span class="text-muted">R0.00</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if user.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                            {% else %}
+                                            <span class="badge bg-danger">Inactive</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-link text-primary p-0 me-2" data-bs-toggle="modal" data-bs-target="#userModal{{ user.id }}" title="View Details">
+                                                <i class="fas fa-eye fa-lg"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="9" class="text-center text-muted">No users registered yet</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- User Detail Modals -->
+{% for user in users %}
+<div class="modal fade" id="userModal{{ user.id }}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-user"></i> User Details: {{ user.name }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-id-card"></i> Personal Information</h6>
+                        <p>
+                            <strong>ID:</strong> {{ user.id }}<br>
+                            <strong>Name:</strong> {{ user.name }}<br>
+                            <strong>Email:</strong> <a href="mailto:{{ user.email }}">{{ user.email }}</a><br>
+                            <strong>Phone:</strong> {{ user.phone if user.phone else 'Not provided' }}<br>
+                            <strong>Registered:</strong> {{ user.created_date if user.created_date else 'N/A' }}
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-cog"></i> Account Status</h6>
+                        <p>
+                            <strong>Status:</strong>
+                            {% if user.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-danger">Inactive</span>
+                            {% endif %}
+                            <br>
+                            <strong>Admin:</strong>
+                            {% if user.is_admin %}
+                            <span class="badge bg-warning text-dark">Yes</span>
+                            {% else %}
+                            <span class="badge bg-secondary">No</span>
+                            {% endif %}
+                            <br>
+                            <strong>Email Verified:</strong>
+                            {% if user.email_verified %}
+                            <span class="badge bg-success">Yes</span>
+                            {% else %}
+                            <span class="badge bg-warning">No</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="mb-3">
+                    <h6><i class="fas fa-shopping-bag"></i> Order Statistics</h6>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h3 class="text-primary">{{ user.order_count }}</h3>
+                                    <small class="text-muted">Total Orders</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h3 class="text-success">R{{ "%.2f"|format(user.total_spent) }}</h3>
+                                    <small class="text-muted">Total Spent</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h3 class="text-info">
+                                        {% if user.order_count > 0 %}
+                                        R{{ "%.2f"|format(user.total_spent / user.order_count) }}
+                                        {% else %}
+                                        R0.00
+                                        {% endif %}
+                                    </h3>
+                                    <small class="text-muted">Avg Order Value</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="mb-3">
+                    <h6><i class="fas fa-cogs"></i> Admin Actions</h6>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#editModal{{ user.id }}">
+                                <i class="fas fa-edit"></i> Edit User
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <form method="POST" action="{{ url_for('admin_reset_password', user_id=user.id) }}" style="display: inline;" onsubmit="return confirm('Reset password for {{ user.name }}? A temporary password will be emailed to them.');">
+                                <button type="submit" class="btn btn-warning w-100">
+                                    <i class="fas fa-key"></i> Reset Password
+                                </button>
+                            </form>
+                        </div>
+                        <div class="col-md-6">
+                            <form method="POST" action="{{ url_for('admin_toggle_status', user_id=user.id) }}" style="display: inline;">
+                                <button type="submit" class="btn {% if user.is_active %}btn-danger{% else %}btn-success{% endif %} w-100">
+                                    <i class="fas fa-{% if user.is_active %}ban{% else %}check{% endif %}"></i> {% if user.is_active %}Deactivate{% else %}Activate{% endif %}
+                                </button>
+                            </form>
+                        </div>
+                        <div class="col-md-6">
+                            <form method="POST" action="{{ url_for('admin_toggle_admin', user_id=user.id) }}" style="display: inline;">
+                                <button type="submit" class="btn {% if user.is_admin %}btn-secondary{% else %}btn-warning{% endif %} w-100">
+                                    <i class="fas fa-user-shield"></i> {% if user.is_admin %}Revoke{% else %}Grant{% endif %} Admin
+                                </button>
+                            </form>
+                        </div>
+                        <div class="col-12">
+                            <form method="POST" action="{{ url_for('admin_delete_user', user_id=user.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to DELETE {{ user.name }}? This action CANNOT be undone!');">
+                                <button type="submit" class="btn btn-danger w-100">
+                                    <i class="fas fa-trash"></i> Delete User
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Edit User Modals -->
+{% for user in users %}
+<div class="modal fade" id="editModal{{ user.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit"></i> Edit User: {{ user.name }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin_edit_user', user_id=user.id) }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_name_{{ user.id }}" class="form-label">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="edit_name_{{ user.id }}" name="name" value="{{ user.name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_email_{{ user.id }}" class="form-label">Email Address <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" id="edit_email_{{ user.id }}" name="email" value="{{ user.email }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_phone_{{ user.id }}" class="form-label">Phone Number</label>
+                        <input type="text" class="form-control" id="edit_phone_{{ user.id }}" name="phone" value="{{ user.phone if user.phone else '' }}">
+                    </div>
+                    <div class="alert alert-warning">
+                        <small>
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>Note:</strong> Changing the email address will update the user's login credentials.
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<script>
+// Search functionality
+document.getElementById('userSearch').addEventListener('keyup', function() {
+    const searchTerm = this.value.toLowerCase();
+    const rows = document.querySelectorAll('#usersTableBody tr[data-user-search]');
+
+    let visibleCount = 0;
+    rows.forEach(row => {
+        const searchData = row.getAttribute('data-user-search');
+        if (searchData.includes(searchTerm)) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    // Show "no results" message if needed
+    const noResultsRow = document.querySelector('#usersTableBody tr:not([data-user-search])');
+    if (visibleCount === 0 && rows.length > 0) {
+        if (!document.querySelector('.no-results-row')) {
+            const tbody = document.getElementById('usersTableBody');
+            const newRow = document.createElement('tr');
+            newRow.className = 'no-results-row';
+            newRow.innerHTML = '<td colspan="9" class="text-center text-muted">No users match your search</td>';
+            tbody.appendChild(newRow);
+        }
+    } else {
+        const tempNoResultsRow = document.querySelector('.no-results-row');
+        if (tempNoResultsRow) {
+            tempNoResultsRow.remove();
+        }
+    }
+});
+</script>
+
+{% endblock %}

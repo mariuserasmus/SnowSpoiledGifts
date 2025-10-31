@@ -1013,7 +1013,7 @@ View in Admin Panel: http://192.168.0.248:5000/admin/quotes
         print(error_msg)
         return False, error_msg
 
-def send_admin_reply_to_customer(config, to_email, to_name, subject, message_body):
+def send_admin_reply_to_customer(config, to_email, to_name, subject, message_body, attachments=None):
     """
     Send a reply email from admin to customer.
 
@@ -1023,6 +1023,7 @@ def send_admin_reply_to_customer(config, to_email, to_name, subject, message_bod
         to_name: Customer's name
         subject: Email subject line
         message_body: The message content (plain text)
+        attachments: Optional list of dictionaries with 'filename', 'data', and 'mime_type' keys
 
     Returns:
         Tuple (success: bool, message: str)
@@ -1033,8 +1034,12 @@ def send_admin_reply_to_customer(config, to_email, to_name, subject, message_bod
         return False, "Email not configured"
 
     try:
-        # Create message
-        msg = MIMEMultipart('alternative')
+        # Create message - use 'mixed' if we have attachments, otherwise 'alternative'
+        if attachments:
+            msg = MIMEMultipart('mixed')
+        else:
+            msg = MIMEMultipart('alternative')
+
         msg['Subject'] = subject
         msg['From'] = config['MAIL_DEFAULT_SENDER']
         msg['To'] = to_email
@@ -1103,11 +1108,38 @@ Premium 3D Printing & Personalized Gifts
 Contact us: {config['MAIL_DEFAULT_SENDER']}
         """
 
-        # Attach both HTML and plain text versions
-        part1 = MIMEText(text_body, 'plain')
-        part2 = MIMEText(html_body, 'html')
-        msg.attach(part1)
-        msg.attach(part2)
+        # Create alternative container for text/html parts if we have attachments
+        if attachments:
+            msg_alternative = MIMEMultipart('alternative')
+            msg_alternative.attach(MIMEText(text_body, 'plain'))
+            msg_alternative.attach(MIMEText(html_body, 'html'))
+            msg.attach(msg_alternative)
+        else:
+            # Attach both HTML and plain text versions directly
+            msg.attach(MIMEText(text_body, 'plain'))
+            msg.attach(MIMEText(html_body, 'html'))
+
+        # Attach files if provided
+        if attachments:
+            from email.mime.application import MIMEApplication
+            from email.mime.image import MIMEImage
+
+            for attachment in attachments:
+                filename = attachment['filename']
+                file_data = attachment['data']
+                mime_type = attachment['mime_type']
+
+                # Use appropriate MIME type
+                if mime_type.startswith('image/'):
+                    # For images, use MIMEImage
+                    maintype, subtype = mime_type.split('/', 1)
+                    file_part = MIMEImage(file_data, _subtype=subtype)
+                else:
+                    # For other files, use MIMEApplication
+                    file_part = MIMEApplication(file_data, _subtype=mime_type.split('/')[-1] if '/' in mime_type else 'octet-stream')
+
+                file_part.add_header('Content-Disposition', 'attachment', filename=filename)
+                msg.attach(file_part)
 
         # Send email using SSL or TLS
         if config.get('MAIL_USE_SSL'):

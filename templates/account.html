@@ -67,6 +67,59 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Change Password Card -->
+                <div class="card shadow-sm mt-4">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0"><i class="fas fa-lock"></i> Change Password</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('change_password') }}">
+                            {{ password_form.hidden_tag() }}
+
+                            <div class="mb-3">
+                                <label for="current_password" class="form-label">{{ password_form.current_password.label.text }}</label>
+                                {{ password_form.current_password(class="form-control", placeholder="Enter current password") }}
+                                {% if password_form.current_password.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in password_form.current_password.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="new_password" class="form-label">{{ password_form.new_password.label.text }}</label>
+                                {{ password_form.new_password(class="form-control", placeholder="Enter new password (min 6 characters)") }}
+                                {% if password_form.new_password.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in password_form.new_password.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="confirm_password" class="form-label">{{ password_form.confirm_password.label.text }}</label>
+                                {{ password_form.confirm_password(class="form-control", placeholder="Re-enter new password") }}
+                                {% if password_form.confirm_password.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in password_form.confirm_password.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <button type="submit" class="btn btn-warning w-100">
+                                <i class="fas fa-key"></i> Change Password
+                            </button>
+                        </form>
+
+                        <div class="alert alert-info mt-3 mb-0">
+                            <small>
+                                <i class="fas fa-info-circle"></i>
+                                <strong>Security tip:</strong> Use a strong password with at least 6 characters. Never share your password with anyone.
+                            </small>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Order History -->

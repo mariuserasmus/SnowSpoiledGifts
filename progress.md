@@ -319,8 +319,300 @@ ba11c83 - Fix quote status display: Add 'Converted to Sale' option
 ```
 
 **Last Updated:** 2025-10-31
-**Status:** ✅ Phase A-C Complete + Mobile Optimizations + Quote System Enhancements
+**Status:** ✅ Phase A-C Complete + Mobile Optimizations + Quote System Enhancements + Email Attachments + User Management Complete (Phase 1-3)
 **Next:** Payment Gateway Integration
+
+---
+
+## Session Summary (2025-10-31 - User Management Phase 3: Admin Actions)
+
+### ⚡ NEW FEATURE: Complete Admin User Management Actions
+
+**Status:** Complete ✅
+
+#### Features Added
+
+**Admin Actions Available from User Detail Modal:**
+
+1. **✏️ Edit User** - Update user profile (name, email, phone)
+2. **🔑 Reset Password** - Generate random temporary password & email it to user
+3. **⚡ Toggle Status** - Activate/deactivate user account (prevents login when inactive)
+4. **🛡️ Toggle Admin** - Grant/revoke admin privileges
+5. **🗑️ Delete User** - Permanently remove user from database (with confirmation)
+
+#### Technical Implementation
+
+**Database Methods (src/database.py):**
+```python
+def admin_reset_user_password(user_id):
+    # Generates 8-character random password
+    # Hashes with bcrypt, updates database
+    # Returns (success, message, temp_password)
+
+def admin_toggle_user_status(user_id):
+    # Toggles is_active between True/False
+    # Returns (success, message, new_status)
+
+def admin_toggle_admin_status(user_id):
+    # Toggles is_admin between True/False
+    # Returns (success, message, new_status)
+
+def admin_delete_user(user_id):
+    # Deletes user from database
+    # Returns (success, message)
+```
+
+**Routes (app.py):**
+```python
+@app.route('/admin/users/<int:user_id>/edit', methods=['POST'])
+@app.route('/admin/users/<int:user_id>/reset-password', methods=['POST'])
+@app.route('/admin/users/<int:user_id>/toggle-status', methods=['POST'])
+@app.route('/admin/users/<int:user_id>/toggle-admin', methods=['POST'])
+@app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
+```
+
+**UI (templates/admin-users.html):**
+- Admin Actions section in user detail modal
+- Edit modal for updating user info
+- Confirmation dialogs for destructive actions
+- Dynamic button text (Activate/Deactivate, Grant/Revoke)
+
+#### Feature Details
+
+**1. Edit User**
+- Opens modal with pre-filled form
+- Fields: Name, Email, Phone
+- Email change updates login credentials
+- Warning message about email changes
+
+**2. Reset Password**
+- Generates secure 8-character temporary password
+- Automatically emails user with new password
+- Includes instructions to change password
+- Shows temp password in flash message if email fails
+
+**3. Toggle Status (Activate/Deactivate)**
+- Active users can log in
+- Inactive users cannot log in
+- Button changes color/text based on current status
+- Red "Deactivate" when active, Green "Activate" when inactive
+
+**4. Toggle Admin**
+- Grant admin privileges to regular users
+- Revoke admin privileges from admin users
+- Yellow "Grant Admin" for regular users
+- Gray "Revoke Admin" for admin users
+
+**5. Delete User**
+- Permanent deletion from database
+- Double confirmation required
+- Warning message: "This action CANNOT be undone!"
+- Success message shows deleted user's name
+
+#### Safety Features
+
+**Confirmations:**
+- ✅ Password reset: "Reset password for [name]? A temporary password will be emailed to them."
+- ✅ Delete: "Are you sure you want to DELETE [name]? This action CANNOT be undone!"
+
+**Email Notifications:**
+- ✅ Password reset emails sent automatically
+- ✅ Professional branding with Snow Spoiled Gifts template
+- ✅ Clear instructions for user
+- ✅ Fallback if email fails (shows temp password in flash message)
+
+**Access Control:**
+- ✅ All routes protected by `@admin_required` decorator
+- ✅ Only admins can access these functions
+
+#### Files Modified
+- `src/database.py` - Added 4 admin methods (lines 2136-2287)
+- `app.py` - Added 5 admin routes (lines 954-1063)
+- `templates/admin-users.html` - Added action buttons & edit modal (lines 257-348)
+
+#### User Experience
+
+**Admin Workflow:**
+1. Navigate to Users page
+2. Click eye icon on any user
+3. View user details in modal
+4. Scroll to "Admin Actions" section
+5. Choose action:
+   - Edit → Opens edit modal, fill form, save
+   - Reset Password → Confirm, password emailed
+   - Toggle Status → Instant toggle, no confirmation
+   - Toggle Admin → Instant toggle, no confirmation
+   - Delete → Confirm, user removed
+6. Flash message confirms action
+7. Page refreshes with updated data
+
+**Password Reset Email:**
+```
+Subject: Your Password Has Been Reset
+
+Your password has been reset by an administrator.
+
+Your temporary password is: Ab12Cd34
+
+Please log in with this temporary password and change it
+immediately in your account settings.
+
+For security reasons, we recommend using a strong password
+with at least 6 characters.
+```
+
+#### Complete User Management System Summary
+
+**Phase 1:** Users can change their own passwords ✅
+**Phase 2:** Admins can view all users with statistics ✅
+**Phase 3:** Admins can manage users (edit, reset, toggle, delete) ✅
+
+**Total Features:**
+- User self-service password change
+- Admin user list with search & stats
+- Admin edit user profile
+- Admin reset user password
+- Admin activate/deactivate users
+- Admin grant/revoke admin privileges
+- Admin delete users
+- Email notifications for password resets
+
+---
+
+## Session Summary (2025-10-31 - User Management Phase 2: Admin User List)
+
+### 👥 NEW FEATURE: Admin User Management Dashboard
+
+**Status:** Complete ✅
+
+#### Feature Added
+
+**Admin Users Page (`/admin/users`)**
+   - **What:** Comprehensive admin dashboard to view all registered users
+   - **Access:** Available to admin users via navbar → Users
+   - **Statistics:** Total users, active users, admins, users with orders, new users (30 days), inactive users
+   - **Search:** Real-time search by name or email
+   - **Details:** View full user profile with order statistics in modal
+
+#### Technical Implementation
+
+**Database Methods (src/database.py):**
+```python
+def get_all_users(self):
+    """Get all users with order statistics (order count, total spent)"""
+    # LEFT JOIN with orders table to include order stats
+
+def get_user_statistics(self):
+    """Get user statistics for admin dashboard"""
+    # Returns statistics dictionary
+```
+
+**Route (app.py):**
+```python
+@app.route('/admin/users')
+@admin_required
+def admin_users():
+    # Fetches all users and statistics, renders template
+```
+
+#### Features & Data Displayed
+
+**User List Table Columns:**
+1. ID, Name (with ADMIN badge), Email, Phone
+2. Registered date, Order count, Total spent
+3. Status (Active/Inactive), Actions (view details)
+
+**Statistics Dashboard:**
+- 📊 Total Users, ✅ Active, 🛡️ Admins
+- 🛒 Users with Orders, ➕ New (30d), ❌ Inactive
+
+**User Detail Modal:**
+- Personal information, Account status
+- Order statistics (count, total, average)
+- Note: Phase 3 actions coming soon
+
+#### Files Modified/Created
+- `src/database.py` - Added `get_all_users()` and `get_user_statistics()` (lines 1920-2028)
+- `app.py` - Added `/admin/users` route (lines 938-951)
+- `templates/admin-users.html` - Created complete user management page
+- `templates/base.html` - Added "Users" link to admin navigation (line 66)
+
+#### What's Next (Phase 3)
+Phase 3 will add admin actions: edit user, reset password, activate/deactivate, toggle admin, delete, email directly.
+
+---
+
+## Session Summary (2025-10-31 - User Management Phase 1: User Password Change)
+
+### 🔐 NEW FEATURE: Users Can Change Their Own Passwords
+
+**Status:** Complete ✅
+
+#### Feature Added
+
+**Self-Service Password Change**
+   - **What:** Registered users can now change their own passwords from their account page
+   - **Security:** Requires current password for verification before allowing change
+   - **Location:** Account Page → Change Password section
+   - **Validation:** Minimum 6 characters, must confirm new password
+
+#### Technical Implementation
+
+**Database Method (src/database.py):**
+```python
+def change_password(self, user_id, current_password, new_password):
+    """
+    Change user password after verifying current password
+    - Verifies current password using bcrypt
+    - Hashes new password with bcrypt
+    - Updates password_hash in database
+    """
+```
+
+**Form Class (src/forms.py):**
+```python
+class ChangePasswordForm(FlaskForm):
+    current_password = PasswordField('Current Password', validators=[DataRequired()])
+    new_password = PasswordField('New Password', validators=[DataRequired(), Length(min=6)])
+    confirm_password = PasswordField('Confirm New Password', validators=[EqualTo('new_password')])
+```
+
+**Route (app.py):**
+```python
+@app.route('/change-password', methods=['POST'])
+@login_required
+def change_password():
+    # Validates form, verifies current password, updates to new password
+```
+
+**UI (templates/account.html):**
+- Added "Change Password" card with yellow/warning header for visibility
+- Three fields: Current Password, New Password, Confirm New Password
+- Security tip displayed below form
+- Success/error flash messages on submission
+
+#### How It Works
+1. **User Navigates:** Account page → Change Password section (left column, below profile)
+2. **Enter Passwords:** Current password + new password + confirmation
+3. **Validation:**
+   - Checks current password is correct
+   - Verifies new password is at least 6 characters
+   - Ensures new password matches confirmation
+4. **Success:** Password updated, user notified via flash message
+5. **Security:** User can continue using their account with new password immediately
+
+#### Files Modified
+- `src/database.py` - Added `change_password()` method (lines 1980-2024)
+- `src/forms.py` - Added `ChangePasswordForm` class (lines 217-241)
+- `app.py` - Added `change_password` route and updated account route (lines 256, 292-314)
+- `templates/account.html` - Added password change card UI (lines 71-122)
+
+#### Security Features
+- ✅ Current password required (prevents unauthorized changes if someone accesses logged-in session)
+- ✅ Password confirmation required (prevents typos)
+- ✅ Bcrypt hashing (secure password storage)
+- ✅ Minimum 6 character requirement
+- ✅ Login required decorator (must be authenticated)
 
 ---
 
@@ -381,5 +673,85 @@ ba11c83 - Fix quote status display: Add 'Converted to Sale' option
    - info@snowspoiledgifts.co.za (Primary business email)
    - elmienerasmus@gmail.com (Primary admin)
    - mariuserasmus69@gmail.com (Secondary admin)
+
+---
+
+## Session Summary (2025-10-31 - Enhancement: Email Customers with File Attachments)
+
+### ✨ NEW FEATURE: Attach Files to Customer Emails
+
+**Status:** Complete ✅
+
+#### Feature Added
+
+**Email Attachments for Quote Responses**
+   - **What:** Admin can now attach files (images, PDFs, documents, STL files) when emailing customers from the quotes admin panel
+   - **Use Case:** Send design mockups, quotes in PDF format, reference images, STL files, or any other files to customers
+   - **Location:** Admin Panel → Quotes → View Quote → Email Customer button
+   - **Supported File Types:** Images (JPG, PNG, etc.), PDFs, Documents (DOC, DOCX, TXT), STL files, and more
+   - **Limit:** Multiple files can be attached (max 10MB per file recommended)
+
+#### Technical Implementation
+
+**Frontend Changes (templates/admin-quotes.html):**
+```html
+<!-- Added file upload field to email modal -->
+<form method="POST" enctype="multipart/form-data">
+    <div class="mb-3">
+        <label for="email_attachments">
+            <i class="fas fa-paperclip"></i> Attach Files (optional):
+        </label>
+        <input type="file" class="form-control" name="email_attachments" multiple
+               accept="image/*,.pdf,.doc,.docx,.txt,.stl">
+    </div>
+</form>
+```
+
+**Backend Changes (app.py - email_customer route):**
+```python
+# Handle file attachments
+attachments = []
+uploaded_files = request.files.getlist('email_attachments')
+if uploaded_files:
+    for file in uploaded_files:
+        if file and file.filename:
+            file_data = file.read()
+            mime_type, _ = mimetypes.guess_type(file.filename)
+            attachments.append({
+                'filename': file.filename,
+                'data': file_data,
+                'mime_type': mime_type
+            })
+
+# Pass attachments to email function
+send_admin_reply_to_customer(config, email, name, subject, message, attachments=attachments)
+```
+
+**Email Utility Enhancement (src/email_utils.py):**
+- Updated `send_admin_reply_to_customer()` to accept optional `attachments` parameter
+- Uses `MIMEMultipart('mixed')` when attachments present for proper email structure
+- Automatically detects MIME types and uses appropriate handlers:
+  - `MIMEImage` for image files
+  - `MIMEApplication` for other file types (PDFs, documents, etc.)
+- Maintains professional email branding with attachments included
+
+#### Files Modified
+- `templates/admin-quotes.html` - Added file upload field to email modal (line 428, 445-452)
+- `app.py` - Updated email_customer route to handle file attachments (lines 1380-1410)
+- `src/email_utils.py` - Enhanced send_admin_reply_to_customer with attachment support (lines 1016-1162)
+
+#### How It Works
+1. **Admin Panel:** Navigate to Quotes → Click eye icon on any quote → Click "Email Customer"
+2. **Compose Email:** Write subject and message as usual
+3. **Attach Files:** Click "Choose Files" button to select one or more files to attach
+4. **Send:** Email is sent with professional Snow Spoiled Gifts branding + attachments
+5. **Customer Receives:** Customer gets email with all attachments ready to download
+
+#### Benefits
+- **Send Design Mockups:** Attach preview images of custom designs for customer approval
+- **Professional Quotes:** Attach PDF quotes with pricing and terms
+- **Reference Material:** Send inspiration images or design references
+- **3D Files:** Share STL files for customer review before printing
+- **Documentation:** Attach care instructions, warranty info, or other documents
 
 ---
