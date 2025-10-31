@@ -285,8 +285,101 @@ def get_logo_embedded():
 
 ---
 
-**Last Updated:** 2025-10-30
-**Status:** ✅ Phase A-C Complete - Full Order Management & Invoice System
+#### Bug Fixes & Mobile Improvements (Session Continued)
+1. **Admin Session Persistence**
+   - Set `session.permanent = True` in admin login
+   - Added `PERMANENT_SESSION_LIFETIME` (7 days)
+   - Fixed mobile admin logout issues
+
+2. **Unified Admin Authentication**
+   - Updated `@admin_required` decorator to accept database users with `is_admin` flag
+   - Allows admin users to log in at `/login` instead of separate `/admin/login`
+   - Created `set_admin.py` script for easy admin management
+   - Set mariuserasmus69@gmail.com as admin
+
+3. **Mobile UI Improvements**
+   - Admin orders page: Dropdown filter menu on mobile instead of wrapping buttons
+   - Shop product cards: Icon-only action buttons side-by-side on mobile
+   - Shop filters: Collapsible section on mobile (collapsed by default)
+   - Significantly improved mobile browsing experience
+
+4. **Admin UI Polish**
+   - Fixed order detail card headers (changed from cyan to blue)
+   - Made email invoice button consistent (outline style)
+   - Fixed quote status to include "Converted to Sale" option
+
+#### Git Commits
+```
+f920b40 - Fix admin session persistence on mobile devices
+5397055 - Allow admin users to access admin panel via user login
+472b9d7 - Fix mobile horizontal scroll on admin orders page
+3bcb0ad - Improve mobile UI: Dropdown filters, icon buttons, and collapsible filters
+ba11c83 - Fix quote status display: Add 'Converted to Sale' option
+0dcb81d - Fix admin order detail page styling
+```
+
+**Last Updated:** 2025-10-31
+**Status:** ✅ Phase A-C Complete + Mobile Optimizations + Quote System Enhancements
 **Next:** Payment Gateway Integration
+
+---
+
+## Session Summary (2025-10-31 - Quote System: View Uploaded Images & Fix Email Recipients)
+
+### 🐛 BUG FIXES: Quote Request Image Viewing & Email Configuration
+
+**Status:** Complete ✅
+
+#### Issues Resolved
+
+1. **Quote Request Images Not Viewable**
+   - **Problem:** Uploaded reference images were saved to disk but admin panel only showed filenames with no way to view/download them
+   - **Location:** `static/uploads/quote_references/`, `static/uploads/cake_topper_references/`
+   - **Solution:** Added clickable download/view buttons for each uploaded file in admin quotes detail modal
+   - **Files Modified:** `templates/admin-quotes.html` (lines 262-276 for Custom Design, lines 312-326 for Cake Topper)
+
+2. **Missing Email Recipient for Quote Notifications**
+   - **Problem:** Quote request emails were only being sent to `mariuserasmus69@gmail.com` and `elmienerasmus@gmail.com`
+   - **Missing:** `info@snowspoiledgifts.co.za` was not receiving quote notifications
+   - **Solution:** Added `NOTIFICATION_RECIPIENTS` to `.env` file with all three email addresses
+   - **Configuration:** `.env` line 27: `NOTIFICATION_RECIPIENTS=info@snowspoiledgifts.co.za,elmienerasmus@gmail.com,mariuserasmus69@gmail.com`
+
+#### Technical Implementation
+
+**Image Viewing in Admin Panel:**
+```html
+{% if quote.reference_images %}
+<div class="mb-3">
+    <h6><i class="fas fa-image"></i> Reference Images</h6>
+    <p><span class="badge bg-info">{{ quote.reference_images.split(',') | length }} file(s) uploaded</span></p>
+    <div class="uploaded-files-list">
+        {% for filename in quote.reference_images.split(',') %}
+        <div class="mb-2">
+            <a href="{{ url_for('static', filename='uploads/quote_references/' + filename) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-download"></i> {{ filename }}
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+```
+
+**Email Configuration:**
+- Email notification system uses `config['NOTIFICATION_RECIPIENTS']` from `src/email_utils.py`
+- All quote types (Custom Design, Cake Topper, Print Service) now send to all three addresses
+- Primary recipient shown in "To:" field, additional recipients in "Cc:" field
+
+#### Files Modified
+- `templates/admin-quotes.html` - Added download buttons for uploaded images (2 sections)
+- `.env` - Added NOTIFICATION_RECIPIENTS with all three email addresses
+- `src/config.py` - Already configured to read from .env (lines 52-55)
+
+#### How It Works Now
+1. **Viewing Images:** Admin can click on any filename in the quote detail modal to view/download the image in a new tab
+2. **Email Distribution:** All new quote requests automatically send notification emails to:
+   - info@snowspoiledgifts.co.za (Primary business email)
+   - elmienerasmus@gmail.com (Primary admin)
+   - mariuserasmus69@gmail.com (Secondary admin)
 
 ---

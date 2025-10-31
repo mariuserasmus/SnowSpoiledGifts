@@ -263,7 +263,15 @@
                 <div class="mb-3">
                     <h6><i class="fas fa-image"></i> Reference Images</h6>
                     <p><span class="badge bg-info">{{ quote.reference_images.split(',') | length }} file(s) uploaded</span></p>
-                    <small class="text-muted">Files: {{ quote.reference_images }}</small>
+                    <div class="uploaded-files-list">
+                        {% for filename in quote.reference_images.split(',') %}
+                        <div class="mb-2">
+                            <a href="{{ url_for('static', filename='uploads/quote_references/' + filename) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-download"></i> {{ filename }}
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
                 </div>
                 {% endif %}
 
@@ -313,7 +321,15 @@
                 <div class="mb-3">
                     <h6><i class="fas fa-image"></i> Reference Images</h6>
                     <p><span class="badge bg-info">{{ quote.reference_images.split(',') | length }} file(s) uploaded</span></p>
-                    <small class="text-muted">Files: {{ quote.reference_images }}</small>
+                    <div class="uploaded-files-list">
+                        {% for filename in quote.reference_images.split(',') %}
+                        <div class="mb-2">
+                            <a href="{{ url_for('static', filename='uploads/cake_topper_references/' + filename) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-download"></i> {{ filename }}
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
                 </div>
                 {% endif %}
                 {% if quote.additional_notes %}
