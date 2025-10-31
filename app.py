@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, Response
+from flask import Flask, render_template, request, redirect, url_for, flash, session, Response, jsonify
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from functools import wraps
 from src.config import Config
@@ -99,6 +99,16 @@ def index():
                           total_products=total_products,
                           total_customers=total_customers,
                           new_products=new_products)
+
+
+@app.route('/privacy-policy')
+def privacy_policy():
+    """Privacy Policy page"""
+    from datetime import datetime
+    last_updated = datetime.now().strftime('%B %d, %Y')
+    return render_template('privacy-policy.html',
+                          config=app.config,
+                          last_updated=last_updated)
 
 
 @app.route('/signup', methods=['POST'])
@@ -739,6 +749,73 @@ def admin_signups():
                           signups=signups,
                           total_count=total_count,
                           config=app.config)
+
+
+@app.route('/admin/signups/bulk-email-stats')
+@admin_required
+def get_bulk_email_stats_route():
+    """API endpoint to get count of recipients for bulk email"""
+    interest_filter = request.args.get('interest', 'all')
+
+    if interest_filter == 'all':
+        interest_filter = None
+
+    # Get signups for the filter and count them
+    signups = db.get_signups_by_interest(interest_filter)
+    count = len(signups) if signups else 0
+
+    return jsonify({
+        'success': True,
+        'count': count
+    })
+
+
+@app.route('/admin/signups/send-bulk-email', methods=['POST'])
+@admin_required
+def send_bulk_email_route():
+    """Send bulk email to signups filtered by interest"""
+    from src.email_utils import send_bulk_email
+
+    interest_filter = request.form.get('interest_filter', 'all')
+    subject = request.form.get('subject', '').strip()
+    message = request.form.get('message', '').strip()
+
+    # Validate inputs
+    if not subject or not message:
+        flash('Subject and message are required.', 'error')
+        return redirect(url_for('admin_signups'))
+
+    # Get recipients
+    if interest_filter == 'all':
+        interest_filter = None
+
+    signups = db.get_signups_by_interest(interest_filter)
+
+    if not signups:
+        flash('No active subscribers found for the selected filter.', 'warning')
+        return redirect(url_for('admin_signups'))
+
+    # Format recipients as list of tuples (email, name, unsubscribe_token)
+    recipients = [(s['email'], s['name'], s['unsubscribe_token']) for s in signups]
+
+    # Send bulk email
+    success_count, failed_count, result_message = send_bulk_email(
+        app.config,
+        recipients,
+        subject,
+        message,
+        interest_filter=interest_filter,
+        include_logo=True
+    )
+
+    # Show results
+    if success_count > 0:
+        flash(f'Successfully sent {success_count} email(s)!', 'success')
+
+    if failed_count > 0:
+        flash(f'Failed to send {failed_count} email(s). Check logs for details.', 'error')
+
+    return redirect(url_for('admin_signups'))
 
 
 @app.route('/admin/orders')

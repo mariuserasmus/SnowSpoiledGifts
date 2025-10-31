@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy - {{ config.SITE_NAME }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* v2 - Fix navbar overlap and spacing issues */
+.category-header {
+    margin-top: 60px !important;
+}
+
+.policy-content {
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+/* Target actual elements, not just classes - this is the fix! */
+.policy-content h1,
+.policy-content h2,
+.policy-content h3,
+.policy-content h4,
+.policy-content h5,
+.policy-content h6 {
+    margin-top: 0 !important;
+    margin-bottom: 0.75rem !important;
+}
+
+.policy-content h2 {
+    color: #2563eb;
+    border-bottom: 2px solid #e5e7eb;
+    padding-bottom: 6px;
+}
+
+.policy-content h4 {
+    color: #1d4ed8;
+    margin-bottom: 0.5rem !important;
+}
+
+/* THIS IS THE KEY FIX - Override the global section padding! */
+.policy-content section {
+    padding: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 1.5rem !important;
+}
+
+.policy-content p {
+    margin-top: 0 !important;
+    margin-bottom: 0.75rem !important;
+}
+
+.policy-content ul,
+.policy-content ol {
+    margin-top: 0 !important;
+    margin-bottom: 0.75rem !important;
+    margin-left: 1.5rem;
+}
+
+.policy-content li {
+    margin-bottom: 0.35rem;
+}
+
+.policy-content .alert {
+    border-left: 4px solid #3b82f6;
+    margin-top: 0 !important;
+    margin-bottom: 0.75rem !important;
+    padding: 0.75rem;
+}
+
+.policy-content .card {
+    border-radius: 8px;
+    margin-top: 0 !important;
+    margin-bottom: 0.75rem !important;
+}
+
+.policy-content strong {
+    font-weight: 600;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<section class="category-header">
+    <div class="container">
+        <h1 class="category-title"><i class="fas fa-shield-alt"></i> Privacy Policy</h1>
+        <p class="category-description">Last Updated: {{ last_updated }}</p>
+    </div>
+</section>
+
+<!-- Privacy Policy Content -->
+<section class="py-4">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="policy-content">
+                    <!-- Introduction -->
+                    <section class="mb-2">
+                        <h2 class="h3">1. Introduction</h2>
+                        <p>
+                            {{ config.SITE_NAME }} ("we", "us", or "our") is committed to protecting your personal information
+                            and your right to privacy in accordance with the Protection of Personal Information Act (POPIA)
+                            of South Africa.
+                        </p>
+                        <p>
+                            This Privacy Policy explains how we collect, use, disclose, and safeguard your information when
+                            you visit our website or use our services.
+                        </p>
+                    </section>
+
+                    <!-- Information We Collect -->
+                    <section class="mb-2">
+                        <h2 class="h3">2. Information We Collect</h2>
+                        <p>We collect information that you provide directly to us when you:</p>
+                        <ul>
+                            <li>Create an account or place an order</li>
+                            <li>Request a quote for our services</li>
+                            <li>Subscribe to our email notifications</li>
+                            <li>Contact us for support or inquiries</li>
+                        </ul>
+                        <p><strong>Information collected may include:</strong></p>
+                        <ul>
+                            <li>Name and contact information (email address, phone number)</li>
+                            <li>Shipping and billing address</li>
+                            <li>Order and transaction details</li>
+                            <li>Communication preferences</li>
+                            <li>IP address and browser information</li>
+                        </ul>
+                    </section>
+
+                    <!-- How We Use Your Information -->
+                    <section class="mb-2">
+                        <h2 class="h3">3. How We Use Your Information</h2>
+                        <p>We use your personal information to:</p>
+                        <ul>
+                            <li>Process and fulfill your orders</li>
+                            <li>Provide quotes for custom 3D printing services</li>
+                            <li>Send order confirmations, invoices, and status updates</li>
+                            <li>Send promotional emails (only if you've subscribed)</li>
+                            <li>Improve our website and services</li>
+                            <li>Respond to your inquiries and provide customer support</li>
+                            <li>Comply with legal obligations</li>
+                        </ul>
+                    </section>
+
+                    <!-- Cookies -->
+                    <section class="mb-2">
+                        <h2 class="h3">4. Cookies and Tracking Technologies</h2>
+                        <p>
+                            We use cookies and similar tracking technologies to provide and improve our services.
+                            Under POPIA, we inform you about our cookie usage:
+                        </p>
+
+                        <h4 class="h5">Essential Cookies (No Consent Required)</h4>
+                        <p>We use the following essential cookies that are necessary for the website to function:</p>
+                        <ul>
+                            <li>
+                                <strong>Session Cookies:</strong> To maintain your login state and shopping cart contents
+                                as you navigate our website. These expire when you close your browser.
+                            </li>
+                            <li>
+                                <strong>Security Cookies:</strong> To protect against fraud, unauthorized access, and
+                                secure your account information.
+                            </li>
+                            <li>
+                                <strong>Functional Cookies:</strong> To remember your preferences and settings
+                                (such as language preference or theme selection).
+                            </li>
+                        </ul>
+                        <p class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Note:</strong> We do not use tracking, analytics, or advertising cookies.
+                            We do not track your browsing behavior across other websites.
+                        </p>
+
+                        <h4 class="h5">Managing Cookies</h4>
+                        <p>
+                            You can control and manage cookies through your browser settings. However, disabling
+                            essential cookies may affect the functionality of our website, such as:
+                        </p>
+                        <ul>
+                            <li>Inability to stay logged in to your account</li>
+                            <li>Loss of shopping cart items</li>
+                            <li>Reduced security features</li>
+                        </ul>
+                        <p>
+                            For instructions on managing cookies in your browser, please visit your browser's help section.
+                        </p>
+                    </section>
+
+                    <!-- Information Sharing -->
+                    <section class="mb-2">
+                        <h2 class="h3">5. Information Sharing and Disclosure</h2>
+                        <p>We do not sell, rent, or trade your personal information. We may share your information only in the following circumstances:</p>
+                        <ul>
+                            <li><strong>Service Providers:</strong> With trusted third-party service providers who assist us in operating our business (e.g., payment processors, shipping companies)</li>
+                            <li><strong>Legal Requirements:</strong> When required by law or to protect our rights and safety</li>
+                            <li><strong>Business Transfers:</strong> In connection with a merger, sale, or transfer of assets</li>
+                        </ul>
+                        <p>All third-party service providers are required to maintain the confidentiality and security of your information.</p>
+                    </section>
+
+                    <!-- Data Security -->
+                    <section class="mb-2">
+                        <h2 class="h3">6. Data Security</h2>
+                        <p>
+                            We implement appropriate technical and organizational security measures to protect your
+                            personal information against unauthorized access, alteration, disclosure, or destruction.
+                        </p>
+                        <p>Security measures include:</p>
+                        <ul>
+                            <li>Encrypted data transmission (HTTPS)</li>
+                            <li>Secure password storage</li>
+                            <li>Regular security audits and updates</li>
+                            <li>Restricted access to personal information</li>
+                        </ul>
+                    </section>
+
+                    <!-- Your Rights (POPIA) -->
+                    <section class="mb-2">
+                        <h2 class="h3">7. Your Rights Under POPIA</h2>
+                        <p>Under the Protection of Personal Information Act, you have the right to:</p>
+                        <ul>
+                            <li><strong>Access:</strong> Request access to your personal information we hold</li>
+                            <li><strong>Correction:</strong> Request correction of inaccurate or incomplete information</li>
+                            <li><strong>Deletion:</strong> Request deletion of your personal information (subject to legal obligations)</li>
+                            <li><strong>Objection:</strong> Object to the processing of your personal information</li>
+                            <li><strong>Restriction:</strong> Request restriction of processing your information</li>
+                            <li><strong>Data Portability:</strong> Request a copy of your information in a structured format</li>
+                            <li><strong>Withdraw Consent:</strong> Withdraw your consent at any time (e.g., unsubscribe from emails)</li>
+                        </ul>
+                        <p>
+                            To exercise any of these rights, please contact us at
+                            <a href="mailto:{{ config.MAIL_DEFAULT_SENDER }}">{{ config.MAIL_DEFAULT_SENDER }}</a>
+                        </p>
+                    </section>
+
+                    <!-- Email Communications -->
+                    <section class="mb-2">
+                        <h2 class="h3">8. Email Communications and Unsubscribe</h2>
+                        <p>
+                            If you subscribe to our email notifications, we will send you updates about products,
+                            services, and promotions that match your interests.
+                        </p>
+                        <p>You can unsubscribe at any time by:</p>
+                        <ul>
+                            <li>Clicking the "Unsubscribe" link in any promotional email</li>
+                            <li>Contacting us directly at <a href="mailto:{{ config.MAIL_DEFAULT_SENDER }}">{{ config.MAIL_DEFAULT_SENDER }}</a></li>
+                            <li>Logging into your account and updating your communication preferences</li>
+                        </ul>
+                        <p class="text-muted">
+                            <em>Note: You will continue to receive transactional emails (order confirmations, invoices, etc.)
+                            even if you unsubscribe from promotional emails.</em>
+                        </p>
+                    </section>
+
+                    <!-- Data Retention -->
+                    <section class="mb-2">
+                        <h2 class="h3">9. Data Retention</h2>
+                        <p>
+                            We retain your personal information only for as long as necessary to fulfill the purposes
+                            outlined in this policy, unless a longer retention period is required by law.
+                        </p>
+                        <ul>
+                            <li><strong>Account Information:</strong> Retained until you request deletion or close your account</li>
+                            <li><strong>Order History:</strong> Retained for 7 years for accounting and tax purposes</li>
+                            <li><strong>Email Subscriptions:</strong> Retained until you unsubscribe</li>
+                        </ul>
+                    </section>
+
+                    <!-- Children's Privacy -->
+                    <section class="mb-2">
+                        <h2 class="h3">10. Children's Privacy</h2>
+                        <p>
+                            Our services are not intended for individuals under the age of 18. We do not knowingly
+                            collect personal information from children. If you are a parent or guardian and believe
+                            we have collected information from a child, please contact us immediately.
+                        </p>
+                    </section>
+
+                    <!-- Changes to Privacy Policy -->
+                    <section class="mb-2">
+                        <h2 class="h3">11. Changes to This Privacy Policy</h2>
+                        <p>
+                            We may update this Privacy Policy from time to time. We will notify you of any changes
+                            by posting the new policy on this page and updating the "Last Updated" date.
+                        </p>
+                        <p>
+                            Significant changes will be communicated via email to registered users.
+                        </p>
+                    </section>
+
+                    <!-- Contact Information -->
+                    <section class="mb-2">
+                        <h2 class="h3">12. Contact Us</h2>
+                        <p>If you have any questions about this Privacy Policy or our privacy practices, please contact us:</p>
+                        <div class="card bg-light border-0 mt-3">
+                            <div class="card-body">
+                                <p class="mb-2"><strong>{{ config.SITE_NAME }}</strong></p>
+                                <p class="mb-2">
+                                    <i class="fas fa-envelope text-primary"></i>
+                                    Email: <a href="mailto:{{ config.MAIL_DEFAULT_SENDER }}">{{ config.MAIL_DEFAULT_SENDER }}</a>
+                                </p>
+                                <p class="mb-0">
+                                    <i class="fas fa-map-marker-alt text-primary"></i>
+                                    Location: George, Western Cape, South Africa
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Information Regulator -->
+                    <section class="mb-2">
+                        <h2 class="h3">13. Complaints to the Information Regulator</h2>
+                        <p>
+                            If you believe we have not handled your personal information properly, you have the right
+                            to lodge a complaint with the Information Regulator of South Africa:
+                        </p>
+                        <div class="card bg-light border-0 mt-3">
+                            <div class="card-body">
+                                <p class="mb-2"><strong>Information Regulator (South Africa)</strong></p>
+                                <p class="mb-2">
+                                    <i class="fas fa-envelope text-primary"></i>
+                                    Email: inforeg@justice.gov.za
+                                </p>
+                                <p class="mb-0">
+                                    <i class="fas fa-globe text-primary"></i>
+                                    Website: <a href="https://inforegulator.org.za" target="_blank">inforegulator.org.za</a>
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

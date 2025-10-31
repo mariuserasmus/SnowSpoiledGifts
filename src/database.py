@@ -497,6 +497,111 @@ class Database:
 
         return csv_content
 
+    def get_signups_by_interest(self, interest_filter=None):
+        """Get signups filtered by interest - for bulk email"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            if interest_filter and interest_filter != 'all':
+                # Filter by specific interest using JSON LIKE pattern
+                cursor.execute('''
+                    SELECT id, name, email, interests, unsubscribe_token
+                    FROM signups
+                    WHERE is_active = 1
+                    AND (interests LIKE ? OR interests LIKE ? OR interests LIKE ?)
+                    ORDER BY signup_date DESC
+                ''', (f'%"{interest_filter}"%', f'%["{interest_filter}"%', f'%,"{interest_filter}"%'))
+            else:
+                # Get all active signups
+                cursor.execute('''
+                    SELECT id, name, email, interests, unsubscribe_token
+                    FROM signups
+                    WHERE is_active = 1
+                    ORDER BY signup_date DESC
+                ''')
+
+            signups = cursor.fetchall()
+            conn.close()
+
+            result = []
+            for signup in signups:
+                result.append({
+                    'id': signup['id'],
+                    'name': signup['name'],
+                    'email': signup['email'],
+                    'interests': json.loads(signup['interests']) if signup['interests'] else [],
+                    'unsubscribe_token': signup['unsubscribe_token']
+                })
+
+            return result
+
+        except Exception as e:
+            conn.close()
+            return []
+
+    def get_bulk_email_stats(self):
+        """Get stats for bulk email pre-population"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            stats = {}
+
+            # Total active products
+            cursor.execute('SELECT COUNT(*) as count FROM cutter_items WHERE is_active = 1')
+            stats['total_products'] = cursor.fetchone()['count']
+
+            # New products in last 30 days
+            cursor.execute('''
+                SELECT COUNT(*) as count FROM cutter_items
+                WHERE is_active = 1
+                AND created_at >= datetime('now', '-30 days')
+            ''')
+            new_products_row = cursor.fetchone()
+            stats['new_products_30days'] = new_products_row['count'] if new_products_row else 0
+
+            # Total categories
+            cursor.execute('SELECT COUNT(DISTINCT category_id) as count FROM cutter_items WHERE is_active = 1')
+            stats['total_categories'] = cursor.fetchone()['count']
+
+            # Interest breakdown (count signups per interest)
+            cursor.execute('SELECT interests FROM signups WHERE is_active = 1')
+            all_signups = cursor.fetchall()
+
+            interest_counts = {
+                '3d_printing': 0,
+                'sublimation': 0,
+                'vinyl': 0,
+                'giftboxes': 0,
+                'candles_soaps': 0,
+                'seasonal_events': 0
+            }
+
+            for signup in all_signups:
+                if signup['interests']:
+                    try:
+                        interests_list = json.loads(signup['interests'])
+                        for interest in interests_list:
+                            if interest in interest_counts:
+                                interest_counts[interest] += 1
+                    except:
+                        pass
+
+            stats['interest_breakdown'] = interest_counts
+
+            conn.close()
+            return stats
+
+        except Exception as e:
+            conn.close()
+            return {
+                'total_products': 0,
+                'new_products_30days': 0,
+                'total_categories': 0,
+                'interest_breakdown': {}
+            }
+
     def add_quote_request(self, service_type, name, email, phone, preferred_contact,
                          description, intended_use, size, quantity, color, material,
                          budget, additional_notes, reference_images, ip_address):

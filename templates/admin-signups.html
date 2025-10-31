@@ -2,6 +2,67 @@
 
 {% block title %}Email Signups - Admin - {{ config.SITE_NAME }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Bulk Email Modal Enhancements */
+    #bulkEmailModal .card {
+        border: 1px solid #e5e7eb;
+    }
+
+    #bulkEmailModal .card-title {
+        font-size: 1rem;
+        margin-bottom: 0.75rem;
+    }
+
+    /* Dark mode support for modal cards */
+    [data-bs-theme="dark"] #bulkEmailModal .card {
+        background-color: #2b3035;
+        border-color: #404449;
+    }
+
+    [data-bs-theme="dark"] #bulkEmailModal .card-body {
+        color: #e5e7eb;
+    }
+
+    [data-bs-theme="dark"] #bulkEmailModal .card-title {
+        color: #f3f4f6;
+    }
+
+    /* Preview section styling */
+    #bulkEmailModal .card:last-of-type .card-body > div {
+        border: 2px solid #e5e7eb;
+    }
+
+    [data-bs-theme="dark"] #bulkEmailModal .card:last-of-type .card-body > div {
+        border-color: #404449;
+    }
+
+    /* Ensure modal body has max height for scrolling */
+    #bulkEmailModal .modal-body {
+        max-height: calc(100vh - 200px);
+    }
+
+    /* Mobile responsive adjustments */
+    @media (max-width: 768px) {
+        #bulkEmailModal .modal-dialog {
+            margin: 0.5rem;
+        }
+
+        #bulkEmailModal .modal-body {
+            max-height: calc(100vh - 150px);
+        }
+
+        #bulkEmailModal .card-body {
+            padding: 1rem;
+        }
+
+        #bulkEmailModal ul {
+            padding-left: 1.2rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <section class="admin-section">
     <div class="container-fluid">
@@ -11,12 +72,15 @@
             </div>
         </div>
 
-        <!-- Export Button Row (separate to prevent shifting) -->
+        <!-- Action Buttons Row -->
         <div class="row mb-4">
             <div class="col">
-                <a href="{{ url_for('export_csv') }}" class="btn btn-outline-success">
+                <a href="{{ url_for('export_csv') }}" class="btn btn-outline-success me-2">
                     <i class="fas fa-download"></i> Export CSV
                 </a>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#bulkEmailModal">
+                    <i class="fas fa-envelope"></i> Send Bulk Email
+                </button>
             </div>
         </div>
 
@@ -90,4 +154,198 @@
         </div>
     </div>
 </section>
+
+<!-- Bulk Email Modal -->
+<div class="modal fade" id="bulkEmailModal" tabindex="-1" aria-labelledby="bulkEmailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form action="{{ url_for('send_bulk_email_route') }}" method="POST" id="bulkEmailForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="bulkEmailModalLabel">
+                        <i class="fas fa-envelope"></i> Send Bulk Email
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Interest Filter -->
+                    <div class="mb-3">
+                        <label for="interestFilter" class="form-label">
+                            <strong>Send to:</strong>
+                        </label>
+                        <select class="form-select" id="interestFilter" name="interest_filter">
+                            <option value="all">All Active Subscribers</option>
+                            <option value="3d_printing">3D Printing Interest</option>
+                            <option value="sublimation">Sublimation Interest</option>
+                            <option value="vinyl">Vinyl Interest</option>
+                            <option value="giftboxes">Giftboxes Interest</option>
+                            <option value="candles_soaps">Candles & Soaps Interest</option>
+                        </select>
+                        <div class="form-text">
+                            <span id="recipientCount">Loading...</span>
+                        </div>
+                    </div>
+
+                    <!-- What You Need to Provide Section -->
+                    <div class="card mb-3" style="border-left: 4px solid #2563eb;">
+                        <div class="card-body">
+                            <h6 class="card-title mb-3">
+                                <i class="fas fa-edit text-primary"></i> What You Need to Write:
+                            </h6>
+
+                            <!-- Email Subject -->
+                            <div class="mb-3">
+                                <label for="emailSubject" class="form-label">
+                                    <strong>Subject:</strong>
+                                </label>
+                                <input type="text" class="form-control" id="emailSubject" name="subject" required
+                                       placeholder="e.g., New Products Available or Spring Sale - 20% Off!">
+                            </div>
+
+                            <!-- Email Message -->
+                            <div class="mb-3">
+                                <label for="emailMessage" class="form-label">
+                                    <strong>Your Message:</strong>
+                                </label>
+                                <textarea class="form-control" id="emailMessage" name="message" rows="6" required
+                                          placeholder="Write your message here...&#10;&#10;Example:&#10;We're excited to announce our new spring collection is now available! Check out our latest 3D printed designs perfect for gifts and home decor.&#10;&#10;Visit our website to see what's new!"></textarea>
+                                <div class="form-text">
+                                    <i class="fas fa-lightbulb text-warning"></i>
+                                    <strong>Tip:</strong> Use line breaks to separate paragraphs. Keep it friendly and concise!
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- What Gets Added Automatically Section -->
+                    <div class="card mb-3" style="border-left: 4px solid #10b981;">
+                        <div class="card-body">
+                            <h6 class="card-title mb-3">
+                                <i class="fas fa-magic text-success"></i> What Gets Added Automatically:
+                            </h6>
+                            <ul class="mb-0" style="font-size: 0.95rem;">
+                                <li class="mb-2">
+                                    <i class="fas fa-image text-primary"></i>
+                                    <strong>Snow Spoiled Gifts logo and branded header</strong> with gradient background
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-user text-info"></i>
+                                    <strong>Personalized greeting:</strong> "Hi [Subscriber Name],"
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-paint-brush text-warning"></i>
+                                    <strong>Professional HTML styling</strong> with formatted message boxes and colors
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-link text-danger"></i>
+                                    <strong>Unique unsubscribe link</strong> for each recipient (privacy-compliant)
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-info-circle text-secondary"></i>
+                                    <strong>Footer with contact information</strong> and site details
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Email Preview Section -->
+                    <div class="card mb-3" style="border-left: 4px solid #8b5cf6;">
+                        <div class="card-body">
+                            <h6 class="card-title mb-3">
+                                <i class="fas fa-eye text-purple"></i> Final Email Structure Preview:
+                            </h6>
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; font-size: 0.85rem; line-height: 1.6;">
+                                <div style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; padding: 15px; border-radius: 4px; text-align: center; margin-bottom: 10px;">
+                                    <strong>🎁 Snow Spoiled Gifts</strong>
+                                    <div style="font-size: 0.75rem; opacity: 0.9;">Premium 3D Printing & Personalized Gifts</div>
+                                </div>
+                                <div style="background: white; padding: 15px; border-radius: 4px;">
+                                    <p style="margin: 0 0 10px 0;"><strong>Hi [Subscriber Name],</strong></p>
+                                    <div style="background: #f9fafb; padding: 12px; border-radius: 4px; border-left: 3px solid #2563eb; margin: 10px 0;">
+                                        <em style="color: #6b7280;">[Your message will appear here with formatting]</em>
+                                    </div>
+                                    <p style="font-size: 0.75rem; color: #6b7280; margin: 10px 0 0 0;">Thank you for being a valued subscriber!</p>
+                                    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 10px 0;">
+                                    <p style="font-size: 0.7rem; color: #9ca3af; margin: 5px 0;">
+                                        <a href="#" style="color: #6b7280;">Unsubscribe</a>
+                                    </p>
+                                </div>
+                                <div style="background: #f3f4f6; padding: 10px; border-radius: 4px; text-align: center; margin-top: 10px; font-size: 0.7rem; color: #6b7280;">
+                                    <strong>Snow Spoiled Gifts</strong><br>
+                                    Contact us: info@snowspoiledgifts.co.za
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Important Notes -->
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-shield-alt"></i>
+                        <strong>Privacy & Delivery:</strong>
+                        <ul class="mb-0 mt-2" style="font-size: 0.9rem;">
+                            <li>Each email is sent <strong>individually</strong> to each recipient (BCC-style for privacy)</li>
+                            <li>Recipients <strong>cannot see</strong> other subscribers' email addresses</li>
+                            <li>Every email includes a <strong>unique unsubscribe link</strong> for that specific subscriber</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="sendBulkEmailBtn">
+                        <i class="fas fa-paper-plane"></i> Send Emails
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Update recipient count when interest filter changes
+document.getElementById('interestFilter').addEventListener('change', function() {
+    updateRecipientCount();
+});
+
+// Load initial count
+document.addEventListener('DOMContentLoaded', function() {
+    updateRecipientCount();
+});
+
+function updateRecipientCount() {
+    const interest = document.getElementById('interestFilter').value;
+    const countSpan = document.getElementById('recipientCount');
+
+    countSpan.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+
+    fetch(`{{ url_for('get_bulk_email_stats_route') }}?interest=${interest}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                countSpan.innerHTML = `<i class="fas fa-users"></i> Will send to <strong>${data.count}</strong> active subscriber${data.count !== 1 ? 's' : ''}`;
+            } else {
+                countSpan.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error loading count';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            countSpan.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error loading count';
+        });
+}
+
+// Confirm before sending
+document.getElementById('bulkEmailForm').addEventListener('submit', function(e) {
+    const interest = document.getElementById('interestFilter').value;
+    const subject = document.getElementById('emailSubject').value;
+
+    if (!confirm(`Are you sure you want to send this email to all selected subscribers?\n\nSubject: ${subject}\nFilter: ${interest}`)) {
+        e.preventDefault();
+        return false;
+    }
+
+    // Disable button to prevent double-submit
+    const btn = document.getElementById('sendBulkEmailBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+});
+</script>
+
 {% endblock %}

@@ -10,34 +10,51 @@ from flask import url_for
 
 def get_logo_embedded():
     """Get the SSG logo as base64 for embedding in emails"""
-    logo_path = os.path.join('static', 'images', 'logo', 'SSG-Logo.png')
-    try:
-        if os.path.exists(logo_path):
-            with open(logo_path, 'rb') as f:
-                logo_data = base64.b64encode(f.read()).decode()
-                return f'data:image/png;base64,{logo_data}'
-    except Exception as e:
-        print(f"Could not load logo: {e}")
+    # Get the absolute path to the project root (parent of 'src' directory)
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    # Try multiple possible paths
+    possible_paths = [
+        os.path.join(project_root, 'static', 'images', 'logo', 'SSG-Logo.png'),
+        os.path.join('static', 'images', 'logo', 'SSG-Logo.png'),
+        os.path.join(os.getcwd(), 'static', 'images', 'logo', 'SSG-Logo.png'),
+    ]
+
+    for logo_path in possible_paths:
+        try:
+            if os.path.exists(logo_path):
+                print(f"Loading logo from: {logo_path}")
+                with open(logo_path, 'rb') as f:
+                    logo_data = base64.b64encode(f.read()).decode()
+                    print(f"Logo loaded successfully, size: {len(logo_data)} characters")
+                    return f'data:image/png;base64,{logo_data}'
+        except Exception as e:
+            print(f"Could not load logo from {logo_path}: {e}")
+            continue
+
+    print(f"Logo not found in any expected location. Tried: {possible_paths}")
     return None
 
 
 def add_email_logo_header(config):
     """Generate HTML header with logo for emails"""
     logo_base64 = get_logo_embedded()
+    site_name = config.get('SITE_NAME', 'Snow Spoiled Gifts')
+    tagline = config.get('TAGLINE', 'Premium 3D Printing & Personalized Gifts')
 
     if logo_base64:
         return f'''
         <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);">
-            <img src="{logo_base64}" alt="{config['SITE_NAME']}" style="width: 60px; height: 60px; margin-bottom: 10px;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">{config['SITE_NAME']}</h1>
-            <p style="color: #dbeafe; margin: 5px 0 0 0;">{config['TAGLINE']}</p>
+            <img src="{logo_base64}" alt="{site_name} Logo" width="80" height="80" style="display: block; margin: 0 auto 10px auto; max-width: 80px; height: auto; border: none;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">{site_name}</h1>
+            <p style="color: #dbeafe; margin: 5px 0 0 0;">{tagline}</p>
         </div>
         '''
     else:
         return f'''
         <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);">
-            <h1 style="color: white; margin: 0; font-size: 24px;">{config['SITE_NAME']}</h1>
-            <p style="color: #dbeafe; margin: 5px 0 0 0;">{config['TAGLINE']}</p>
+            <h1 style="color: white; margin: 0; font-size: 24px;">{site_name}</h1>
+            <p style="color: #dbeafe; margin: 5px 0 0 0;">{tagline}</p>
         </div>
         '''
 
@@ -1812,3 +1829,176 @@ Thank you for your business!
         error_msg = f"Failed to send invoice email: {str(e)}"
         print(error_msg)
         return False, error_msg
+
+
+def send_bulk_email(config, recipients, subject, message_body, interest_filter=None, include_logo=True):
+    """
+    Send bulk email to multiple recipients (BCC for privacy).
+
+    Args:
+        config: Flask app config object
+        recipients: List of tuples [(email, name, unsubscribe_token), ...]
+        subject: Email subject line
+        message_body: The message content (plain text, will be converted to HTML)
+        interest_filter: The interest category filter used (for subscription reason text)
+        include_logo: Whether to include the site logo header
+
+    Returns:
+        Tuple (success_count: int, failed_count: int, message: str)
+    """
+    if not config['MAIL_PASSWORD']:
+        print("Warning: Email password not configured. Skipping bulk email.")
+        return 0, 0, "Email not configured"
+
+    if not recipients:
+        return 0, 0, "No recipients provided"
+
+    success_count = 0
+    failed_count = 0
+    errors = []
+
+    # Map interest filter to readable text
+    interest_labels = {
+        '3d_printing': '3D Printing',
+        'sublimation': 'Sublimation',
+        'vinyl': 'Vinyl',
+        'giftboxes': 'Giftboxes',
+        'candles_soaps': 'Candles and Soaps',
+        None: 'all product categories',
+        'all': 'all product categories'
+    }
+    interest_text = interest_labels.get(interest_filter, 'our products and services')
+
+    try:
+        # Convert line breaks to HTML
+        html_message_body = message_body.replace('\n', '<br>')
+
+        # Create HTML email template (no logo for now)
+        html_template = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+                          color: white; padding: 30px 20px; border-radius: 8px 8px 0 0; text-align: center; }}
+                .header h1 {{ margin: 0; font-size: 28px; }}
+                .header p {{ margin: 10px 0 0 0; opacity: 0.9; font-size: 16px; }}
+                .content {{ background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; }}
+                .message-box {{ background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb; }}
+                .footer {{ background: #f3f4f6; padding: 20px; text-align: center; font-size: 13px; color: #6b7280; border-radius: 0 0 8px 8px; }}
+                .footer p {{ margin: 5px 0; }}
+                .unsubscribe {{ margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; }}
+                .unsubscribe a {{ color: #6b7280; text-decoration: none; }}
+                .unsubscribe a:hover {{ text-decoration: underline; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🎁 {config.get('SITE_NAME', 'Snow Spoiled Gifts')}</h1>
+                    <p>{config.get('TAGLINE', 'Premium 3D Printing & Personalized Gifts')}</p>
+                </div>
+                <div class="content">
+                    <p>Hi <strong>RECIPIENT_NAME</strong>,</p>
+
+                    <div class="message-box">
+                        {html_message_body}
+                    </div>
+
+                    <p style="margin-top: 20px; font-size: 14px; color: #6b7280;">
+                        🎁 Thank you for being a valued subscriber!
+                    </p>
+
+                    <div class="unsubscribe">
+                        <p style="margin: 0 0 8px 0;">
+                            You are receiving this email because you subscribed to receive updates on <strong>{interest_text}</strong> from {config.get('SITE_NAME', 'Snow Spoiled Gifts')}.
+                        </p>
+                        <p style="margin: 0;">
+                            If you wish to unsubscribe from these notifications,
+                            <a href="UNSUBSCRIBE_URL">click here to unsubscribe</a>.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="footer">
+                    <p><strong>{config.get('SITE_NAME', 'Snow Spoiled Gifts')}</strong></p>
+                    <p>Premium 3D Printing & Personalized Gifts</p>
+                    <p style="margin-top: 15px;">Contact us: {config['MAIL_DEFAULT_SENDER']}</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        # Plain text template
+        text_template = f"""
+Hi RECIPIENT_NAME,
+
+{message_body}
+
+Thank you for being a valued subscriber!
+
+---
+
+You are receiving this email because you subscribed to receive updates on {interest_text} from {config.get('SITE_NAME', 'Snow Spoiled Gifts')}.
+
+If you wish to unsubscribe, visit: UNSUBSCRIBE_URL
+
+---
+{config.get('SITE_NAME', 'Snow Spoiled Gifts')}
+Premium 3D Printing & Personalized Gifts
+Contact us: {config['MAIL_DEFAULT_SENDER']}
+        """
+
+        # Connect to SMTP server once for all emails
+        if config.get('MAIL_USE_SSL'):
+            server = smtplib.SMTP_SSL(config['MAIL_SERVER'], config['MAIL_PORT'])
+        else:
+            server = smtplib.SMTP(config['MAIL_SERVER'], config['MAIL_PORT'])
+            server.starttls()
+
+        server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+
+        # Send individual emails (personalized)
+        for email, name, unsubscribe_token in recipients:
+            try:
+                # Build unsubscribe URL
+                unsubscribe_url = f"{config.get('BASE_URL', 'http://192.168.0.248:5000')}/unsubscribe?token={unsubscribe_token}"
+
+                # Personalize message
+                personalized_html = html_template.replace('RECIPIENT_NAME', name).replace('UNSUBSCRIBE_URL', unsubscribe_url)
+                personalized_text = text_template.replace('RECIPIENT_NAME', name).replace('UNSUBSCRIBE_URL', unsubscribe_url)
+
+                # Create message
+                msg = MIMEMultipart('alternative')
+                msg['Subject'] = subject
+                msg['From'] = config['MAIL_DEFAULT_SENDER']
+                msg['To'] = email
+
+                # Attach text and HTML versions
+                msg.attach(MIMEText(personalized_text, 'plain'))
+                msg.attach(MIMEText(personalized_html, 'html'))
+
+                # Send
+                server.send_message(msg)
+                success_count += 1
+
+            except Exception as e:
+                failed_count += 1
+                errors.append(f"{email}: {str(e)}")
+                print(f"Failed to send to {email}: {str(e)}")
+
+        server.quit()
+
+        if failed_count > 0:
+            error_summary = "\n".join(errors[:5])  # Show first 5 errors
+            return success_count, failed_count, f"Sent {success_count}, failed {failed_count}. Errors: {error_summary}"
+
+        return success_count, failed_count, f"Successfully sent {success_count} emails"
+
+    except Exception as e:
+        error_msg = f"Failed to send bulk emails: {str(e)}"
+        print(error_msg)
+        return success_count, failed_count, error_msg
