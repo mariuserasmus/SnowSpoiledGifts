@@ -83,14 +83,14 @@ def index():
     """Main landing page"""
     form = EmailSignupForm()
 
-    # Get stats for homepage counters
-    total_products = len(db.get_all_cutter_items(active_only=True))
+    # Get stats for homepage counters (only public products, not custom quotes)
+    total_products = len(db.get_all_cutter_items(active_only=True, public_categories_only=True))
     total_customers = db.get_signup_count()  # Using email signups as customer count for now
 
     # Calculate new products this month (created in last 30 days)
     from datetime import datetime, timedelta
     thirty_days_ago = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
-    all_products = db.get_all_cutter_items(active_only=True)
+    all_products = db.get_all_cutter_items(active_only=True, public_categories_only=True)
     new_products = len([p for p in all_products if p['created_date'] and p['created_date'] >= thirty_days_ago])
 
     return render_template('index.html',
@@ -194,9 +194,10 @@ def register():
                 user = User(user_dict)
                 login_user(user)
 
-                # Migrate guest cart to user if exists
+                # Migrate guest carts to user if exists
                 session_id = get_session_id()
                 db.migrate_guest_cart_to_user(session_id, user_id)
+                db.migrate_guest_candles_soaps_cart_to_user(session_id, user_id)
 
                 flash(f'Registration successful! Welcome to {app.config["SITE_NAME"]}!', 'success')
                 return redirect(url_for('index'))
@@ -231,9 +232,10 @@ def login():
             user = User(user_dict)
             login_user(user)
 
-            # Migrate guest cart to user if exists
+            # Migrate guest carts to user if exists
             session_id = get_session_id()
             db.migrate_guest_cart_to_user(session_id, user_dict['id'])
+            db.migrate_guest_candles_soaps_cart_to_user(session_id, user_dict['id'])
 
             flash(f'Welcome back, {user.name}!', 'success')
 
@@ -431,8 +433,8 @@ def printing_3d():
         'print_service': get_carousel_images('PrintService')
     }
 
-    # Fetch all cutter items from database
-    items = db.get_all_cutter_items()
+    # Fetch all cutter items from database (only from public categories to exclude custom quotes)
+    items = db.get_all_cutter_items(public_categories_only=True)
 
     # Add is_new flag, photo URLs, and main photo URL to each item
     for item in items:
@@ -458,8 +460,8 @@ def printing_3d():
             item['photo_urls'] = []
             item['main_photo_url'] = None
 
-    # Get categories and types for filters
-    categories = db.get_all_cutter_categories()
+    # Get categories and types for filters (only public categories)
+    categories = db.get_all_cutter_categories(public_only=True)
     types = db.get_all_cutter_types()
 
     # Create category description lookup
@@ -891,7 +893,8 @@ def admin_update_order_status(order_number):
         from src.email_utils import send_order_status_update
         user = db.get_user_by_id(order['user_id'])
         if user:
-            send_order_status_update(app.config, user['email'], order_number, new_status, user['name'])
+            # Pass shipping method for context-aware messaging
+            send_order_status_update(app.config, user['email'], order_number, new_status, user['name'], order.get('shipping_method'))
 
     flash(f'Order {order_number} status updated to {new_status}.', 'success')
     return redirect(url_for('admin_order_detail', order_number=order_number))
@@ -1576,6 +1579,423 @@ def admin_delete_photo(photo_id):
         return redirect(url_for('admin_cutter_items'))
 
 
+# ========================================
+# CANDLES & SOAPS ADMIN ROUTES
+# ========================================
+
+# Category Management
+@app.route('/admin/candles-soaps/categories')
+@admin_required
+def admin_candles_soaps_categories():
+    """Admin page to manage candles & soaps categories"""
+    categories = db.get_all_candles_soaps_categories(active_only=False)
+
+    # Add product count to each category
+    for category in categories:
+        products = db.get_all_candles_soaps_products(category_id=category['id'], active_only=False)
+        category['product_count'] = len(products)
+
+    return render_template('admin-candles-soaps-categories.html',
+                         categories=categories,
+                         config=app.config)
+
+
+@app.route('/admin/candles-soaps/categories/add', methods=['POST'])
+@admin_required
+def admin_add_candles_soaps_category():
+    """Add a new candles & soaps category"""
+    name = request.form.get('name')
+    description = request.form.get('description')
+    display_order = request.form.get('display_order', 0)
+
+    if not name:
+        flash('Category name is required.', 'error')
+        return redirect(url_for('admin_candles_soaps_categories'))
+
+    success, message, category_id = db.add_candles_soaps_category(name, description, display_order)
+
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'error')
+
+    return redirect(url_for('admin_candles_soaps_categories'))
+
+
+@app.route('/admin/candles-soaps/categories/<int:category_id>/edit', methods=['POST'])
+@admin_required
+def admin_edit_candles_soaps_category(category_id):
+    """Edit a candles & soaps category"""
+    name = request.form.get('name')
+    description = request.form.get('description')
+    display_order = request.form.get('display_order', 0)
+    is_active = request.form.get('is_active', 1)
+
+    if not name:
+        flash('Category name is required.', 'error')
+        return redirect(url_for('admin_candles_soaps_categories'))
+
+    success, message = db.update_candles_soaps_category(category_id, name, description, display_order, is_active)
+
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'error')
+
+    return redirect(url_for('admin_candles_soaps_categories'))
+
+
+@app.route('/admin/candles-soaps/categories/<int:category_id>/delete', methods=['POST'])
+@admin_required
+def admin_delete_candles_soaps_category(category_id):
+    """Delete a candles & soaps category"""
+    success, message = db.delete_candles_soaps_category(category_id)
+
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'error')
+
+    return redirect(url_for('admin_candles_soaps_categories'))
+
+
+# Product Management
+@app.route('/admin/candles-soaps/products')
+@admin_required
+def admin_candles_soaps_products():
+    """Admin page to manage candles & soaps products"""
+    # Get filter parameters
+    category_id = request.args.get('category_id')
+    stock_status = request.args.get('stock_status')
+    search = request.args.get('search', '')
+
+    # Get all products (only active by default)
+    products = db.get_all_candles_soaps_products(
+        category_id=int(category_id) if category_id else None,
+        active_only=True
+    )
+
+    # Apply search filter
+    if search:
+        search_lower = search.lower()
+        products = [p for p in products if
+                   search_lower in p['name'].lower() or
+                   search_lower in (p['product_code'] or '').lower()]
+
+    # Apply stock status filter
+    if stock_status:
+        if stock_status == 'in_stock':
+            products = [p for p in products if p['stock_quantity'] > p['low_stock_threshold']]
+        elif stock_status == 'low_stock':
+            products = [p for p in products if 0 < p['stock_quantity'] <= p['low_stock_threshold']]
+        elif stock_status == 'out_of_stock':
+            products = [p for p in products if p['stock_quantity'] == 0]
+
+    # Get low stock products for stats
+    low_stock_products = db.get_low_stock_candles_soaps_products()
+
+    # Get categories for filter dropdown
+    categories = db.get_all_candles_soaps_categories(active_only=False)
+
+    return render_template('admin-candles-soaps-products.html',
+                         products=products,
+                         low_stock_products=low_stock_products,
+                         categories=categories,
+                         config=app.config)
+
+
+@app.route('/admin/candles-soaps/products/add')
+@admin_required
+def admin_add_candles_soaps_product():
+    """Show form to add a new candles & soaps product"""
+    categories = db.get_all_candles_soaps_categories(active_only=True)
+    return render_template('admin-candles-soaps-product-form.html',
+                         product=None,
+                         categories=categories,
+                         photos=[],
+                         config=app.config)
+
+
+@app.route('/admin/candles-soaps/products/create', methods=['POST'])
+@admin_required
+def admin_create_candles_soaps_product():
+    """Create a new candles & soaps product"""
+    product_data = {
+        'name': request.form.get('name'),
+        'description': request.form.get('description'),
+        'category_id': request.form.get('category_id'),
+        'price': request.form.get('price'),
+        'stock_quantity': request.form.get('stock_quantity', 0),
+        'low_stock_threshold': request.form.get('low_stock_threshold', 5),
+        'weight_grams': request.form.get('weight_grams') or None,
+        'dimensions': request.form.get('dimensions') or None,
+        'scent': request.form.get('scent') or None,
+        'color': request.form.get('color') or None,
+        'burn_time_hours': request.form.get('burn_time_hours') or None,
+        'ingredients': request.form.get('ingredients') or None,
+        'is_active': request.form.get('is_active', 1)
+    }
+
+    # Validate required fields
+    if not product_data['name'] or not product_data['category_id'] or not product_data['price']:
+        flash('Name, category, and price are required.', 'error')
+        return redirect(url_for('admin_add_candles_soaps_product'))
+
+    success, message, product_id = db.add_candles_soaps_product(product_data)
+
+    if success:
+
+        # Handle photo uploads
+        uploaded_files = request.files.getlist('photos')
+        if uploaded_files and uploaded_files[0].filename:
+            # Get upload path for candles & soaps products
+            folder_path = os.path.join('static', 'uploads', 'candles_soaps', str(product_id))
+            os.makedirs(folder_path, exist_ok=True)
+
+            for idx, file in enumerate(uploaded_files):
+                if file and file.filename:
+                    # Create unique filename
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    ext = os.path.splitext(file.filename)[1]
+                    filename = f"{timestamp}_{idx}{ext}"
+                    file_path = os.path.join(folder_path, filename)
+                    file.save(file_path)
+
+                    # Add to database (first photo is main)
+                    is_main = (idx == 0)
+                    photo_success, photo_message, photo_id = db.add_candles_soaps_product_photo(product_id, file_path, is_main=is_main)
+                    if not photo_success:
+                        flash(f"Warning: {photo_message}", 'warning')
+
+        flash(message, 'success')
+        return redirect(url_for('admin_candles_soaps_products'))
+    else:
+        flash(message, 'error')
+        return redirect(url_for('admin_add_candles_soaps_product'))
+
+
+@app.route('/admin/candles-soaps/products/<int:product_id>/edit')
+@admin_required
+def admin_edit_candles_soaps_product(product_id):
+    """Show form to edit a candles & soaps product"""
+    product = db.get_candles_soaps_product(product_id)
+
+    if not product:
+        flash('Product not found.', 'error')
+        return redirect(url_for('admin_candles_soaps_products'))
+
+    categories = db.get_all_candles_soaps_categories(active_only=False)
+    photos = db.get_candles_soaps_product_photos(product_id)
+
+    return render_template('admin-candles-soaps-product-form.html',
+                         product=product,
+                         categories=categories,
+                         photos=photos,
+                         config=app.config)
+
+
+@app.route('/admin/candles-soaps/products/<int:product_id>/update', methods=['POST'])
+@admin_required
+def admin_update_candles_soaps_product(product_id):
+    """Update a candles & soaps product"""
+    product_data = {
+        'name': request.form.get('name'),
+        'description': request.form.get('description'),
+        'category_id': request.form.get('category_id'),
+        'price': request.form.get('price'),
+        'stock_quantity': request.form.get('stock_quantity', 0),
+        'low_stock_threshold': request.form.get('low_stock_threshold', 5),
+        'weight_grams': request.form.get('weight_grams') or None,
+        'dimensions': request.form.get('dimensions') or None,
+        'scent': request.form.get('scent') or None,
+        'color': request.form.get('color') or None,
+        'burn_time_hours': request.form.get('burn_time_hours') or None,
+        'ingredients': request.form.get('ingredients') or None,
+        'is_active': request.form.get('is_active', 1)
+    }
+
+    # Validate required fields
+    if not product_data['name'] or not product_data['category_id'] or not product_data['price']:
+        flash('Name, category, and price are required.', 'error')
+        return redirect(url_for('admin_edit_candles_soaps_product', product_id=product_id))
+
+    success, message = db.update_candles_soaps_product(product_id, product_data)
+
+    if success:
+        # Handle new photo uploads
+        uploaded_files = request.files.getlist('photos')
+        if uploaded_files and uploaded_files[0].filename:
+            # Get upload path for candles & soaps products
+            folder_path = os.path.join('static', 'uploads', 'candles_soaps', str(product_id))
+            os.makedirs(folder_path, exist_ok=True)
+
+            # Get current photo count to determine if we need to set first uploaded as main
+            existing_photos = db.get_candles_soaps_product_photos(product_id)
+            has_main = any(photo['is_main'] for photo in existing_photos)
+
+            for idx, file in enumerate(uploaded_files):
+                if file and file.filename:
+                    # Create unique filename
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    ext = os.path.splitext(file.filename)[1]
+                    filename = f"{timestamp}_{idx}{ext}"
+                    file_path = os.path.join(folder_path, filename)
+                    file.save(file_path)
+
+                    # Set first photo as main if there are no existing photos with main flag
+                    is_main = (idx == 0 and not has_main)
+                    db.add_candles_soaps_product_photo(product_id, file_path, is_main=is_main)
+
+        flash(message, 'success')
+    else:
+        flash(message, 'error')
+
+    return redirect(url_for('admin_edit_candles_soaps_product', product_id=product_id))
+
+
+@app.route('/admin/candles-soaps/products/<int:product_id>/delete', methods=['POST'])
+@admin_required
+def admin_delete_candles_soaps_product(product_id):
+    """Delete a candles & soaps product"""
+    success, message = db.delete_candles_soaps_product(product_id)
+
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'error')
+
+    return redirect(url_for('admin_candles_soaps_products'))
+
+
+# Stock Management
+@app.route('/admin/candles-soaps/products/<int:product_id>/stock/adjust', methods=['POST'])
+@admin_required
+def admin_adjust_candles_soaps_stock(product_id):
+    """Adjust stock for a candles & soaps product"""
+    change_amount = request.form.get('change_amount')
+    reason = request.form.get('reason')
+
+    if not change_amount or not reason:
+        flash('Change amount and reason are required.', 'error')
+        return redirect(url_for('admin_candles_soaps_products'))
+
+    try:
+        change_amount = int(change_amount)
+    except ValueError:
+        flash('Invalid change amount.', 'error')
+        return redirect(url_for('admin_candles_soaps_products'))
+
+    # Get current user ID if available
+    created_by = current_user.id if current_user.is_authenticated else None
+
+    success, message = db.update_candles_soaps_stock(
+        product_id,
+        change_amount,
+        reason,
+        order_id=None,
+        created_by=created_by
+    )
+
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'error')
+
+    return redirect(url_for('admin_candles_soaps_products'))
+
+
+# Photo Management
+@app.route('/admin/candles-soaps/products/<int:product_id>/photos/upload', methods=['POST'])
+@admin_required
+def admin_upload_candles_soaps_photo(product_id):
+    """Upload a photo for a candles & soaps product"""
+    from werkzeug.utils import secure_filename
+
+    # Check if photo was uploaded
+    if 'photo' not in request.files:
+        flash('No photo uploaded.', 'error')
+        return redirect(url_for('admin_edit_candles_soaps_product', product_id=product_id))
+
+    photo = request.files['photo']
+
+    if photo.filename == '':
+        flash('No photo selected.', 'error')
+        return redirect(url_for('admin_edit_candles_soaps_product', product_id=product_id))
+
+    # Check file extension
+    allowed_extensions = {'jpg', 'jpeg', 'png', 'webp'}
+    if '.' not in photo.filename or photo.filename.rsplit('.', 1)[1].lower() not in allowed_extensions:
+        flash('Invalid file type. Allowed: JPG, PNG, WebP', 'error')
+        return redirect(url_for('admin_edit_candles_soaps_product', product_id=product_id))
+
+    # Get product details for folder structure
+    product = db.get_candles_soaps_product(product_id)
+    if not product:
+        flash('Product not found.', 'error')
+        return redirect(url_for('admin_candles_soaps_products'))
+
+    # Get category name for folder
+    category = db.get_candles_soaps_category(product['category_id'])
+    category_name = secure_filename(category['name']) if category else 'uncategorized'
+
+    # Create folder structure: static/uploads/candles_soaps/CATEGORY_NAME/PRODUCT_CODE/
+    upload_folder = os.path.join('static', 'uploads', 'candles_soaps', category_name, product['product_code'])
+    os.makedirs(upload_folder, exist_ok=True)
+
+    # Generate unique filename
+    filename = secure_filename(photo.filename)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    unique_filename = f"{timestamp}_{filename}"
+
+    # Save file
+    file_path = os.path.join(upload_folder, unique_filename)
+    photo.save(file_path)
+
+    # Add to database
+    is_main = request.form.get('is_main') == '1'
+    success, message = db.add_candles_soaps_product_photo(product_id, file_path, is_main=is_main)
+
+    if success:
+        flash('Photo uploaded successfully!', 'success')
+    else:
+        flash(message, 'error')
+
+    return redirect(url_for('admin_edit_candles_soaps_product', product_id=product_id))
+
+
+@app.route('/admin/candles-soaps/products/<int:product_id>/photos/<int:photo_id>/set-main', methods=['POST'])
+@admin_required
+def admin_set_main_candles_soaps_photo(product_id, photo_id):
+    """Set a photo as the main photo for a candles & soaps product"""
+    success, message = db.set_candles_soaps_main_photo(product_id, photo_id)
+
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'error')
+
+    return redirect(url_for('admin_edit_candles_soaps_product', product_id=product_id))
+
+
+@app.route('/admin/candles-soaps/products/<int:product_id>/photos/<int:photo_id>/delete', methods=['POST'])
+@admin_required
+def admin_delete_candles_soaps_photo(product_id, photo_id):
+    """Delete a photo for a candles & soaps product"""
+    success, message = db.delete_candles_soaps_product_photo(photo_id)
+
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'error')
+
+    return redirect(url_for('admin_edit_candles_soaps_product', product_id=product_id))
+
+
+# ========================================
+# END CANDLES & SOAPS ADMIN ROUTES
+# ========================================
+
+
 @app.route('/version-check')
 def version_check():
     """Check which version of the code is currently deployed"""
@@ -1653,6 +2073,8 @@ def email_customer(request_type, quote_id):
 @admin_required
 def convert_quote_to_sale(request_type, quote_id):
     """Convert a quote to a sale by adding to customer's cart"""
+    from werkzeug.utils import secure_filename
+
     item_name = request.form.get('item_name')
     item_price = request.form.get('item_price')
     item_description = request.form.get('item_description', 'Custom quote item')
@@ -1677,6 +2099,34 @@ def convert_quote_to_sale(request_type, quote_id):
     )
 
     if success:
+        # Handle photo upload if provided
+        if 'item_photo' in request.files:
+            photo = request.files['item_photo']
+
+            if photo and photo.filename:
+                # Get the item_id from result_data
+                item_id = result_data.get('item_id')
+
+                if item_id:
+                    # Secure the filename
+                    filename = secure_filename(photo.filename)
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    filename = f"{timestamp}_{filename}"
+
+                    # Create upload directory if it doesn't exist
+                    upload_dir = os.path.join('static', 'uploads', 'cutter_items')
+                    os.makedirs(upload_dir, exist_ok=True)
+
+                    # Save the file
+                    file_path = os.path.join(upload_dir, filename)
+                    photo.save(file_path)
+
+                    # Add photo to database (as main photo)
+                    photo_success, photo_message, photo_id = db.add_item_photo(item_id, file_path, is_main=True)
+
+                    if not photo_success:
+                        flash(f'Item created but photo upload failed: {photo_message}', 'warning')
+
         flash(message, 'success')
 
         # Send email notification to customer
@@ -1827,8 +2277,15 @@ def cart():
     session_id = get_session_id()
     user_id = current_user.id if current_user.is_authenticated else None
 
-    # Get cart items
+    # Get cart items (unified - includes all product types)
     cart_items = db.get_cart_items(session_id, user_id)
+
+    # Add cart_type for backward compatibility with templates
+    for item in cart_items:
+        if 'product_type' in item:
+            item['cart_type'] = item['product_type']
+        else:
+            item['cart_type'] = 'cutter'  # Default for old items
 
     # Calculate totals
     subtotal = sum(item['subtotal'] for item in cart_items)
@@ -1883,19 +2340,28 @@ def cart_remove():
     try:
         data = request.get_json()
         cart_id = data.get('cart_id')
+        cart_type = data.get('cart_type', 'cutter')  # Default to cutter for backward compatibility
 
         if not cart_id:
             return jsonify({'success': False, 'message': 'Cart ID required'}), 400
 
-        success, message = db.remove_from_cart(cart_id)
+        # Remove item from the appropriate cart
+        if cart_type == 'candles_soap':
+            success, message = db.remove_from_candles_soaps_cart(cart_id)
+        else:
+            success, message = db.remove_from_cart(cart_id)
 
         if success:
-            # Get updated cart info
+            # Get updated cart info from unified cart
             session_id = get_session_id()
             user_id = current_user.id if current_user.is_authenticated else None
+
+            # Get count from unified cart (all product types)
             cart_count = db.get_cart_count(session_id, user_id)
-            cart_items = db.get_cart_items(session_id, user_id)
-            subtotal = sum(item['subtotal'] for item in cart_items)
+
+            # Get all items from unified cart
+            all_items = db.get_cart_items(session_id, user_id)
+            subtotal = sum(item['subtotal'] for item in all_items)
 
             return jsonify({
                 'success': True,
@@ -1917,9 +2383,11 @@ def cart_count():
 
     session_id = get_session_id()
     user_id = current_user.id if current_user.is_authenticated else None
-    count = db.get_cart_count(session_id, user_id)
 
-    return jsonify({'count': count})
+    # Get count from unified cart (all product types)
+    total_count = db.get_cart_count(session_id, user_id)
+
+    return jsonify({'count': total_count})
 
 
 @app.route('/checkout', methods=['GET', 'POST'])
@@ -2003,8 +2471,11 @@ def checkout():
 
         db.update_user(current_user.id, user_update)
 
+        # Get payment method from form
+        payment_method = form.payment_method.data if form.payment_method.data else 'cash_on_delivery'
+
         # Create order
-        success, message, order_number = db.create_order(current_user.id, shipping_info)
+        success, message, order_number = db.create_order(current_user.id, shipping_info, payment_method)
 
         if success:
             # Get order details for email
@@ -2061,6 +2532,111 @@ def order_confirmation(order_number):
                           order=order,
                           order_items=order_items,
                           config=app.config)
+
+
+# ============================================================================
+# CANDLES & SOAPS SHOP ROUTES
+# ============================================================================
+
+@app.route('/candles-soaps')
+def candles_soaps():
+    """Candles & Soaps shop page"""
+    from datetime import datetime, timedelta
+
+    # Get filter parameter
+    category_id = request.args.get('category', type=int)
+
+    # Get all active products (show all, including out of stock)
+    products = db.get_all_candles_soaps_products(
+        category_id=category_id,
+        in_stock_only=False,
+        active_only=True
+    )
+
+    # Add photo URLs, main photo URL, and is_new flag to each product
+    for product in products:
+        # Calculate is_new flag (products created within last 30 days)
+        try:
+            created = datetime.strptime(product['created_date'], '%Y-%m-%d %H:%M:%S')
+            days_old = (datetime.now() - created).days
+            product['is_new'] = days_old <= 30
+        except:
+            product['is_new'] = False
+
+        # Get all photos for this product
+        photos = db.get_candles_soaps_product_photos(product['id'])
+
+        # Build photo URLs list
+        if photos:
+            product['photo_urls'] = [f"/{photo['photo_path'].replace(os.sep, '/')}" for photo in photos]
+            # Set main photo URL
+            main_photo = next((photo for photo in photos if photo['is_main']), photos[0] if photos else None)
+            product['main_photo_url'] = f"/{main_photo['photo_path'].replace(os.sep, '/')}" if main_photo else None
+        else:
+            product['photo_urls'] = []
+            product['main_photo_url'] = None
+
+    # Get all active categories for filter buttons
+    categories = db.get_all_candles_soaps_categories(active_only=True)
+
+    # Create category description lookup and add to products
+    category_descriptions = {cat['id']: cat.get('description', '') for cat in categories}
+    for product in products:
+        product['category_description'] = category_descriptions.get(product['category_id'], '')
+
+    return render_template('candles_soaps.html',
+                         config=app.config,
+                         products=products,
+                         categories=categories)
+
+
+@app.route('/candles-soaps/cart/add', methods=['POST'])
+def candles_soaps_cart_add():
+    """Add a candles/soaps product to cart"""
+    from flask import jsonify
+
+    try:
+        data = request.get_json()
+        product_id = data.get('product_id')
+        quantity = data.get('quantity', 1)
+
+        if not product_id:
+            return jsonify({'success': False, 'message': 'Product ID required'}), 400
+
+        # Get or create session ID
+        session_id = get_session_id()
+
+        # Use Flask-Login's current_user
+        user_id = current_user.id if current_user.is_authenticated else None
+
+        # Check if product exists and has stock
+        product = db.get_candles_soaps_product(product_id)
+        if not product:
+            return jsonify({'success': False, 'message': 'Product not found'}), 404
+
+        if product['stock_quantity'] == 0:
+            return jsonify({'success': False, 'message': 'Product is out of stock'}), 400
+
+        if product['stock_quantity'] < quantity:
+            return jsonify({'success': False, 'message': f'Only {product["stock_quantity"]} items available'}), 400
+
+        # Add to candles_soaps cart
+        success, message = db.add_to_candles_soaps_cart(session_id, product_id, quantity, user_id)
+
+        if success:
+            # Get updated cart count (unified across all product types)
+            total_cart_count = db.get_cart_count(session_id, user_id)
+
+            return jsonify({
+                'success': True,
+                'message': message,
+                'cart_count': total_cart_count
+            })
+        else:
+            return jsonify({'success': False, 'message': message}), 500
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 if __name__ == '__main__':

@@ -111,9 +111,16 @@ class Database:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT UNIQUE NOT NULL,
                 description TEXT,
+                is_public INTEGER DEFAULT 1,
                 created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+
+        # Migration: Add is_public column if it doesn't exist (for existing databases)
+        cursor.execute("PRAGMA table_info(cutter_categories)")
+        columns = [column[1] for column in cursor.fetchall()]
+        if 'is_public' not in columns:
+            cursor.execute('ALTER TABLE cutter_categories ADD COLUMN is_public INTEGER DEFAULT 1')
 
         # Create cutter_types table
         cursor.execute('''
@@ -159,18 +166,32 @@ class Database:
             )
         ''')
 
-        # Create cart_items table
+        # Create cart_items table (unified for cutter_items and candles_soaps)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS cart_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 session_id TEXT,
                 user_id INTEGER,
-                item_id INTEGER NOT NULL,
+                product_type TEXT DEFAULT 'cutter_item',
+                product_id INTEGER NOT NULL,
                 quantity INTEGER DEFAULT 1,
-                added_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (item_id) REFERENCES cutter_items(id)
+                added_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+
+        # Migration: Add product_type and product_id columns, rename item_id (for existing databases)
+        cursor.execute("PRAGMA table_info(cart_items)")
+        columns = [column[1] for column in cursor.fetchall()]
+
+        if 'product_type' not in columns:
+            # Old schema detected - migrate to new unified schema
+            cursor.execute('ALTER TABLE cart_items ADD COLUMN product_type TEXT DEFAULT "cutter_item"')
+
+        if 'product_id' not in columns and 'item_id' in columns:
+            # Rename item_id to product_id
+            cursor.execute('ALTER TABLE cart_items ADD COLUMN product_id INTEGER')
+            cursor.execute('UPDATE cart_items SET product_id = item_id WHERE product_id IS NULL')
+            # Note: SQLite doesn't support DROP COLUMN easily, so we keep item_id for backward compatibility
 
         # Create index for faster queries
         cursor.execute('''
@@ -277,6 +298,100 @@ class Database:
         cursor.execute('''
             CREATE INDEX IF NOT EXISTS idx_order_items_order
             ON order_items(order_id)
+        ''')
+
+        # ===== CANDLES & SOAPS PRODUCT LINE =====
+        # Create candles_soaps_categories table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS candles_soaps_categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                description TEXT,
+                display_order INTEGER DEFAULT 0,
+                is_active INTEGER DEFAULT 1,
+                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        # Create candles_soaps_products table with stock tracking
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS candles_soaps_products (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                product_code TEXT UNIQUE NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT,
+                category_id INTEGER NOT NULL,
+                price REAL NOT NULL,
+                stock_quantity INTEGER DEFAULT 0,
+                low_stock_threshold INTEGER DEFAULT 5,
+                weight_grams REAL,
+                dimensions TEXT,
+                scent TEXT,
+                color TEXT,
+                burn_time_hours INTEGER,
+                ingredients TEXT,
+                is_active INTEGER DEFAULT 1,
+                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (category_id) REFERENCES candles_soaps_categories(id)
+            )
+        ''')
+
+        # Create candles_soaps_product_photos table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS candles_soaps_product_photos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                product_id INTEGER NOT NULL,
+                photo_path TEXT NOT NULL,
+                is_main INTEGER DEFAULT 0,
+                display_order INTEGER DEFAULT 0,
+                uploaded_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (product_id) REFERENCES candles_soaps_products(id) ON DELETE CASCADE
+            )
+        ''')
+
+        # NOTE: candles_soaps_cart_items table REMOVED - now using unified cart_items table
+        # The unified cart_items table handles both cutter items and candles/soaps via product_type field
+
+        # Create candles_soaps_stock_history table for tracking stock changes
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS candles_soaps_stock_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                product_id INTEGER NOT NULL,
+                change_amount INTEGER NOT NULL,
+                reason TEXT,
+                previous_quantity INTEGER,
+                new_quantity INTEGER,
+                order_id INTEGER,
+                created_by TEXT,
+                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (product_id) REFERENCES candles_soaps_products(id),
+                FOREIGN KEY (order_id) REFERENCES orders(id)
+            )
+        ''')
+
+        # Create indexes for candles & soaps
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_candles_soaps_products_category
+            ON candles_soaps_products(category_id)
+        ''')
+
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_candles_soaps_products_active
+            ON candles_soaps_products(is_active)
+        ''')
+
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_candles_soaps_product_photos_product
+            ON candles_soaps_product_photos(product_id)
+        ''')
+
+        # NOTE: candles_soaps_cart_items indexes removed - table no longer exists
+        # Cart indexes are now on unified cart_items table
+
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_candles_soaps_stock_history_product
+            ON candles_soaps_stock_history(product_id)
         ''')
 
         # Run migrations for existing tables
@@ -1001,26 +1116,43 @@ class Database:
             conn.close()
             return False, f"An error occurred: {str(e)}", None
 
-    def get_all_cutter_categories(self):
-        """Get all cutter categories"""
+    def get_all_cutter_categories(self, public_only=False):
+        """Get all cutter categories
+
+        Args:
+            public_only: If True, only return categories marked as public (is_public=1)
+        """
         conn = self.get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('''
-            SELECT id, name, description, created_date
+        query = '''
+            SELECT id, name, description, is_public, created_date
             FROM cutter_categories
-            ORDER BY name ASC
-        ''')
+        '''
+
+        if public_only:
+            query += ' WHERE is_public = 1'
+
+        query += ' ORDER BY name ASC'
+
+        cursor.execute(query)
 
         categories = cursor.fetchall()
         conn.close()
 
         result = []
         for cat in categories:
+            # Handle is_public field with fallback for backward compatibility
+            try:
+                is_public = cat['is_public'] if cat['is_public'] is not None else 1
+            except (KeyError, IndexError):
+                is_public = 1
+
             result.append({
                 'id': cat['id'],
                 'name': cat['name'],
                 'description': cat['description'],
+                'is_public': is_public,
                 'created_date': cat['created_date']
             })
 
@@ -1293,8 +1425,16 @@ class Database:
             conn.close()
             return False, f"An error occurred: {str(e)}", None, None
 
-    def get_all_cutter_items(self, category_id=None, type_id=None, search_term=None, active_only=True):
-        """Get all cutter items with optional filters"""
+    def get_all_cutter_items(self, category_id=None, type_id=None, search_term=None, active_only=True, public_categories_only=False):
+        """Get all cutter items with optional filters
+
+        Args:
+            category_id: Filter by specific category
+            type_id: Filter by specific type
+            search_term: Search in name or description
+            active_only: Only return active items (is_active=1)
+            public_categories_only: Only return items from public categories (cc.is_public=1)
+        """
         conn = self.get_connection()
         cursor = conn.cursor()
 
@@ -1317,6 +1457,9 @@ class Database:
 
         if active_only:
             query += ' AND ci.is_active = 1'
+
+        if public_categories_only:
+            query += ' AND (cc.is_public = 1 OR cc.is_public IS NULL)'
 
         if category_id:
             query += ' AND ci.category_id = ?'
@@ -1704,8 +1847,17 @@ class Database:
     # SHOPPING CART
     # ============================================================================
 
-    def add_to_cart(self, session_id, item_id, quantity=1, user_id=None):
-        """Add an item to cart or update quantity if already in cart"""
+    def add_to_cart(self, session_id, product_id, quantity=1, user_id=None, product_type='cutter_item'):
+        """
+        Add a product to cart (unified for all product types)
+
+        Args:
+            session_id: Session ID for guest users
+            product_id: The product ID (item_id for cutters, product_id for candles/soaps)
+            quantity: Quantity to add
+            user_id: User ID if logged in
+            product_type: 'cutter_item' or 'candles_soap'
+        """
         conn = self.get_connection()
         cursor = conn.cursor()
 
@@ -1714,13 +1866,13 @@ class Database:
             if user_id:
                 cursor.execute('''
                     SELECT id, quantity FROM cart_items
-                    WHERE user_id = ? AND item_id = ?
-                ''', (user_id, item_id))
+                    WHERE user_id = ? AND product_id = ? AND product_type = ?
+                ''', (user_id, product_id, product_type))
             else:
                 cursor.execute('''
                     SELECT id, quantity FROM cart_items
-                    WHERE session_id = ? AND item_id = ? AND user_id IS NULL
-                ''', (session_id, item_id))
+                    WHERE session_id = ? AND product_id = ? AND product_type = ? AND user_id IS NULL
+                ''', (session_id, product_id, product_type))
 
             existing = cursor.fetchone()
 
@@ -1736,9 +1888,9 @@ class Database:
             else:
                 # Add new item
                 cursor.execute('''
-                    INSERT INTO cart_items (session_id, user_id, item_id, quantity)
-                    VALUES (?, ?, ?, ?)
-                ''', (session_id, user_id, item_id, quantity))
+                    INSERT INTO cart_items (session_id, user_id, product_type, product_id, quantity)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (session_id, user_id, product_type, product_id, quantity))
                 message = "Added to cart!"
 
             conn.commit()
@@ -1750,70 +1902,117 @@ class Database:
             return False, f"An error occurred: {str(e)}"
 
     def get_cart_items(self, session_id, user_id=None):
-        """Get all items in cart with product details"""
+        """Get all items in cart with product details (unified for all product types)"""
         conn = self.get_connection()
         cursor = conn.cursor()
 
         try:
+            # Build WHERE clause
             if user_id:
-                cursor.execute('''
-                    SELECT
-                        cart.id as cart_id,
-                        cart.item_id,
-                        cart.quantity,
-                        cart.added_date,
-                        item.name,
-                        item.price,
-                        item.item_number,
-                        item.stock_status,
-                        (SELECT photo_path FROM cutter_item_photos
-                         WHERE item_id = item.id AND is_main = 1 LIMIT 1) as main_photo
-                    FROM cart_items cart
-                    JOIN cutter_items item ON cart.item_id = item.id
-                    WHERE cart.user_id = ? AND item.is_active = 1
-                    ORDER BY cart.added_date DESC
-                ''', (user_id,))
+                where_clause = "cart.user_id = ?"
+                params = (user_id,)
             else:
-                cursor.execute('''
-                    SELECT
-                        cart.id as cart_id,
-                        cart.item_id,
-                        cart.quantity,
-                        cart.added_date,
-                        item.name,
-                        item.price,
-                        item.item_number,
-                        item.stock_status,
-                        (SELECT photo_path FROM cutter_item_photos
-                         WHERE item_id = item.id AND is_main = 1 LIMIT 1) as main_photo
-                    FROM cart_items cart
-                    JOIN cutter_items item ON cart.item_id = item.id
-                    WHERE cart.session_id = ? AND cart.user_id IS NULL AND item.is_active = 1
-                    ORDER BY cart.added_date DESC
-                ''', (session_id,))
+                where_clause = "cart.session_id = ? AND cart.user_id IS NULL"
+                params = (session_id,)
 
-            items = cursor.fetchall()
-            conn.close()
+            # Get cutter items
+            cursor.execute(f'''
+                SELECT
+                    cart.id as cart_id,
+                    cart.product_type,
+                    cart.product_id,
+                    cart.quantity,
+                    cart.added_date,
+                    item.name,
+                    item.price,
+                    item.item_number as product_code,
+                    item.stock_status,
+                    (SELECT photo_path FROM cutter_item_photos
+                     WHERE item_id = item.id AND is_main = 1 LIMIT 1) as main_photo
+                FROM cart_items cart
+                JOIN cutter_items item ON cart.product_id = item.id
+                WHERE {where_clause} AND cart.product_type = 'cutter_item' AND item.is_active = 1
+                ORDER BY cart.added_date DESC
+            ''', params)
+
+            cutter_items = cursor.fetchall()
+
+            # Get candles/soaps items
+            cursor.execute(f'''
+                SELECT
+                    cart.id as cart_id,
+                    cart.product_type,
+                    cart.product_id,
+                    cart.quantity,
+                    cart.added_date,
+                    p.name,
+                    p.price,
+                    p.product_code,
+                    p.stock_quantity,
+                    p.scent,
+                    p.color,
+                    cat.name as category_name
+                FROM cart_items cart
+                JOIN candles_soaps_products p ON cart.product_id = p.id
+                LEFT JOIN candles_soaps_categories cat ON p.category_id = cat.id
+                WHERE {where_clause} AND cart.product_type = 'candles_soap' AND p.is_active = 1
+                ORDER BY cart.added_date DESC
+            ''', params)
+
+            candles_items = cursor.fetchall()
 
             result = []
-            for item in items:
+
+            # Add cutter items
+            for item in cutter_items:
                 result.append({
                     'cart_id': item['cart_id'],
-                    'item_id': item['item_id'],
+                    'product_type': item['product_type'],
+                    'product_id': item['product_id'],
+                    'item_id': item['product_id'],  # For backward compatibility
                     'quantity': item['quantity'],
                     'name': item['name'],
                     'price': item['price'],
-                    'item_number': item['item_number'],
+                    'product_code': item['product_code'],
+                    'item_number': item['product_code'],  # For backward compatibility
                     'stock_status': item['stock_status'],
                     'main_photo': item['main_photo'],
                     'added_date': item['added_date'],
                     'subtotal': item['price'] * item['quantity']
                 })
 
+            # Add candles/soaps items
+            for item in candles_items:
+                # Get main photo for candles/soaps
+                photos = self.get_candles_soaps_product_photos(item['product_id'])
+                main_photo = None
+                if photos:
+                    main_photo_obj = next((photo for photo in photos if photo['is_main']), photos[0] if photos else None)
+                    main_photo = main_photo_obj['photo_path'] if main_photo_obj else None
+
+                result.append({
+                    'cart_id': item['cart_id'],
+                    'product_type': item['product_type'],
+                    'product_id': item['product_id'],
+                    'quantity': item['quantity'],
+                    'name': item['name'],
+                    'price': item['price'],
+                    'product_code': item['product_code'],
+                    'stock_quantity': item['stock_quantity'],
+                    'scent': item['scent'],
+                    'color': item['color'],
+                    'category_name': item['category_name'],
+                    'main_photo': main_photo,
+                    'added_date': item['added_date'],
+                    'subtotal': item['price'] * item['quantity']
+                })
+
+            conn.close()
             return result
 
         except Exception as e:
             conn.close()
+            print(f"Error getting cart items: {e}")
             return []
 
     def update_cart_quantity(self, cart_id, quantity):
@@ -1903,69 +2102,99 @@ class Database:
             return False, f"An error occurred: {str(e)}"
 
     def get_all_active_carts(self):
-        """Get all active carts with user info and cart details - for admin view"""
+        """Get all active carts with user info and cart details - for admin view (unified)"""
         conn = self.get_connection()
         cursor = conn.cursor()
 
         try:
-            # Get registered user carts
+            # Get all unique carts (user or session based) from unified cart_items
             cursor.execute('''
                 SELECT
                     cart.user_id,
                     cart.session_id,
                     u.name as user_name,
                     u.email as user_email,
-                    COUNT(DISTINCT cart.id) as item_count,
-                    SUM(cart.quantity) as total_quantity,
-                    SUM(cart.quantity * item.price) as cart_total,
-                    MIN(cart.added_date) as first_added,
-                    MAX(cart.added_date) as last_added,
                     'registered' as cart_type
                 FROM cart_items cart
-                JOIN cutter_items item ON cart.item_id = item.id
                 LEFT JOIN users u ON cart.user_id = u.id
-                WHERE cart.user_id IS NOT NULL AND item.is_active = 1
+                WHERE cart.user_id IS NOT NULL
                 GROUP BY cart.user_id
 
-                UNION ALL
+                UNION
 
                 SELECT
                     NULL as user_id,
                     cart.session_id,
                     'Guest User' as user_name,
                     NULL as user_email,
-                    COUNT(DISTINCT cart.id) as item_count,
-                    SUM(cart.quantity) as total_quantity,
-                    SUM(cart.quantity * item.price) as cart_total,
-                    MIN(cart.added_date) as first_added,
-                    MAX(cart.added_date) as last_added,
                     'guest' as cart_type
                 FROM cart_items cart
-                JOIN cutter_items item ON cart.item_id = item.id
-                WHERE cart.user_id IS NULL AND cart.session_id IS NOT NULL AND item.is_active = 1
+                WHERE cart.user_id IS NULL AND cart.session_id IS NOT NULL
                 GROUP BY cart.session_id
-
-                ORDER BY last_added DESC
             ''')
 
-            carts = cursor.fetchall()
-            conn.close()
-
+            cart_owners = cursor.fetchall()
             result = []
-            for cart in carts:
+
+            # For each cart owner, calculate detailed stats
+            for owner in cart_owners:
+                user_id = owner['user_id']
+                session_id = owner['session_id']
+
+                if user_id:
+                    # Get stats for registered user cart
+                    cursor.execute('''
+                        SELECT
+                            COUNT(DISTINCT cart.id) as item_count,
+                            SUM(cart.quantity) as total_quantity,
+                            SUM(CASE
+                                WHEN cart.product_type = 'cutter_item' THEN cart.quantity * ci.price
+                                WHEN cart.product_type = 'candles_soap' THEN cart.quantity * cs.price
+                            END) as cart_total,
+                            MIN(cart.added_date) as first_added,
+                            MAX(cart.added_date) as last_added
+                        FROM cart_items cart
+                        LEFT JOIN cutter_items ci ON cart.product_id = ci.id AND cart.product_type = 'cutter_item'
+                        LEFT JOIN candles_soaps_products cs ON cart.product_id = cs.id AND cart.product_type = 'candles_soap'
+                        WHERE cart.user_id = ?
+                    ''', (user_id,))
+                else:
+                    # Get stats for guest cart
+                    cursor.execute('''
+                        SELECT
+                            COUNT(DISTINCT cart.id) as item_count,
+                            SUM(cart.quantity) as total_quantity,
+                            SUM(CASE
+                                WHEN cart.product_type = 'cutter_item' THEN cart.quantity * ci.price
+                                WHEN cart.product_type = 'candles_soap' THEN cart.quantity * cs.price
+                            END) as cart_total,
+                            MIN(cart.added_date) as first_added,
+                            MAX(cart.added_date) as last_added
+                        FROM cart_items cart
+                        LEFT JOIN cutter_items ci ON cart.product_id = ci.id AND cart.product_type = 'cutter_item'
+                        LEFT JOIN candles_soaps_products cs ON cart.product_id = cs.id AND cart.product_type = 'candles_soap'
+                        WHERE cart.session_id = ? AND cart.user_id IS NULL
+                    ''', (session_id,))
+
+                stats = cursor.fetchone()
+
                 result.append({
-                    'user_id': cart['user_id'],
-                    'session_id': cart['session_id'],
-                    'user_name': cart['user_name'],
-                    'user_email': cart['user_email'],
-                    'item_count': cart['item_count'],
-                    'total_quantity': cart['total_quantity'],
-                    'cart_total': cart['cart_total'],
-                    'first_added': cart['first_added'],
-                    'last_added': cart['last_added'],
-                    'cart_type': cart['cart_type']
+                    'user_id': user_id,
+                    'session_id': session_id,
+                    'user_name': owner['user_name'],
+                    'user_email': owner['user_email'],
+                    'item_count': stats['item_count'] or 0,
+                    'total_quantity': stats['total_quantity'] or 0,
+                    'cart_total': stats['cart_total'] or 0,
+                    'first_added': stats['first_added'],
+                    'last_added': stats['last_added'],
+                    'cart_type': owner['cart_type']
                 })
 
+            # Sort by last_added descending
+            result.sort(key=lambda x: x['last_added'] if x['last_added'] else '', reverse=True)
+
+            conn.close()
             return result
 
         except Exception as e:
@@ -1973,69 +2202,33 @@ class Database:
             return []
 
     def get_cart_details_for_admin(self, user_id=None, session_id=None):
-        """Get detailed cart items for a specific user or session - for admin view"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-
+        """Get detailed cart items for a specific user or session - for admin view (unified)"""
         try:
+            # Use the unified get_cart_items function
             if user_id:
-                cursor.execute('''
-                    SELECT
-                        cart.id as cart_id,
-                        cart.item_id,
-                        cart.quantity,
-                        cart.added_date,
-                        item.name,
-                        item.price,
-                        item.item_number,
-                        (cart.quantity * item.price) as subtotal,
-                        (SELECT photo_path FROM cutter_item_photos
-                         WHERE item_id = item.id AND is_main = 1 LIMIT 1) as main_photo
-                    FROM cart_items cart
-                    JOIN cutter_items item ON cart.item_id = item.id
-                    WHERE cart.user_id = ? AND item.is_active = 1
-                    ORDER BY cart.added_date DESC
-                ''', (user_id,))
+                items = self.get_cart_items(None, user_id=user_id)
             else:
-                cursor.execute('''
-                    SELECT
-                        cart.id as cart_id,
-                        cart.item_id,
-                        cart.quantity,
-                        cart.added_date,
-                        item.name,
-                        item.price,
-                        item.item_number,
-                        (cart.quantity * item.price) as subtotal,
-                        (SELECT photo_path FROM cutter_item_photos
-                         WHERE item_id = item.id AND is_main = 1 LIMIT 1) as main_photo
-                    FROM cart_items cart
-                    JOIN cutter_items item ON cart.item_id = item.id
-                    WHERE cart.session_id = ? AND cart.user_id IS NULL AND item.is_active = 1
-                    ORDER BY cart.added_date DESC
-                ''', (session_id,))
+                items = self.get_cart_items(session_id, user_id=None)
 
-            items = cursor.fetchall()
-            conn.close()
-
+            # Format result for admin view
             result = []
             for item in items:
                 result.append({
                     'cart_id': item['cart_id'],
-                    'item_id': item['item_id'],
+                    'item_id': item.get('product_id', item.get('item_id')),
+                    'product_type': item.get('product_type', 'cutter'),
                     'quantity': item['quantity'],
                     'added_date': item['added_date'],
                     'name': item['name'],
                     'price': item['price'],
-                    'item_number': item['item_number'],
+                    'item_number': item.get('product_code', item.get('item_number', '')),
                     'subtotal': item['subtotal'],
-                    'main_photo': item['main_photo']
+                    'main_photo': item.get('main_photo')
                 })
 
             return result
 
         except Exception as e:
-            conn.close()
             return []
 
     def admin_clear_cart(self, user_id=None, session_id=None):
@@ -2555,14 +2748,14 @@ class Database:
             return False, f"An error occurred: {str(e)}"
 
     def migrate_guest_cart_to_user(self, session_id, user_id):
-        """Transfer guest cart items to logged-in user"""
+        """Transfer guest cart items to logged-in user (unified for all product types)"""
         conn = self.get_connection()
         cursor = conn.cursor()
 
         try:
             # Get all guest cart items for this session
             cursor.execute('''
-                SELECT item_id, quantity
+                SELECT id, product_type, product_id, quantity
                 FROM cart_items
                 WHERE session_id = ? AND user_id IS NULL
             ''', (session_id,))
@@ -2570,14 +2763,15 @@ class Database:
             guest_items = cursor.fetchall()
 
             for item in guest_items:
-                item_id = item['item_id']
+                product_type = item['product_type']
+                product_id = item['product_id']
                 quantity = item['quantity']
 
                 # Check if user already has this item in cart
                 cursor.execute('''
                     SELECT id, quantity FROM cart_items
-                    WHERE user_id = ? AND item_id = ?
-                ''', (user_id, item_id))
+                    WHERE user_id = ? AND product_type = ? AND product_id = ?
+                ''', (user_id, product_type, product_id))
 
                 existing = cursor.fetchone()
 
@@ -2589,47 +2783,63 @@ class Database:
                         SET quantity = ?
                         WHERE id = ?
                     ''', (new_quantity, existing['id']))
+
+                    # Delete the guest item
+                    cursor.execute('DELETE FROM cart_items WHERE id = ?', (item['id'],))
                 else:
                     # Transfer item to user cart
                     cursor.execute('''
                         UPDATE cart_items
                         SET user_id = ?, session_id = NULL
-                        WHERE session_id = ? AND item_id = ? AND user_id IS NULL
-                    ''', (user_id, session_id, item_id))
-
-            # Delete any remaining guest cart items for this session
-            cursor.execute('''
-                DELETE FROM cart_items
-                WHERE session_id = ? AND user_id IS NULL
-            ''', (session_id,))
+                        WHERE id = ?
+                    ''', (user_id, item['id']))
 
             conn.commit()
             conn.close()
             return True, "Cart migrated successfully!"
 
         except Exception as e:
+            conn.rollback()
             conn.close()
             return False, f"An error occurred: {str(e)}"
 
     def create_order(self, user_id, shipping_info, payment_method='Cash on Delivery'):
-        """Create a new order from user's cart"""
+        """Create a new order from user's cart (both cutters and candles/soaps)"""
         conn = self.get_connection()
         cursor = conn.cursor()
 
         try:
-            # Get cart items for user
+            # Get cutter cart items (from unified cart)
             cursor.execute('''
-                SELECT ci.item_id, ci.quantity, item.price, item.name
+                SELECT ci.product_id as item_id, ci.quantity, item.price, item.name, 'cutter' as product_type
                 FROM cart_items ci
-                JOIN cutter_items item ON ci.item_id = item.id
-                WHERE ci.user_id = ?
+                JOIN cutter_items item ON ci.product_id = item.id
+                WHERE ci.user_id = ? AND ci.product_type = 'cutter_item'
             ''', (user_id,))
+            cutter_items = cursor.fetchall()
 
-            cart_items = cursor.fetchall()
+            # Get candles/soaps cart items (from unified cart)
+            cursor.execute('''
+                SELECT ci.product_id as item_id, ci.quantity, p.price, p.name, 'candle_soap' as product_type,
+                       p.stock_quantity, p.product_code
+                FROM cart_items ci
+                JOIN candles_soaps_products p ON ci.product_id = p.id
+                WHERE ci.user_id = ? AND ci.product_type = 'candles_soap'
+            ''', (user_id,))
+            candle_soap_items = cursor.fetchall()
+
+            # Combine all cart items
+            cart_items = list(cutter_items) + list(candle_soap_items)
 
             if not cart_items:
                 conn.close()
                 return False, "Cart is empty!", None
+
+            # Validate stock for candles/soaps products
+            for item in candle_soap_items:
+                if item['stock_quantity'] < item['quantity']:
+                    conn.close()
+                    return False, f"Insufficient stock for {item['name']}. Available: {item['stock_quantity']}", None
 
             # Calculate subtotal
             subtotal = sum(item['price'] * item['quantity'] for item in cart_items)
@@ -2704,16 +2914,39 @@ class Database:
                     VALUES (?, ?, ?, ?)
                 ''', (order_id, item['item_id'], item['quantity'], item['price']))
 
+                # Deduct stock for candles/soaps products
+                if item.get('product_type') == 'candle_soap':
+                    # Get current stock
+                    current_stock = item['stock_quantity']
+                    new_stock = current_stock - item['quantity']
+
+                    # Update stock
+                    cursor.execute('''
+                        UPDATE candles_soaps_products
+                        SET stock_quantity = ?, updated_date = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    ''', (new_stock, item['item_id']))
+
+                    # Log stock change
+                    cursor.execute('''
+                        INSERT INTO candles_soaps_stock_history (
+                            product_id, change_amount, reason, previous_quantity,
+                            new_quantity, order_id, created_by
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ''', (item['item_id'], -item['quantity'], 'Order placed',
+                          current_stock, new_stock, order_id, f'Order: {order_number}'))
+
                 # Check if this item is from a quote (item_number starts with "QUOTE-")
-                cursor.execute('SELECT item_number FROM cutter_items WHERE id = ?', (item['item_id'],))
-                item_data = cursor.fetchone()
-                if item_data and item_data['item_number'].startswith('QUOTE-'):
-                    # Parse quote reference: QUOTE-CUSTOM_DESIGN-123 or QUOTE-CAKE_TOPPER-456
-                    parts = item_data['item_number'].split('-')
-                    if len(parts) >= 3:
-                        quote_type = parts[1].lower()
-                        quote_id = int(parts[2])
-                        quote_reference = {'type': quote_type, 'id': quote_id}
+                if item.get('product_type') == 'cutter':
+                    cursor.execute('SELECT item_number FROM cutter_items WHERE id = ?', (item['item_id'],))
+                    item_data = cursor.fetchone()
+                    if item_data and item_data['item_number'].startswith('QUOTE-'):
+                        # Parse quote reference: QUOTE-CUSTOM_DESIGN-123 or QUOTE-CAKE_TOPPER-456
+                        parts = item_data['item_number'].split('-')
+                        if len(parts) >= 3:
+                            quote_type = parts[1].lower()
+                            quote_id = int(parts[2])
+                            quote_reference = {'type': quote_type, 'id': quote_id}
 
             # If order contains quote items, link them
             if quote_reference:
@@ -2737,7 +2970,7 @@ class Database:
                         WHERE id = ?
                     ''', (order_number, quote_reference['id']))
 
-            # Clear user's cart
+            # Clear user's cart (unified - handles all product types)
             cursor.execute('DELETE FROM cart_items WHERE user_id = ?', (user_id,))
 
             conn.commit()
@@ -2959,7 +3192,11 @@ class Database:
 
             customer_email = quote['email']
             customer_name = quote['name']
-            customer_phone = quote['phone'] if quote['phone'] else ''
+            # Handle phone field safely (might not exist in all quote types)
+            try:
+                customer_phone = quote['phone'] if quote['phone'] else ''
+            except (KeyError, IndexError):
+                customer_phone = ''
 
             # Check if customer has a user account
             cursor.execute('SELECT id FROM users WHERE email = ?', (customer_email,))
@@ -2984,16 +3221,18 @@ class Database:
                 user_temp_password = None
 
             # Create a temporary custom item in cutter_items table
-            # Get or create a "Custom Quotes" category
+            # Get or create a "Custom Quotes" category (marked as non-public so it doesn't show in shop)
             cursor.execute("SELECT id FROM cutter_categories WHERE name = 'Custom Quotes'")
             category = cursor.fetchone()
 
             if not category:
-                cursor.execute("INSERT INTO cutter_categories (name, description) VALUES (?, ?)",
-                             ('Custom Quotes', 'Items created from custom quote requests'))
+                cursor.execute("INSERT INTO cutter_categories (name, description, is_public) VALUES (?, ?, ?)",
+                             ('Custom Quotes', 'Items created from custom quote requests', 0))
                 category_id = cursor.lastrowid
             else:
                 category_id = category['id']
+                # Ensure existing "Custom Quotes" category is marked as non-public
+                cursor.execute("UPDATE cutter_categories SET is_public = 0 WHERE id = ?", (category_id,))
 
             # Get or create a "Quote Item" type
             cursor.execute("SELECT id FROM cutter_types WHERE name = 'Quote Item'")
@@ -3025,11 +3264,11 @@ class Database:
 
             item_id = cursor.lastrowid
 
-            # Add item to customer's cart
+            # Add item to customer's cart (using unified cart schema)
             cursor.execute('''
-                INSERT INTO cart_items (user_id, item_id, quantity, added_date)
-                VALUES (?, ?, 1, CURRENT_TIMESTAMP)
-            ''', (user_id, item_id))
+                INSERT INTO cart_items (user_id, product_type, product_id, quantity, added_date)
+                VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
+            ''', (user_id, 'cutter_item', item_id))
 
             # Update quote status to 'converted'
             cursor.execute(f'''
@@ -3041,9 +3280,10 @@ class Database:
             conn.commit()
             conn.close()
 
-            # Return success with user creation details
+            # Return success with user creation details and item_id for photo upload
             result_data = {
                 'user_id': user_id,
+                'item_id': item_id,  # Include item_id so photo can be attached
                 'user_created': user_created,
                 'temp_password': user_temp_password,
                 'customer_email': customer_email,
@@ -3082,3 +3322,518 @@ class Database:
         except Exception as e:
             conn.close()
             return False, f"An error occurred: {str(e)}"
+
+    # ===== CANDLES & SOAPS PRODUCT LINE METHODS =====
+
+    # ----- Category Management -----
+    def add_candles_soaps_category(self, name, description=None, display_order=0):
+        """Add a new candles & soaps category"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('''
+                INSERT INTO candles_soaps_categories (name, description, display_order)
+                VALUES (?, ?, ?)
+            ''', (name, description, display_order))
+
+            conn.commit()
+            category_id = cursor.lastrowid
+            conn.close()
+            return True, f"Category '{name}' added successfully!", category_id
+
+        except sqlite3.IntegrityError:
+            conn.close()
+            return False, f"Category '{name}' already exists!", None
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred: {str(e)}", None
+
+    def get_all_candles_soaps_categories(self, active_only=False):
+        """Get all candles & soaps categories"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        query = 'SELECT * FROM candles_soaps_categories'
+        if active_only:
+            query += ' WHERE is_active = 1'
+        query += ' ORDER BY display_order, name'
+
+        cursor.execute(query)
+        categories = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return categories
+
+    def get_candles_soaps_category(self, category_id):
+        """Get a single candles & soaps category by ID"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM candles_soaps_categories WHERE id = ?', (category_id,))
+        category = cursor.fetchone()
+        conn.close()
+        return dict(category) if category else None
+
+    def update_candles_soaps_category(self, category_id, name, description=None, display_order=0, is_active=1):
+        """Update a candles & soaps category"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('''
+                UPDATE candles_soaps_categories
+                SET name = ?, description = ?, display_order = ?, is_active = ?
+                WHERE id = ?
+            ''', (name, description, display_order, is_active, category_id))
+
+            conn.commit()
+            conn.close()
+            return True, "Category updated successfully!"
+
+        except sqlite3.IntegrityError:
+            conn.close()
+            return False, f"Category name '{name}' already exists!"
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred while updating category: {str(e)}"
+
+    def delete_candles_soaps_category(self, category_id):
+        """Delete a candles & soaps category (only if no products use it)"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Check if any products use this category
+            cursor.execute('SELECT COUNT(*) as count FROM candles_soaps_products WHERE category_id = ?', (category_id,))
+            count = cursor.fetchone()['count']
+
+            if count > 0:
+                conn.close()
+                return False, f"Cannot delete category: {count} product(s) are using it!"
+
+            cursor.execute('DELETE FROM candles_soaps_categories WHERE id = ?', (category_id,))
+            conn.commit()
+            conn.close()
+            return True, "Category deleted successfully!"
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred while deleting category: {str(e)}"
+
+    # ----- Product Management -----
+    def generate_candles_soaps_product_code(self, category_id):
+        """Generate unique product code for candles & soaps (e.g., CS_CANDLE_0001)"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        # Get category name
+        cursor.execute('SELECT name FROM candles_soaps_categories WHERE id = ?', (category_id,))
+        category = cursor.fetchone()
+        if not category:
+            conn.close()
+            return None
+
+        # Clean category name for code (e.g., "Scented Candles" -> "CANDLE")
+        category_name = category['name'].upper().replace(' ', '_')
+        # Get first word if multiple words
+        category_name = category_name.split('_')[0]
+
+        # Get last sequence number for this category
+        cursor.execute('''
+            SELECT product_code FROM candles_soaps_products
+            WHERE product_code LIKE ?
+            ORDER BY product_code DESC
+            LIMIT 1
+        ''', (f'CS_{category_name}_%',))
+
+        last_product = cursor.fetchone()
+
+        if last_product:
+            # Extract sequence number and increment
+            last_sequence = int(last_product['product_code'].split('_')[-1])
+            sequence = last_sequence + 1
+        else:
+            sequence = 1
+
+        product_code = f"CS_{category_name}_{sequence:04d}"
+        conn.close()
+        return product_code
+
+    def add_candles_soaps_product(self, product_data):
+        """Add a new candles & soaps product"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Generate product code if not provided
+            if not product_data.get('product_code'):
+                product_data['product_code'] = self.generate_candles_soaps_product_code(product_data['category_id'])
+
+            cursor.execute('''
+                INSERT INTO candles_soaps_products (
+                    product_code, name, description, category_id, price,
+                    stock_quantity, low_stock_threshold, weight_grams, dimensions,
+                    scent, color, burn_time_hours, ingredients, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                product_data['product_code'],
+                product_data['name'],
+                product_data.get('description'),
+                product_data['category_id'],
+                product_data['price'],
+                product_data.get('stock_quantity', 0),
+                product_data.get('low_stock_threshold', 5),
+                product_data.get('weight_grams'),
+                product_data.get('dimensions'),
+                product_data.get('scent'),
+                product_data.get('color'),
+                product_data.get('burn_time_hours'),
+                product_data.get('ingredients'),
+                product_data.get('is_active', 1)
+            ))
+
+            product_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+            return True, f"Product '{product_data['name']}' added successfully!", product_id
+
+        except sqlite3.IntegrityError:
+            conn.close()
+            return False, f"Product code '{product_data.get('product_code')}' already exists!", None
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred while adding product: {str(e)}", None
+
+    def get_all_candles_soaps_products(self, category_id=None, in_stock_only=False, active_only=True):
+        """Get all candles & soaps products with optional filtering"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        query = '''
+            SELECT p.*, c.name as category_name,
+                (SELECT photo_path FROM candles_soaps_product_photos
+                 WHERE product_id = p.id AND is_main = 1 LIMIT 1) as main_photo
+            FROM candles_soaps_products p
+            LEFT JOIN candles_soaps_categories c ON p.category_id = c.id
+            WHERE 1=1
+        '''
+        params = []
+
+        if category_id:
+            query += ' AND p.category_id = ?'
+            params.append(category_id)
+
+        if in_stock_only:
+            query += ' AND p.stock_quantity > 0'
+
+        if active_only:
+            query += ' AND p.is_active = 1'
+
+        query += ' ORDER BY p.name'
+
+        cursor.execute(query, params)
+        products = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return products
+
+    def get_candles_soaps_product(self, product_id):
+        """Get a single candles & soaps product by ID"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT p.*, c.name as category_name
+            FROM candles_soaps_products p
+            LEFT JOIN candles_soaps_categories c ON p.category_id = c.id
+            WHERE p.id = ?
+        ''', (product_id,))
+
+        product = cursor.fetchone()
+        conn.close()
+        return dict(product) if product else None
+
+    def update_candles_soaps_product(self, product_id, product_data):
+        """Update a candles & soaps product"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('''
+                UPDATE candles_soaps_products
+                SET name = ?, description = ?, category_id = ?, price = ?,
+                    stock_quantity = ?, low_stock_threshold = ?, weight_grams = ?,
+                    dimensions = ?, scent = ?, color = ?, burn_time_hours = ?,
+                    ingredients = ?, is_active = ?, updated_date = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (
+                product_data['name'],
+                product_data.get('description'),
+                product_data['category_id'],
+                product_data['price'],
+                product_data.get('stock_quantity', 0),
+                product_data.get('low_stock_threshold', 5),
+                product_data.get('weight_grams'),
+                product_data.get('dimensions'),
+                product_data.get('scent'),
+                product_data.get('color'),
+                product_data.get('burn_time_hours'),
+                product_data.get('ingredients'),
+                product_data.get('is_active', 1),
+                product_id
+            ))
+
+            conn.commit()
+            conn.close()
+            return True, "Product updated successfully!"
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred while updating product: {str(e)}"
+
+    def delete_candles_soaps_product(self, product_id):
+        """Soft delete a candles & soaps product"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('''
+                UPDATE candles_soaps_products
+                SET is_active = 0, updated_date = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (product_id,))
+
+            conn.commit()
+            conn.close()
+            return True, "Product deleted successfully!"
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred while deleting product: {str(e)}"
+
+    # ----- Stock Management -----
+    def update_candles_soaps_stock(self, product_id, change_amount, reason, order_id=None, created_by=None):
+        """Update stock quantity and log the change"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Get current stock
+            cursor.execute('SELECT stock_quantity FROM candles_soaps_products WHERE id = ?', (product_id,))
+            product = cursor.fetchone()
+            if not product:
+                conn.close()
+                return False, "Product not found!"
+
+            previous_quantity = product['stock_quantity']
+            new_quantity = previous_quantity + change_amount
+
+            if new_quantity < 0:
+                conn.close()
+                return False, f"Insufficient stock! Available: {previous_quantity}"
+
+            # Update stock quantity
+            cursor.execute('''
+                UPDATE candles_soaps_products
+                SET stock_quantity = ?, updated_date = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (new_quantity, product_id))
+
+            # Log the change
+            cursor.execute('''
+                INSERT INTO candles_soaps_stock_history (
+                    product_id, change_amount, reason, previous_quantity,
+                    new_quantity, order_id, created_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (product_id, change_amount, reason, previous_quantity, new_quantity, order_id, created_by))
+
+            conn.commit()
+            conn.close()
+            return True, f"Stock updated: {previous_quantity} → {new_quantity}"
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred while updating stock: {str(e)}"
+
+    def get_candles_soaps_stock_history(self, product_id=None, limit=50):
+        """Get stock change history"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        query = '''
+            SELECT sh.*, p.name as product_name, p.product_code
+            FROM candles_soaps_stock_history sh
+            LEFT JOIN candles_soaps_products p ON sh.product_id = p.id
+        '''
+
+        if product_id:
+            query += ' WHERE sh.product_id = ?'
+            params = (product_id,)
+        else:
+            params = ()
+
+        query += ' ORDER BY sh.created_date DESC LIMIT ?'
+        params = params + (limit,)
+
+        cursor.execute(query, params)
+        history = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return history
+
+    def get_low_stock_candles_soaps_products(self):
+        """Get products that are at or below their low stock threshold"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT p.*, c.name as category_name
+            FROM candles_soaps_products p
+            LEFT JOIN candles_soaps_categories c ON p.category_id = c.id
+            WHERE p.stock_quantity <= p.low_stock_threshold
+            AND p.is_active = 1
+            ORDER BY p.stock_quantity ASC
+        ''')
+
+        products = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return products
+
+    # ----- Product Photos -----
+    def add_candles_soaps_product_photo(self, product_id, photo_path, is_main=False, display_order=0):
+        """Add a photo to a candles & soaps product"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # If this is set as main photo, unset all others
+            if is_main:
+                cursor.execute('''
+                    UPDATE candles_soaps_product_photos
+                    SET is_main = 0
+                    WHERE product_id = ?
+                ''', (product_id,))
+
+            cursor.execute('''
+                INSERT INTO candles_soaps_product_photos (product_id, photo_path, is_main, display_order)
+                VALUES (?, ?, ?, ?)
+            ''', (product_id, photo_path, 1 if is_main else 0, display_order))
+
+            conn.commit()
+            photo_id = cursor.lastrowid
+            return True, "Photo added successfully!", photo_id
+
+        except Exception as e:
+            conn.rollback()
+            return False, f"An error occurred while adding photo: {str(e)}", None
+        finally:
+            conn.close()
+
+    def get_candles_soaps_product_photos(self, product_id):
+        """Get all photos for a candles & soaps product"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT * FROM candles_soaps_product_photos
+            WHERE product_id = ?
+            ORDER BY is_main DESC, display_order, uploaded_date
+        ''', (product_id,))
+
+        photos = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return photos
+
+    def set_candles_soaps_main_photo(self, product_id, photo_id):
+        """Set a photo as the main photo for a product"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Unset all main photos for this product
+            cursor.execute('''
+                UPDATE candles_soaps_product_photos
+                SET is_main = 0
+                WHERE product_id = ?
+            ''', (product_id,))
+
+            # Set the new main photo
+            cursor.execute('''
+                UPDATE candles_soaps_product_photos
+                SET is_main = 1
+                WHERE id = ? AND product_id = ?
+            ''', (photo_id, product_id))
+
+            conn.commit()
+            conn.close()
+            return True, "Main photo updated!"
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred while updating main photo: {str(e)}"
+
+    def delete_candles_soaps_product_photo(self, photo_id):
+        """Delete a candles & soaps product photo"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Get photo path before deleting
+            cursor.execute('SELECT photo_path FROM candles_soaps_product_photos WHERE id = ?', (photo_id,))
+            photo = cursor.fetchone()
+
+            if photo:
+                cursor.execute('DELETE FROM candles_soaps_product_photos WHERE id = ?', (photo_id,))
+                conn.commit()
+                conn.close()
+                return True, "Photo deleted successfully!", photo['photo_path']
+            else:
+                conn.close()
+                return False, "Photo not found!", None
+
+        except Exception as e:
+            conn.close()
+            return False, f"An error occurred while deleting photo: {str(e)}", None
+
+    # ============================================================================
+    # CANDLES & SOAPS CART METHODS
+    # ============================================================================
+
+    def add_to_candles_soaps_cart(self, session_id, product_id, quantity=1, user_id=None):
+        """Add a candles & soaps product to cart (wrapper for unified add_to_cart)"""
+        return self.add_to_cart(session_id, product_id, quantity, user_id, product_type='candles_soap')
+
+    def get_candles_soaps_cart_count(self, session_id, user_id=None):
+        """Get total number of items in candles & soaps cart (wrapper for unified get_cart_count)"""
+        # Return unified cart count (includes all product types)
+        return self.get_cart_count(session_id, user_id)
+
+    def get_candles_soaps_cart_items(self, session_id, user_id=None):
+        """Get candles & soaps items in cart (wrapper for unified get_cart_items)"""
+        # Get all items and filter for candles_soap type only
+        all_items = self.get_cart_items(session_id, user_id)
+        candles_items = [item for item in all_items if item.get('product_type') == 'candles_soap']
+
+        # Add main_photo_url for backward compatibility
+        for item in candles_items:
+            if 'main_photo' in item and item['main_photo']:
+                item['main_photo_url'] = f"/{item['main_photo']}"
+            else:
+                item['main_photo_url'] = None
+
+        return candles_items
+
+    def update_candles_soaps_cart_quantity(self, cart_id, quantity):
+        """Update quantity of item in candles & soaps cart (wrapper for unified update_cart_quantity)"""
+        return self.update_cart_quantity(cart_id, quantity)
+
+    def remove_from_candles_soaps_cart(self, cart_id):
+        """Remove an item from candles & soaps cart (wrapper for unified remove_from_cart)"""
+        return self.remove_from_cart(cart_id)
+
+    def clear_candles_soaps_cart(self, session_id, user_id=None):
+        """Clear all items from candles & soaps cart (wrapper for unified clear_cart)"""
+        return self.clear_cart(session_id, user_id)
+
+    def migrate_guest_candles_soaps_cart_to_user(self, session_id, user_id):
+        """Migrate guest candles & soaps cart items to user cart (wrapper for unified migrate_guest_cart_to_user)"""
+        success, _ = self.migrate_guest_cart_to_user(session_id, user_id)
+        return success

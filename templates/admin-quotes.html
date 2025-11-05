@@ -532,6 +532,25 @@ function filterQuotes() {
         }
     }
 }
+
+// Photo preview function for convert to sale modal
+function previewQuotePhoto(input, quoteId) {
+    const preview = document.getElementById('photo_preview_' + quoteId);
+    const previewImg = document.getElementById('preview_img_' + quoteId);
+
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+            previewImg.src = e.target.result;
+            preview.style.display = 'block';
+        }
+
+        reader.readAsDataURL(input.files[0]);
+    } else {
+        preview.style.display = 'none';
+    }
+}
 </script>
 
 <!-- Convert to Sale Modals -->
@@ -543,7 +562,7 @@ function filterQuotes() {
                 <h5 class="modal-title"><i class="fas fa-shopping-cart"></i> Convert Quote to Sale</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="{{ url_for('convert_quote_to_sale', request_type=quote.request_type|replace(' ', '_')|lower, quote_id=quote.id) }}">
+            <form method="POST" action="{{ url_for('convert_quote_to_sale', request_type=quote.request_type|replace(' ', '_')|lower, quote_id=quote.id) }}" enctype="multipart/form-data">
                 <div class="modal-body">
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle"></i> This will create a custom item and add it to <strong>{{ quote.email }}</strong>'s cart.
@@ -570,6 +589,19 @@ function filterQuotes() {
                         <textarea class="form-control" id="item_description_{{ quote.id }}" name="item_description" rows="3"
                                   maxlength="500">{% if quote.request_type == 'Custom Design' %}{{ quote.description }}{% elif quote.request_type == 'Cake Topper' %}{{ quote.design_details }}{% elif quote.request_type == 'Print Service' %}{{ quote.special_instructions }}{% endif %}</textarea>
                         <small class="text-muted">This will be shown to the customer in their cart</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="item_photo_{{ quote.id }}" class="form-label">
+                            <i class="fas fa-image"></i> Item Photo (Optional)
+                        </label>
+                        <input type="file" class="form-control" id="item_photo_{{ quote.id }}" name="item_photo"
+                               accept="image/jpeg,image/jpg,image/png,image/webp"
+                               onchange="previewQuotePhoto(this, {{ quote.id }})">
+                        <small class="text-muted">Recommended: JPG, PNG, or WebP. This will be shown in the cart.</small>
+                        <div id="photo_preview_{{ quote.id }}" class="mt-2" style="display: none;">
+                            <img id="preview_img_{{ quote.id }}" src="" alt="Photo preview" class="img-thumbnail" style="max-width: 200px; max-height: 200px;">
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
