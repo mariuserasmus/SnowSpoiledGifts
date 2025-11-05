@@ -109,7 +109,7 @@
                                         </td>
                                         <td class="align-middle text-center">
                                             <button class="btn btn-outline-danger btn-sm"
-                                                    onclick="removeItem({{ item.cart_id }}, '{{ item.name }}')"
+                                                    onclick="removeItem({{ item.cart_id }}, '{{ item.cart_type }}', '{{ item.name }}')"
                                                     title="Remove from cart">
                                                 <i class="fas fa-trash"></i>
                                             </button>
@@ -124,7 +124,7 @@
 
                 <!-- Continue Shopping Button -->
                 <div class="mt-3">
-                    <a href="{{ url_for('printing_3d') }}" class="btn btn-outline-primary">
+                    <a href="{{ url_for('index', _anchor='categories') }}" class="btn btn-outline-primary">
                         <i class="fas fa-arrow-left"></i> Continue Shopping
                     </a>
                 </div>
@@ -177,7 +177,7 @@
                         <i class="fas fa-shopping-cart fa-5x text-muted mb-4"></i>
                         <h3>Your cart is empty</h3>
                         <p class="text-muted mb-4">Start adding some items to your cart!</p>
-                        <a href="{{ url_for('printing_3d') }}" class="btn btn-primary btn-lg">
+                        <a href="{{ url_for('index', _anchor='categories') }}" class="btn btn-primary btn-lg">
                             <i class="fas fa-shopping-bag"></i> Start Shopping
                         </a>
                     </div>
@@ -293,7 +293,7 @@
     }
 
     // Remove item from cart
-    function removeItem(cartId, itemName) {
+    function removeItem(cartId, cartType, itemName) {
         if (!confirm(`Remove "${itemName}" from cart?`)) {
             return;
         }
@@ -311,7 +311,8 @@
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                cart_id: cartId
+                cart_id: cartId,
+                cart_type: cartType
             })
         })
         .then(response => response.json())

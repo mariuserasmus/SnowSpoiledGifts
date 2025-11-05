@@ -1193,6 +1193,64 @@ def send_order_confirmation(config, order_data, customer_email, customer_name):
             'pudo': f"PUDO Delivery - R{order_data.get('shipping_cost', 0):.2f}"
         }.get(order_data.get('shipping_method', 'pickup'), 'Pickup')
 
+        # Get payment method
+        payment_method = order_data.get('payment_method', 'cash_on_delivery')
+        payment_method_text = 'EFT/Bank Transfer' if payment_method == 'eft' else 'Cash on Delivery'
+
+        # Banking details section (only for EFT)
+        banking_details_html = ""
+        banking_details_text = ""
+        if payment_method == 'eft':
+            banking_details_html = f"""
+                    <div class="details" style="background: #fff3cd; border-left: 4px solid #ffc107;">
+                        <h3 style="color: #856404;"><i class="fas fa-university"></i> Banking Details for EFT Payment</h3>
+                        <p style="color: #856404; margin-bottom: 15px;"><strong>Please use the following details to make your payment:</strong></p>
+                        <div class="detail-row">
+                            <span class="detail-label">Bank:</span>
+                            {config.get('BANK_NAME', 'FNB')}
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Account Holder:</span>
+                            {config.get('BANK_ACCOUNT_HOLDER', 'Snow Spoiled Gifts')}
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Account Number:</span>
+                            <strong>{config.get('BANK_ACCOUNT_NUMBER', '')}</strong>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Branch Code:</span>
+                            {config.get('BANK_BRANCH_CODE', '250655')}
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Account Type:</span>
+                            {config.get('BANK_ACCOUNT_TYPE', 'Cheque Account')}
+                        </div>
+                        <div class="detail-row" style="border-bottom: none;">
+                            <span class="detail-label">Reference:</span>
+                            <strong style="color: #dc3545;">{order_data['order_number']}</strong>
+                        </div>
+                        <p style="margin-top: 15px; padding: 10px; background: white; border-radius: 4px; color: #856404;">
+                            <strong>Important:</strong> Please use your order number <strong>{order_data['order_number']}</strong> as the payment reference.
+                            This helps us identify your payment quickly. Your order will be processed once payment is received.
+                        </p>
+                    </div>
+            """
+            banking_details_text = f"""
+BANKING DETAILS FOR EFT PAYMENT
+================================
+Please use the following details to make your payment:
+
+Bank: {config.get('BANK_NAME', 'FNB')}
+Account Holder: {config.get('BANK_ACCOUNT_HOLDER', 'Snow Spoiled Gifts')}
+Account Number: {config.get('BANK_ACCOUNT_NUMBER', '')}
+Branch Code: {config.get('BANK_BRANCH_CODE', '250655')}
+Account Type: {config.get('BANK_ACCOUNT_TYPE', 'Cheque Account')}
+Reference: {order_data['order_number']}
+
+IMPORTANT: Please use your order number {order_data['order_number']} as the payment reference.
+This helps us identify your payment quickly. Your order will be processed once payment is received.
+            """
+
         customer_html = f"""
         <html>
         <head>
@@ -1228,6 +1286,10 @@ def send_order_confirmation(config, order_data, customer_email, customer_name):
                             {order_data.get('created_date', datetime.now().strftime('%Y-%m-%d %H:%M'))}
                         </div>
                         <div class="detail-row">
+                            <span class="detail-label">Payment Method:</span>
+                            {payment_method_text}
+                        </div>
+                        <div class="detail-row">
                             <span class="detail-label">Shipping Method:</span>
                             {shipping_method_text}
                         </div>
@@ -1244,10 +1306,12 @@ def send_order_confirmation(config, order_data, customer_email, customer_name):
                         </div>
                     </div>
 
+                    {banking_details_html}
+
                     <h3>What's Next?</h3>
                     <ul>
-                        <li>We'll review your order and contact you shortly</li>
-                        <li>You'll receive payment details via email</li>
+                        <li>{'Make your EFT payment using the banking details above' if payment_method == 'eft' else 'We will review your order and contact you shortly'}</li>
+                        <li>{'We will process your order once payment is received' if payment_method == 'eft' else 'Payment will be collected on delivery'}</li>
                         <li>Track your order status in "My Account" on our website</li>
                     </ul>
 
@@ -1274,15 +1338,17 @@ Your order has been successfully placed!
 
 Order Number: {order_data['order_number']}
 Order Date: {order_data.get('created_date', datetime.now().strftime('%Y-%m-%d %H:%M'))}
+Payment Method: {payment_method_text}
 Shipping Method: {shipping_method_text}
 
 Subtotal: R{order_data['subtotal']:.2f}
 Shipping: R{order_data.get('shipping_cost', 0):.2f}
 Total: R{order_data['total_amount']:.2f}
 
+{banking_details_text}
 What's Next?
-- We'll review your order and contact you shortly
-- You'll receive payment details via email
+- {'Make your EFT payment using the banking details above' if payment_method == 'eft' else 'We will review your order and contact you shortly'}
+- {'We will process your order once payment is received' if payment_method == 'eft' else 'Payment will be collected on delivery'}
 - Track your order status in "My Account" on our website
 
 Thank you for shopping with Snow Spoiled Gifts!
@@ -1345,9 +1411,9 @@ Please log in to the admin panel to view full order details.
         return False, error_msg
 
 
-def send_order_status_update(config, customer_email, order_number, new_status, customer_name):
+def send_order_status_update(config, customer_email, order_number, new_status, customer_name, shipping_method=None):
     """
-    Send order status update email to customer.
+    Send order status update email to customer with context-aware messaging based on shipping method.
 
     Args:
         config: Flask app config object
@@ -1355,6 +1421,7 @@ def send_order_status_update(config, customer_email, order_number, new_status, c
         order_number: Order number
         new_status: New order status (pending, confirmed, shipped, delivered)
         customer_name: Customer's name
+        shipping_method: Shipping method (pickup, own_courier, pudo) - used for context-aware messaging
 
     Returns:
         Tuple (success: bool, message: str)
@@ -1365,7 +1432,7 @@ def send_order_status_update(config, customer_email, order_number, new_status, c
         return False, "Email not configured"
 
     try:
-        # Define status-specific messages
+        # Define status-specific messages with context awareness for shipping method
         status_info = {
             'pending': {
                 'title': 'Order Received',
@@ -1395,19 +1462,7 @@ def send_order_status_update(config, customer_email, order_number, new_status, c
                 'title': 'Order Processing',
                 'icon': '⚙️',
                 'color': '#6366f1',
-                'message': 'Your order is currently being prepared and will be shipped soon.'
-            },
-            'shipped': {
-                'title': 'Order Shipped',
-                'icon': '📦',
-                'color': '#0ea5e9',
-                'message': 'Great news! Your order has been shipped and is on its way to you.'
-            },
-            'delivered': {
-                'title': 'Order Delivered',
-                'icon': '🎉',
-                'color': '#8b5cf6',
-                'message': 'Your order has been delivered! We hope you love your purchase.'
+                'message': 'Your order is currently being prepared.'
             },
             'cancelled': {
                 'title': 'Order Cancelled',
@@ -1417,13 +1472,127 @@ def send_order_status_update(config, customer_email, order_number, new_status, c
             }
         }
 
+        # Context-aware messaging for "shipped" status based on shipping method
+        if new_status == 'shipped':
+            if shipping_method == 'pickup':
+                status_info['shipped'] = {
+                    'title': 'Order Ready for Pickup',
+                    'icon': '📍',
+                    'color': '#10b981',
+                    'message': 'Great news! Your order is ready for pickup at our George location.'
+                }
+            elif shipping_method == 'own_courier':
+                status_info['shipped'] = {
+                    'title': 'Order Ready for Collection',
+                    'icon': '📦',
+                    'color': '#0ea5e9',
+                    'message': 'Your order is packed and ready for your courier to collect.'
+                }
+            else:  # pudo or any other shipping method
+                status_info['shipped'] = {
+                    'title': 'Order Shipped',
+                    'icon': '🚚',
+                    'color': '#0ea5e9',
+                    'message': 'Great news! Your order has been shipped and is on its way to you.'
+                }
+
+        # Delivered status
+        status_info['delivered'] = {
+            'title': 'Order Delivered',
+            'icon': '🎉',
+            'color': '#8b5cf6',
+            'message': 'Your order has been delivered! We hope you love your purchase.'
+        }
+
         status_data = status_info.get(new_status, status_info['pending'])
+
+        # Build context-aware "What's Next" section for shipped status
+        whats_next_html = ''
+        whats_next_text = ''
+
+        if new_status == 'shipped':
+            if shipping_method == 'pickup':
+                whats_next_html = '''
+                    <h3>Pickup Details</h3>
+                    <div class="message-box" style="background: #f0fdf4; border-left-color: #10b981;">
+                        <p><strong>📍 Pickup Location:</strong><br>
+                        George, Western Cape<br>
+                        (We'll send you the exact address separately)</p>
+                        <p><strong>🕒 Pickup Hours:</strong><br>
+                        Monday - Friday: 9:00 AM - 5:00 PM<br>
+                        Saturday: 9:00 AM - 1:00 PM</p>
+                        <p><strong>📋 What to Bring:</strong><br>
+                        • This email or your order number<br>
+                        • Valid ID</p>
+                    </div>
+                '''
+                whats_next_text = '''
+Pickup Details:
+📍 Location: George, Western Cape (exact address sent separately)
+🕒 Hours: Monday-Friday 9AM-5PM, Saturday 9AM-1PM
+📋 What to Bring: This email or order number, Valid ID
+                '''
+            elif shipping_method == 'own_courier':
+                whats_next_html = '''
+                    <h3>Collection Details</h3>
+                    <div class="message-box" style="background: #eff6ff; border-left-color: #0ea5e9;">
+                        <p><strong>📍 Collection Address:</strong><br>
+                        George, Western Cape<br>
+                        (We'll send you the exact address separately)</p>
+                        <p><strong>🕒 Collection Hours:</strong><br>
+                        Monday - Friday: 9:00 AM - 5:00 PM</p>
+                        <p><strong>📦 Important:</strong><br>
+                        Please arrange collection at your earliest convenience. Your order is packed and ready!</p>
+                    </div>
+                '''
+                whats_next_text = '''
+Collection Details:
+📍 Address: George, Western Cape (exact address sent separately)
+🕒 Hours: Monday-Friday 9AM-5PM
+📦 Please arrange collection at your earliest convenience
+                '''
+            else:  # pudo or standard shipping
+                whats_next_html = '''
+                    <h3>Delivery Information</h3>
+                    <div class="message-box" style="background: #eff6ff; border-left-color: #0ea5e9;">
+                        <p>Your order is on its way! You can track your order status anytime in "My Account" on our website.</p>
+                        <p>If you selected PUDO delivery, you'll receive a notification when your parcel arrives at your selected locker or kiosk.</p>
+                    </div>
+                '''
+                whats_next_text = '''
+Delivery Information:
+Your order is on its way! Track it anytime in "My Account" on our website.
+PUDO customers will receive a notification when the parcel arrives.
+                '''
+        elif new_status == 'processing':
+            if shipping_method == 'pickup':
+                whats_next_html = '<li>We\'ll notify you when your order is ready for pickup.</li>'
+                whats_next_text = '- We\'ll notify you when your order is ready for pickup.'
+            elif shipping_method == 'own_courier':
+                whats_next_html = '<li>We\'ll notify you when your order is ready for courier collection.</li>'
+                whats_next_text = '- We\'ll notify you when your order is ready for courier collection.'
+            else:
+                whats_next_html = '<li>We\'ll notify you when your order has been shipped.</li>'
+                whats_next_text = '- We\'ll notify you when your order has been shipped.'
 
         # Create message
         msg = MIMEMultipart('alternative')
         msg['Subject'] = f"{status_data['title']} - Order {order_number}"
         msg['From'] = config['MAIL_DEFAULT_SENDER']
         msg['To'] = customer_email
+
+        # Build the "What's Next" section for non-shipped statuses
+        if not whats_next_html:
+            whats_next_items = []
+            if new_status == 'confirmed':
+                whats_next_items.append('<li>We will contact you with payment details shortly.</li>')
+            if new_status == 'delivered':
+                whats_next_items.append('<li>If you have any questions or concerns, please contact us.</li>')
+            if new_status == 'processing':
+                # Already set above based on shipping method
+                pass
+            whats_next_items.append('<li>Track your order status anytime in "My Account" on our website.</li>')
+            whats_next_html = f"<h3>What's Next?</h3><ul>{''.join(whats_next_items)}</ul>"
 
         # Create HTML email body
         html_body = f"""
@@ -1455,19 +1624,13 @@ def send_order_status_update(config, customer_email, order_number, new_status, c
 
                     <div class="order-number">Order: {order_number}</div>
 
-                    <div class="status-badge">{new_status.upper()}</div>
+                    <div class="status-badge">{new_status.replace('_', ' ').upper()}</div>
 
                     <div class="message-box">
                         <p>{status_data['message']}</p>
                     </div>
 
-                    <h3>What's Next?</h3>
-                    <ul>
-                        {'<li>We will contact you with payment details shortly.</li>' if new_status == 'confirmed' else ''}
-                        {'<li>You will receive a tracking number once your order is in transit.</li>' if new_status == 'shipped' else ''}
-                        {'<li>If you have any questions or concerns, please contact us.</li>' if new_status == 'delivered' else ''}
-                        <li>Track your order status anytime in "My Account" on our website.</li>
-                    </ul>
+                    {whats_next_html}
 
                     <p>Thank you for choosing Snow Spoiled Gifts!</p>
                 </div>
@@ -1481,6 +1644,19 @@ def send_order_status_update(config, customer_email, order_number, new_status, c
         </html>
         """
 
+        # Build text version "What's Next"
+        if not whats_next_text:
+            text_items = []
+            if new_status == 'confirmed':
+                text_items.append('- We will contact you with payment details shortly.')
+            if new_status == 'delivered':
+                text_items.append('- If you have any questions or concerns, please contact us.')
+            if new_status == 'processing':
+                # Already set above
+                pass
+            text_items.append('- Track your order status anytime in "My Account" on our website.')
+            whats_next_text = "What's Next?\n" + '\n'.join(text_items)
+
         # Create plain text version as fallback
         text_body = f"""
 {status_data['title'].upper()}
@@ -1488,15 +1664,11 @@ def send_order_status_update(config, customer_email, order_number, new_status, c
 Hi {customer_name},
 
 Order: {order_number}
-Status: {new_status.upper()}
+Status: {new_status.replace('_', ' ').upper()}
 
 {status_data['message']}
 
-What's Next?
-{'- We will contact you with payment details shortly.' if new_status == 'confirmed' else ''}
-{'- You will receive a tracking number once your order is in transit.' if new_status == 'shipped' else ''}
-{'- If you have any questions or concerns, please contact us.' if new_status == 'delivered' else ''}
-- Track your order status anytime in "My Account" on our website.
+{whats_next_text}
 
 Thank you for choosing Snow Spoiled Gifts!
 

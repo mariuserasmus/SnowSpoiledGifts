@@ -60,5 +60,12 @@ class Config:
     # Base URL for links in emails (unsubscribe, etc.)
     BASE_URL = os.getenv('BASE_URL', 'www.snowspoiledgifts.co.za')
 
+    # Banking Details for EFT Payments
+    BANK_NAME = os.getenv('BANK_NAME', 'FNB')
+    BANK_ACCOUNT_HOLDER = os.getenv('BANK_ACCOUNT_HOLDER', 'Snow Spoiled Gifts')
+    BANK_ACCOUNT_NUMBER = os.getenv('BANK_ACCOUNT_NUMBER', '')
+    BANK_BRANCH_CODE = os.getenv('BANK_BRANCH_CODE', '250655')
+    BANK_ACCOUNT_TYPE = os.getenv('BANK_ACCOUNT_TYPE', 'Cheque Account')
+
     # Version
-    VERSION = "1.4.0"  # Phase 4: Admin Order Management
+    VERSION = "1.5.0"  # EFT Banking + Candles & Soaps

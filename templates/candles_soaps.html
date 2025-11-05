@@ -1,0 +1,940 @@
+{% extends "base.html" %}
+
+{% block title %}Candles & Soaps - {{ config.SITE_NAME }}{% endblock %}
+
+{% block content %}
+<!-- Category Header Bar -->
+<section class="category-header">
+    <div class="container">
+        <h1 class="category-title">Candles & Soaps</h1>
+        <p class="category-description">Handcrafted candles and natural soaps made with love</p>
+    </div>
+</section>
+
+<!-- Product Details Section -->
+<section class="sub-product-details">
+    <div class="container">
+        <!-- Filter Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <!-- Mobile: Collapsible Filter Button -->
+                <button class="btn btn-outline-primary w-100 mb-3 d-md-none"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#filterCollapse"
+                        aria-expanded="false"
+                        aria-controls="filterCollapse">
+                    <i class="fas fa-filter"></i> Show Filters & Search
+                </button>
+
+                <!-- Filter Section (Collapsible on mobile, always visible on desktop) -->
+                <div class="collapse d-md-block" id="filterCollapse">
+                    <div class="product-filters-card">
+                        <div class="row g-3 align-items-end">
+                            <!-- Category Filter -->
+                            <div class="col-md-3">
+                                <label class="form-label"><strong>Category</strong></label>
+                                <select class="form-select" id="filterCategory">
+                                    <option value="">All Categories</option>
+                                    {% for category in categories %}
+                                    <option value="{{ category.id }}">{{ category.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Search Box -->
+                            <div class="col-md-5">
+                                <label class="form-label"><strong>Search</strong></label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="searchBox"
+                                           placeholder="Search by name, scent, or description...">
+                                    <button class="btn btn-outline-secondary"><i class="fas fa-search"></i></button>
+                                </div>
+                            </div>
+
+                            <!-- Sort By -->
+                            <div class="col-md-4">
+                                <label class="form-label"><strong>Sort By</strong></label>
+                                <select class="form-select" id="sortBy">
+                                    <option>Newest First</option>
+                                    <option>Price: Low to High</option>
+                                    <option>Price: High to Low</option>
+                                    <option>Name: A-Z</option>
+                                    <option>Most Popular</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Product Count -->
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <p class="mb-0 text-muted"><strong>Showing <span class="product-count">{{ products|length }}</span> products</strong></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Products Grid -->
+        <div class="row g-4" id="productGrid">
+            {% if products %}
+                {% for product in products %}
+                <div class="col-6 col-md-4 col-lg-3" data-category="{{ product.category_id }}">
+                    <div class="shop-product-card {% if product.stock_quantity == 0 %}out-of-stock{% endif %}"
+                         data-product-id="{{ product.id }}"
+                         data-name="{{ product.name|e }}"
+                         data-description="{{ product.description|e }}"
+                         data-price="R{{ "%.2f"|format(product.price) }}"
+                         data-stock="{{ product.stock_quantity }}"
+                         data-weight="{{ product.weight_grams }}"
+                         data-dimensions="{{ product.dimensions|e }}"
+                         data-scent="{{ product.scent|e }}"
+                         data-color="{{ product.color|e }}"
+                         data-burn-time="{{ product.burn_time_hours }}"
+                         data-ingredients="{{ product.ingredients|e }}"
+                         data-category="{{ product.category_name|e }}"
+                         data-category-desc="{{ product.category_description|e }}"
+                         data-photos='{{ product.photo_urls|tojson }}'
+                         onclick="openProductDetailFromCard(this, event);"
+                         style="cursor: pointer;">
+
+                        <!-- Product Image -->
+                        <div class="product-image">
+                            {% if product.main_photo_url %}
+                            <img src="{{ product.main_photo_url }}" alt="{{ product.name }}">
+                            {% else %}
+                            <img src="https://images.unsplash.com/photo-1602874801006-c2b2e1a6777e?w=400&h=400&fit=crop&q=80" alt="{{ product.name }}">
+                            {% endif %}
+
+                            <!-- Stock Badge -->
+                            {% if product.stock_quantity == 0 %}
+                            <span class="badge bg-danger stock-badge">Out of Stock</span>
+                            {% elif product.stock_quantity <= product.low_stock_threshold %}
+                            <span class="badge bg-warning stock-badge">Low Stock</span>
+                            {% endif %}
+
+                            <!-- NEW Badge for products < 30 days old -->
+                            {% if product.is_new %}
+                            <span class="badge bg-success new-badge">NEW</span>
+                            {% endif %}
+
+                            <!-- Category Badge -->
+                            <span class="badge bg-primary product-badge">{{ product.category_name }}</span>
+                        </div>
+
+                        <!-- Product Info -->
+                        <div class="product-info">
+                            <h5>{{ product.name }}</h5>
+                            <p class="text-muted small mb-2">{{ product.description }}</p>
+
+                            <p class="product-specs">
+                                {% if product.scent %}
+                                <small><i class="fas fa-leaf"></i> {{ product.scent }}</small><br>
+                                {% endif %}
+                                <small><i class="fas fa-tag"></i> {{ product.category_name }}</small>
+                            </p>
+
+                            <div class="product-price">R{{ "%.2f"|format(product.price) }}</div>
+
+                            <!-- Action Buttons -->
+                            <div class="product-actions">
+                                {% if product.stock_quantity > 0 %}
+                                <button class="btn btn-primary btn-sm add-to-cart-btn"
+                                        data-item-id="{{ product.id }}"
+                                        data-item-name="{{ product.name|e }}"
+                                        onclick="event.stopPropagation(); addToCart({{ product.id }}, this.getAttribute('data-item-name'))">
+                                    <i class="fas fa-shopping-cart"></i> <span class="btn-text">Add to Cart</span>
+                                </button>
+                                {% else %}
+                                <button class="btn btn-secondary btn-sm" disabled>
+                                    <i class="fas fa-ban"></i> <span class="btn-text">Out of Stock</span>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-12">
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-info-circle"></i> No products available yet. Check back soon!
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<!-- Toast Notifications -->
+<div class="toast-container"></div>
+
+<!-- Product Detail Modal -->
+<div class="modal fade" id="productDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Product Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <!-- Image Gallery -->
+                    <div class="col-md-6 mb-4 mb-md-0">
+                        <div id="productImageCarousel" class="carousel slide" data-bs-ride="false">
+                            <div class="carousel-indicators" id="carouselIndicators">
+                                <!-- Dynamically populated -->
+                            </div>
+                            <div class="carousel-inner" id="carouselImages">
+                                <!-- Dynamically populated -->
+                            </div>
+                            <button class="carousel-control-prev" type="button" data-bs-target="#productImageCarousel" data-bs-slide="prev">
+                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Previous</span>
+                            </button>
+                            <button class="carousel-control-next" type="button" data-bs-target="#productImageCarousel" data-bs-slide="next">
+                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Next</span>
+                            </button>
+                        </div>
+
+                        <!-- Category Description -->
+                        <div class="alert alert-info mt-3" id="modalCategoryDescription" style="display: none;">
+                            <i class="fas fa-info-circle"></i> <span id="modalCategoryDescriptionText"></span>
+                        </div>
+                    </div>
+
+                    <!-- Product Details -->
+                    <div class="col-md-6">
+                        <h3 id="modalProductName">Product Name</h3>
+                        <p class="text-muted" id="modalProductDescription">Product description</p>
+
+                        <div class="product-price-large mb-3" id="modalProductPrice">R0.00</div>
+
+                        <!-- Product Specifications -->
+                        <div class="product-specifications mb-4">
+                            <h6 class="fw-bold">Specifications:</h6>
+                            <ul class="list-unstyled">
+                                <li id="modalCategory"><i class="fas fa-tag text-primary"></i> <strong>Category:</strong> <span></span></li>
+                                <li id="modalScent" style="display: none;"><i class="fas fa-leaf text-primary"></i> <strong>Scent:</strong> <span></span></li>
+                                <li id="modalColor" style="display: none;"><i class="fas fa-palette text-primary"></i> <strong>Color:</strong> <span></span></li>
+                                <li id="modalWeight" style="display: none;"><i class="fas fa-weight text-primary"></i> <strong>Weight:</strong> <span></span></li>
+                                <li id="modalDimensions" style="display: none;"><i class="fas fa-ruler text-primary"></i> <strong>Dimensions:</strong> <span></span></li>
+                                <li id="modalBurnTime" style="display: none;"><i class="fas fa-fire text-primary"></i> <strong>Burn Time:</strong> <span></span></li>
+                                <li id="modalStock"><i class="fas fa-box text-primary"></i> <strong>Stock:</strong> <span id="modalStockBadge" class="badge bg-success">In Stock</span></li>
+                            </ul>
+                        </div>
+
+                        <!-- Ingredients -->
+                        <div id="modalIngredientsSection" class="mb-4" style="display: none;">
+                            <h6 class="fw-bold">Ingredients:</h6>
+                            <p id="modalIngredients" class="text-muted small"></p>
+                        </div>
+
+                        <!-- Quantity Selector -->
+                        <div class="quantity-selector mb-4" id="quantitySection">
+                            <label class="form-label fw-bold">Quantity:</label>
+                            <div class="input-group" style="max-width: 200px;">
+                                <button class="btn btn-outline-secondary" type="button" onclick="decreaseQuantity()">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <input type="number" class="form-control text-center" id="productQuantity" value="1" min="1" max="10">
+                                <button class="btn btn-outline-secondary" type="button" onclick="increaseQuantity()">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Add to Cart Button -->
+                        <div class="product-actions-modal">
+                            <button class="btn btn-primary btn-lg w-100" id="modalAddToCartBtn" onclick="addToCartFromModal()">
+                                <i class="fas fa-shopping-cart"></i> Add to Cart
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Category Header */
+    .category-header {
+        background: linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #d946ef 100%);
+        color: white;
+        padding: 40px 0 20px;
+        margin-top: 76px;
+    }
+
+    .category-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .category-description {
+        font-size: 0.95rem;
+        opacity: 0.9;
+        margin: 0;
+    }
+
+    /* Product Details Section */
+    .sub-product-details {
+        padding: 40px 0 60px;
+        background: var(--bg-color);
+    }
+
+    /* Filter Card */
+    .product-filters-card {
+        background: var(--card-bg);
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .product-filters-card .form-label {
+        font-weight: 600;
+        color: var(--text-color);
+    }
+
+    .product-filters-card .form-select,
+    .product-filters-card .form-control {
+        background: var(--bg-color);
+        color: var(--text-color);
+        border-color: rgba(229, 231, 235, 0.3);
+    }
+
+    .product-filters-card .form-select:focus,
+    .product-filters-card .form-control:focus {
+        background: var(--bg-color);
+        color: var(--text-color);
+        border-color: #2563eb;
+    }
+
+    /* Product Card */
+    .shop-product-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        box-shadow: 0 0 8px rgba(37, 99, 235, 0.2), var(--shadow-sm);
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        border: 1px solid #2563eb;
+    }
+
+    .shop-product-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .shop-product-card.out-of-stock {
+        opacity: 0.6;
+    }
+
+    .shop-product-card.out-of-stock:hover {
+        transform: translateY(-2px);
+    }
+
+    .product-image {
+        position: relative;
+        width: 100%;
+        padding-top: 100%;
+        overflow: hidden;
+        background: #f3f4f6;
+    }
+
+    .product-image img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s ease;
+    }
+
+    .shop-product-card:hover .product-image img {
+        transform: scale(1.05);
+    }
+
+    .stock-badge {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 10;
+        font-size: 0.75rem;
+        padding: 0.35rem 0.65rem;
+    }
+
+    .new-badge {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 10;
+        font-size: 0.75rem;
+        padding: 0.35rem 0.65rem;
+    }
+
+    /* Adjust NEW badge position when stock badge is present */
+    .stock-badge ~ .new-badge {
+        top: 45px;
+    }
+
+    .product-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 10;
+        font-size: 0.75rem;
+        padding: 0.35rem 0.65rem;
+    }
+
+    .product-info {
+        padding: 1rem;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .product-info h5 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: var(--text-color);
+    }
+
+    .product-specs {
+        font-size: 0.75rem;
+        color: var(--muted-text);
+        margin-bottom: 0.5rem;
+    }
+
+    .product-price {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #2563eb;
+        margin-bottom: 1rem;
+    }
+
+    .product-actions {
+        margin-top: auto;
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    /* Desktop: Full width buttons with text */
+    @media (min-width: 768px) {
+        .product-actions {
+            flex-direction: column;
+        }
+
+        .product-actions .btn {
+            width: 100%;
+        }
+    }
+
+    /* Mobile: Icon-only buttons side by side */
+    @media (max-width: 767.98px) {
+        .product-actions {
+            flex-direction: row;
+            justify-content: space-between;
+        }
+
+        .product-actions .btn {
+            flex: 1;
+            padding: 0.5rem;
+        }
+
+        .product-actions .btn-text {
+            display: none;
+        }
+
+        .product-actions .btn i {
+            font-size: 1.1rem;
+        }
+    }
+
+    /* Product Detail Modal */
+    .modal-content {
+        background: var(--card-bg);
+        color: var(--text-color);
+    }
+
+    .modal-header {
+        border-bottom-color: rgba(229, 231, 235, 0.3);
+    }
+
+    #productImageCarousel .carousel-inner {
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    #productImageCarousel .carousel-item img {
+        width: 100%;
+        height: 500px;
+        object-fit: cover;
+    }
+
+    #productImageCarousel .carousel-control-prev,
+    #productImageCarousel .carousel-control-next {
+        background: rgba(0, 0, 0, 0.3);
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+    .product-price-large {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #2563eb;
+    }
+
+    .product-specifications li {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid rgba(229, 231, 235, 0.3);
+    }
+
+    .product-specifications li:last-child {
+        border-bottom: none;
+    }
+
+    .product-specifications i {
+        width: 20px;
+        margin-right: 8px;
+    }
+
+    /* Quantity Selector */
+    .quantity-selector .input-group {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .category-header {
+            padding: 60px 0 30px;
+        }
+
+        .category-title {
+            font-size: 1.5rem;
+        }
+
+        .product-info h5 {
+            font-size: 0.9rem;
+        }
+
+        .product-price {
+            font-size: 1.25rem;
+        }
+
+        #productImageCarousel .carousel-item img {
+            height: 300px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Attach filter and sort event listeners
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('filterCategory').addEventListener('change', filterAndSortProducts);
+        document.getElementById('searchBox').addEventListener('input', filterAndSortProducts);
+        document.getElementById('sortBy').addEventListener('change', filterAndSortProducts);
+
+        // Initial count
+        filterAndSortProducts();
+    });
+
+    // Client-side filtering and sorting
+    function filterAndSortProducts() {
+        const categoryFilter = document.getElementById('filterCategory').value;
+        const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+        const sortBy = document.getElementById('sortBy').value;
+
+        const productGrid = document.getElementById('productGrid');
+        const productCards = Array.from(document.querySelectorAll('#productGrid > div[data-category]'));
+        let visibleCards = [];
+
+        // Filter products
+        productCards.forEach(card => {
+            const cardCategory = card.getAttribute('data-category');
+            const cardElement = card.querySelector('.shop-product-card');
+            const name = cardElement.getAttribute('data-name').toLowerCase();
+            const description = cardElement.getAttribute('data-description').toLowerCase();
+            const scent = (cardElement.getAttribute('data-scent') || '').toLowerCase();
+
+            const categoryMatch = !categoryFilter || cardCategory === categoryFilter;
+            const searchMatch = !searchTerm || name.includes(searchTerm) || description.includes(searchTerm) || scent.includes(searchTerm);
+
+            if (categoryMatch && searchMatch) {
+                card.style.display = '';
+                visibleCards.push(card);
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        // Sort visible products
+        if (sortBy && visibleCards.length > 0) {
+            visibleCards.sort((a, b) => {
+                const aCard = a.querySelector('.shop-product-card');
+                const bCard = b.querySelector('.shop-product-card');
+
+                switch(sortBy) {
+                    case 'Price: Low to High':
+                        const aPrice = parseFloat(aCard.getAttribute('data-price').replace('R', ''));
+                        const bPrice = parseFloat(bCard.getAttribute('data-price').replace('R', ''));
+                        return aPrice - bPrice;
+
+                    case 'Price: High to Low':
+                        const aPriceH = parseFloat(aCard.getAttribute('data-price').replace('R', ''));
+                        const bPriceH = parseFloat(bCard.getAttribute('data-price').replace('R', ''));
+                        return bPriceH - aPriceH;
+
+                    case 'Name: A-Z':
+                        const aName = aCard.getAttribute('data-name').toLowerCase();
+                        const bName = bCard.getAttribute('data-name').toLowerCase();
+                        return aName.localeCompare(bName);
+
+                    default:
+                        return 0;
+                }
+            });
+
+            visibleCards.forEach(card => {
+                productGrid.appendChild(card);
+            });
+        }
+
+        // Update product count
+        document.querySelector('.product-count').textContent = visibleCards.length;
+    }
+
+    // Open Product Detail Modal
+    function openProductDetailFromCard(cardElement, event) {
+        const productId = cardElement.getAttribute('data-product-id');
+        const name = cardElement.getAttribute('data-name');
+        const description = cardElement.getAttribute('data-description');
+        const price = cardElement.getAttribute('data-price');
+        const stock = parseInt(cardElement.getAttribute('data-stock'));
+        const weight = cardElement.getAttribute('data-weight');
+        const dimensions = cardElement.getAttribute('data-dimensions');
+        const scent = cardElement.getAttribute('data-scent');
+        const color = cardElement.getAttribute('data-color');
+        const burnTime = cardElement.getAttribute('data-burn-time');
+        const ingredients = cardElement.getAttribute('data-ingredients');
+        const category = cardElement.getAttribute('data-category');
+        const categoryDescription = cardElement.getAttribute('data-category-desc');
+        const photosJson = cardElement.getAttribute('data-photos');
+
+        // Store item ID for cart
+        document.getElementById('productDetailModal').setAttribute('data-current-item-id', productId);
+
+        // Populate modal with product data
+        document.getElementById('modalTitle').textContent = name;
+        document.getElementById('modalProductName').textContent = name;
+        document.getElementById('modalProductDescription').textContent = description || 'No description available';
+        document.getElementById('modalProductPrice').textContent = price;
+
+        // Category
+        document.querySelector('#modalCategory span').textContent = category;
+
+        // Stock badge
+        const stockBadge = document.getElementById('modalStockBadge');
+        const quantitySection = document.getElementById('quantitySection');
+        const addToCartBtn = document.getElementById('modalAddToCartBtn');
+
+        stockBadge.textContent = stock === 0 ? 'Out of Stock' : stock <= 5 ? 'Low Stock' : 'In Stock';
+        stockBadge.className = 'badge';
+        if (stock === 0) {
+            stockBadge.classList.add('bg-danger');
+            quantitySection.style.display = 'none';
+            addToCartBtn.disabled = true;
+            addToCartBtn.innerHTML = '<i class="fas fa-ban"></i> Out of Stock';
+        } else if (stock <= 5) {
+            stockBadge.classList.add('bg-warning');
+            quantitySection.style.display = 'block';
+            addToCartBtn.disabled = false;
+            addToCartBtn.innerHTML = '<i class="fas fa-shopping-cart"></i> Add to Cart';
+            document.getElementById('productQuantity').max = stock;
+        } else {
+            stockBadge.classList.add('bg-success');
+            quantitySection.style.display = 'block';
+            addToCartBtn.disabled = false;
+            addToCartBtn.innerHTML = '<i class="fas fa-shopping-cart"></i> Add to Cart';
+            document.getElementById('productQuantity').max = Math.min(stock, 10);
+        }
+
+        // Optional fields
+        showHideField('modalScent', scent);
+        showHideField('modalColor', color);
+        showHideField('modalWeight', weight ? `${weight}g` : null);
+        showHideField('modalDimensions', dimensions);
+        showHideField('modalBurnTime', burnTime ? `${burnTime} hours` : null);
+
+        // Ingredients
+        const ingredientsSection = document.getElementById('modalIngredientsSection');
+        if (ingredients && ingredients !== 'null') {
+            ingredientsSection.style.display = 'block';
+            document.getElementById('modalIngredients').textContent = ingredients;
+        } else {
+            ingredientsSection.style.display = 'none';
+        }
+
+        // Category description
+        if (categoryDescription && categoryDescription.trim() !== '' && categoryDescription !== 'null') {
+            document.getElementById('modalCategoryDescriptionText').textContent = categoryDescription;
+            document.getElementById('modalCategoryDescription').style.display = 'block';
+        } else {
+            document.getElementById('modalCategoryDescription').style.display = 'none';
+        }
+
+        // Parse and populate images
+        let images = [];
+        try {
+            images = JSON.parse(photosJson) || [];
+        } catch (e) {
+            console.error('Error parsing photos:', e);
+        }
+
+        if (images.length === 0) {
+            images = ['https://images.unsplash.com/photo-1602874801006-c2b2e1a6777e?w=800&h=800&fit=crop&q=80'];
+        }
+
+        // Populate carousel
+        const carouselIndicators = document.getElementById('carouselIndicators');
+        const carouselImages = document.getElementById('carouselImages');
+        carouselIndicators.innerHTML = '';
+        carouselImages.innerHTML = '';
+
+        images.forEach((imageUrl, index) => {
+            const indicator = document.createElement('button');
+            indicator.type = 'button';
+            indicator.setAttribute('data-bs-target', '#productImageCarousel');
+            indicator.setAttribute('data-bs-slide-to', index.toString());
+            if (index === 0) {
+                indicator.classList.add('active');
+                indicator.setAttribute('aria-current', 'true');
+            }
+            carouselIndicators.appendChild(indicator);
+
+            const carouselItem = document.createElement('div');
+            carouselItem.classList.add('carousel-item');
+            if (index === 0) {
+                carouselItem.classList.add('active');
+            }
+
+            const img = document.createElement('img');
+            img.src = imageUrl;
+            img.classList.add('d-block', 'w-100');
+            img.alt = `${name} - Image ${index + 1}`;
+
+            carouselItem.appendChild(img);
+            carouselImages.appendChild(carouselItem);
+        });
+
+        // Reset quantity
+        document.getElementById('productQuantity').value = 1;
+
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('productDetailModal'));
+        modal.show();
+    }
+
+    function showHideField(fieldId, value) {
+        const field = document.getElementById(fieldId);
+        if (value && value !== 'null' && value !== 'None') {
+            field.style.display = '';
+            field.querySelector('span').textContent = value;
+        } else {
+            field.style.display = 'none';
+        }
+    }
+
+    // Quantity controls
+    function increaseQuantity() {
+        const input = document.getElementById('productQuantity');
+        const currentValue = parseInt(input.value) || 1;
+        const maxValue = parseInt(input.max) || 10;
+        if (currentValue < maxValue) {
+            input.value = currentValue + 1;
+        }
+    }
+
+    function decreaseQuantity() {
+        const input = document.getElementById('productQuantity');
+        const currentValue = parseInt(input.value) || 1;
+        const minValue = parseInt(input.min) || 1;
+        if (currentValue > minValue) {
+            input.value = currentValue - 1;
+        }
+    }
+
+    // Add to cart from modal
+    function addToCartFromModal() {
+        const modal = document.getElementById('productDetailModal');
+        const itemId = modal.getAttribute('data-current-item-id');
+        const quantity = parseInt(document.getElementById('productQuantity').value) || 1;
+
+        const button = document.getElementById('modalAddToCartBtn');
+        const originalText = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+
+        fetch('/candles-soaps/cart/add', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                product_id: itemId,
+                quantity: quantity
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(`Added ${quantity} item(s) to cart!`, 'success');
+                updateCartBadge(data.cart_count);
+
+                button.innerHTML = '<i class="fas fa-check"></i> Added!';
+                button.classList.remove('btn-primary');
+                button.classList.add('btn-success');
+
+                document.getElementById('productQuantity').value = 1;
+
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.classList.remove('btn-success');
+                    button.classList.add('btn-primary');
+                    button.disabled = false;
+                }, 2000);
+            } else {
+                showToast(data.message || 'Failed to add to cart', 'error');
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('An error occurred. Please try again.', 'error');
+            button.innerHTML = originalText;
+            button.disabled = false;
+        });
+    }
+
+    // Add to cart from product card
+    function addToCart(itemId, itemName) {
+        // Show loading state
+        const button = document.querySelector(`button[data-item-id="${itemId}"]`);
+        const originalText = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+
+        // Send AJAX request
+        fetch('/candles-soaps/cart/add', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                product_id: itemId,
+                quantity: 1
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                showToast(`${itemName} added to cart!`, 'success');
+
+                // Update cart badge
+                console.log('Updating cart badge with count:', data.cart_count);
+                updateCartBadge(data.cart_count);
+
+                // Double-check the badge element
+                const badge = document.querySelector('.cart-badge');
+                console.log('Cart badge element:', badge);
+                if (badge) {
+                    console.log('Current badge text:', badge.textContent);
+                }
+
+                // Show success state
+                button.innerHTML = '<i class="fas fa-check"></i> Added!';
+                button.classList.remove('btn-primary');
+                button.classList.add('btn-success');
+
+                // Reset after 2 seconds
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.classList.remove('btn-success');
+                    button.classList.add('btn-primary');
+                    button.disabled = false;
+                }, 2000);
+            } else {
+                showToast(data.message || 'Failed to add to cart', 'error');
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('An error occurred. Please try again.', 'error');
+            button.innerHTML = originalText;
+            button.disabled = false;
+        });
+    }
+
+    // Toast notifications
+    function showToast(message, type = 'info') {
+        // Create container if needed
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.style.cssText = 'position: fixed; top: 80px; right: 20px; z-index: 9999;';
+            document.body.appendChild(toastContainer);
+        }
+
+        // Create toast element
+        const toast = document.createElement('div');
+        const alertClass = type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info';
+        toast.className = `alert alert-${alertClass} alert-dismissible fade show`;
+        toast.style.cssText = 'min-width: 250px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);';
+        toast.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+
+        toastContainer.appendChild(toast);
+
+        // Auto-dismiss after 3 seconds
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 150);
+        }, 3000);
+    }
+
+    // Update cart badge
+    function updateCartBadge(count) {
+        const badge = document.getElementById('cart-badge');
+        if (badge) {
+            badge.textContent = count;
+            if (count > 0) {
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    }
+</script>
+{% endblock %}

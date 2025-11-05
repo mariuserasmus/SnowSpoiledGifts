@@ -213,6 +213,16 @@ class CheckoutForm(FlaskForm):
         ]
     )
 
+    payment_method = RadioField(
+        'Payment Method',
+        choices=[
+            ('eft', 'EFT/Bank Transfer'),
+            ('cash_on_delivery', 'Cash on Delivery')
+        ],
+        default='eft',
+        validators=[DataRequired(message='Please select a payment method')]
+    )
+
 
 class ChangePasswordForm(FlaskForm):
     """Form for changing user password"""

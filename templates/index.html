@@ -99,27 +99,12 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<!-- Featured Products Section -->
-<section class="featured-products-section py-5" style="background-color: var(--light-bg);">
-    <div class="container">
-        <div class="text-center mb-4">
-            <h2 class="section-title">Featured Products</h2>
-            <p class="section-subtitle">Check out our popular cookie cutters & 3D creations</p>
-        </div>
-        <div class="text-center">
-            <a href="{{ url_for('printing_3d') }}" class="btn btn-primary btn-lg">
-                <i class="fas fa-store"></i> Browse All Products
-            </a>
-        </div>
-    </div>
-</section>
-
 <!-- Categories Preview Section -->
 <section id="categories" class="categories-section">
     <div class="container">
         <div class="text-center mb-5">
             <h2 class="section-title">Shop by Category</h2>
-            <p class="section-subtitle">3D Printing is live and ready to order! More categories coming soon.</p>
+            <p class="section-subtitle">Cookie & Clay Cutters and Candles & Soaps are now live! More categories coming soon.</p>
         </div>
         <div class="row g-4">
             <!-- 3D Printing -->
@@ -129,7 +114,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="category-image">
                             <img src="https://images.unsplash.com/photo-1703720675167-2fba006efb82?w=600&h=400&fit=crop&q=80" alt="3D Printing" onerror="this.src='https://placehold.co/600x400/6366f1/ffffff?text=3D+Printing&font=roboto'">
                             <div class="category-overlay">
-                                <span class="category-badge live-now-badge">Live Now!</span>
+                                <span class="category-badge live-now-badge">SHOP OPEN!</span>
                             </div>
                         </div>
                         <div class="category-content">
@@ -196,12 +181,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
             <!-- Candles and Soaps -->
             <div class="col-md-6 col-lg-4">
-                <a href="#notify" class="category-card-link">
+                <a href="{{ url_for('candles_soaps') }}" class="category-card-link">
                     <div class="category-card">
                         <div class="category-image">
                             <img src="https://images.unsplash.com/photo-1603006905003-be475563bc59?w=600&h=400&fit=crop&q=80" alt="Candles and Soaps" onerror="this.src='https://placehold.co/600x400/a78bfa/ffffff?text=Candles+%26+Soaps&font=roboto'">
                             <div class="category-overlay">
-                                <span class="category-badge">Coming Soon</span>
+                                <span class="category-badge live-now-badge">SHOP OPEN!</span>
                             </div>
                         </div>
                         <div class="category-content">

@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit' if product else 'Add' }} Item - Candles & Soaps - Admin - {{ config.SITE_NAME }}{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <div class="container">
+        <div class="row mb-4">
+            <div class="col">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2>
+                        <i class="fas fa-{% if product %}edit{% else %}plus{% endif %}"></i>
+                        {{ 'Edit' if product else 'Add New' }} Item
+                    </h2>
+                    <a href="{{ url_for('admin_candles_soaps_products') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Items
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Product Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('admin_update_candles_soaps_product', product_id=product.id) if product else url_for('admin_create_candles_soaps_product') }}" id="productForm" enctype="multipart/form-data">
+                            <!-- Basic Information -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="productName" class="form-label">Product Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="productName" name="name" value="{{ product.name if product else '' }}" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="productCategory" class="form-label">Category <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="productCategory" name="category_id" required>
+                                        <option value="">Select a category...</option>
+                                        {% for category in categories %}
+                                        <option value="{{ category.id }}" {% if product and product.category_id == category.id %}selected{% endif %}>
+                                            {{ category.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <small class="form-text text-muted">
+                                        <a href="{{ url_for('admin_candles_soaps_categories') }}" target="_blank">Manage Categories</a>
+                                    </small>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="productDescription" class="form-label">Description</label>
+                                <textarea class="form-control" id="productDescription" name="description" rows="4">{{ product.description if product else '' }}</textarea>
+                            </div>
+
+                            <!-- Pricing & Stock -->
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label for="productPrice" class="form-label">Price (R) <span class="text-danger">*</span></label>
+                                    <input type="number" step="0.01" class="form-control" id="productPrice" name="price" value="{{ product.price if product else '' }}" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="productStock" class="form-label">Stock Quantity <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" id="productStock" name="stock_quantity" value="{{ product.stock_quantity if product else '0' }}" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="productThreshold" class="form-label">Low Stock Threshold <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" id="productThreshold" name="low_stock_threshold" value="{{ product.low_stock_threshold if product else '5' }}" required>
+                                    <small class="form-text text-muted">Alert when stock falls below this</small>
+                                </div>
+                            </div>
+
+                            <!-- Product Specifications -->
+                            <h5 class="mb-3 mt-4">Product Specifications</h5>
+
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label for="productWeight" class="form-label">Weight (grams)</label>
+                                    <input type="number" class="form-control" id="productWeight" name="weight_grams" value="{{ product.weight_grams if product else '' }}">
+                                </div>
+                                <div class="col-md-8">
+                                    <label for="productDimensions" class="form-label">Dimensions</label>
+                                    <input type="text" class="form-control" id="productDimensions" name="dimensions" value="{{ product.dimensions if product else '' }}" placeholder="e.g., 10cm x 5cm">
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="productScent" class="form-label">Scent</label>
+                                    <input type="text" class="form-control" id="productScent" name="scent" value="{{ product.scent if product else '' }}" placeholder="e.g., Lavender, Vanilla">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="productColor" class="form-label">Color</label>
+                                    <input type="text" class="form-control" id="productColor" name="color" value="{{ product.color if product else '' }}" placeholder="e.g., Purple, White">
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="productBurnTime" class="form-label">Burn Time (hours)</label>
+                                    <input type="number" class="form-control" id="productBurnTime" name="burn_time_hours" value="{{ product.burn_time_hours if product else '' }}" placeholder="For candles only">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="productIngredients" class="form-label">Ingredients</label>
+                                <textarea class="form-control" id="productIngredients" name="ingredients" rows="3" placeholder="List all ingredients...">{{ product.ingredients if product else '' }}</textarea>
+                                <small class="form-text text-muted">Important for customer allergies and safety</small>
+                            </div>
+
+                            <!-- Status -->
+                            <div class="mb-3">
+                                <label for="productStatus" class="form-label">Status</label>
+                                <select class="form-select" id="productStatus" name="is_active">
+                                    <option value="1" {% if not product or product.is_active %}selected{% endif %}>Active</option>
+                                    <option value="0" {% if product and not product.is_active %}selected{% endif %}>Inactive</option>
+                                </select>
+                            </div>
+
+                            <div class="d-flex justify-content-between">
+                                <a href="{{ url_for('admin_candles_soaps_products') }}" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Cancel
+                                </a>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-save"></i> {{ 'Update' if product else 'Create' }} Product
+                                </button>
+                            </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Photo Management -->
+            <div class="col-lg-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Product Photos</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if product and photos %}
+                        <!-- Current Photos -->
+                        <div class="mb-3">
+                            <h6>Current Photos:</h6>
+                            <div id="currentPhotos">
+                                {% for photo in photos %}
+                                <div class="photo-item mb-2 p-2 border rounded {% if photo.is_main %}border-primary{% endif %}" data-photo-id="{{ photo.id }}">
+                                    <img src="/{{ photo.photo_path }}" class="img-fluid rounded mb-2" alt="Photo">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        {% if photo.is_main %}
+                                        <span class="badge bg-primary">Main Photo</span>
+                                        {% else %}
+                                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                                onclick="submitPhotoAction('{{ url_for('admin_set_main_candles_soaps_photo', product_id=product.id, photo_id=photo.id) }}')">
+                                            Set as Main
+                                        </button>
+                                        {% endif %}
+                                        <button type="button" class="btn btn-sm btn-danger"
+                                                onclick="if(confirm('Delete this photo?')) submitPhotoAction('{{ url_for('admin_delete_candles_soaps_photo', product_id=product.id, photo_id=photo.id) }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <hr>
+                        {% endif %}
+
+                        <!-- Upload Photos -->
+                        <div class="mb-3">
+                            <label for="photoUpload" class="form-label">Upload Photos</label>
+                            <input type="file" class="form-control" id="photoUpload" name="photos" accept="image/jpeg,image/jpg,image/png,image/webp" multiple>
+                            <small class="form-text text-muted">You can select multiple photos. The first one will be set as main.</small>
+                        </div>
+
+                        <div id="photoPreview" class="mt-3"></div>
+                    </div>
+                </div>
+                        </form>
+
+                {% if product %}
+                <!-- Product Code Display -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Product Code</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info mb-0">
+                            <strong>{{ product.product_code }}</strong>
+                        </div>
+                        <small class="form-text text-muted">This code is automatically generated based on the category</small>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+.admin-section {
+    padding: 100px 20px 60px;
+    min-height: 100vh;
+    background: var(--bg-color);
+}
+
+/* Override the purple candles gradient on regular cards */
+.card:not(.stats-card) {
+    background: var(--card-bg) !important;
+    color: var(--text-color) !important;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    border: none;
+}
+
+.card:not(.stats-card) .card-body {
+    background: var(--card-bg) !important;
+    color: var(--text-color) !important;
+}
+
+.form-label,
+label {
+    color: var(--text-color) !important;
+}
+
+.card-header {
+    background: linear-gradient(135deg, #9333ea 0%, #c084fc 100%);
+    color: white;
+    border-radius: 15px 15px 0 0 !important;
+    padding: 15px 20px;
+}
+
+.photo-item {
+    background: #f8f9fa;
+}
+
+.photo-item.border-primary {
+    background: #e7f1ff;
+}
+
+.photo-item img {
+    max-height: 150px;
+    width: 100%;
+    object-fit: cover;
+}
+
+#photoPreview img {
+    max-height: 100px;
+    margin: 5px;
+    border-radius: 5px;
+}
+
+/* Dark mode support */
+[data-bs-theme="dark"] .card {
+    background-color: #2b3035;
+}
+
+[data-bs-theme="dark"] .form-control,
+[data-bs-theme="dark"] .form-select,
+[data-bs-theme="dark"] textarea {
+    background-color: #1a1d20;
+    color: white;
+    border-color: #444;
+}
+
+[data-bs-theme="dark"] .form-control:focus,
+[data-bs-theme="dark"] .form-select:focus,
+[data-bs-theme="dark"] textarea:focus {
+    background-color: #1a1d20;
+    color: white;
+    border-color: #9333ea;
+}
+
+[data-bs-theme="dark"] .alert-info {
+    background-color: #1e3a5f;
+    border-color: #2563eb;
+    color: #93c5fd;
+}
+
+[data-bs-theme="dark"] .photo-item {
+    background-color: #1a1d20;
+}
+
+[data-bs-theme="dark"] .photo-item.border-primary {
+    background-color: #1e3a5f;
+}
+</style>
+
+<script>
+// Auto-format price on blur
+document.getElementById('productPrice').addEventListener('blur', function() {
+    const value = parseFloat(this.value);
+    if (!isNaN(value)) {
+        this.value = value.toFixed(2);
+    }
+});
+
+// Photo preview functionality
+document.getElementById('photoUpload').addEventListener('change', function(e) {
+    const preview = document.getElementById('photoPreview');
+    preview.innerHTML = '';
+
+    const files = e.target.files;
+    if (files.length > 0) {
+        preview.innerHTML = '<h6>Preview:</h6>';
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.className = 'img-thumbnail';
+                img.style.maxHeight = '100px';
+                img.style.margin = '5px';
+                img.style.borderRadius = '5px';
+                preview.appendChild(img);
+            };
+
+            reader.readAsDataURL(file);
+        }
+    }
+});
+
+// Form validation
+document.getElementById('productForm').addEventListener('submit', function(e) {
+    const price = parseFloat(document.getElementById('productPrice').value);
+    const stock = parseInt(document.getElementById('productStock').value);
+    const threshold = parseInt(document.getElementById('productThreshold').value);
+
+    if (price < 0) {
+        e.preventDefault();
+        alert('Price cannot be negative');
+        return false;
+    }
+
+    if (stock < 0) {
+        e.preventDefault();
+        alert('Stock quantity cannot be negative');
+        return false;
+    }
+
+    if (threshold < 0) {
+        e.preventDefault();
+        alert('Low stock threshold cannot be negative');
+        return false;
+    }
+});
+
+// Function to submit photo actions (Set as Main, Delete)
+function submitPhotoAction(url) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = url;
+    document.body.appendChild(form);
+    form.submit();
+}
+</script>
+{% endblock %}

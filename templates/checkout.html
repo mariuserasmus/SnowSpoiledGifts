@@ -243,6 +243,33 @@
                                 </div>
                             </div>
 
+                            <!-- Payment Method Selection -->
+                            <div class="mb-4 mt-4">
+                                <h6 class="mb-3 text-muted">Payment Method</h6>
+                                <div class="card">
+                                    <div class="card-body">
+                                        {% for subfield in form.payment_method %}
+                                        <div class="form-check mb-2">
+                                            {{ subfield(class="form-check-input") }}
+                                            {{ subfield.label(class="form-check-label") }}
+                                            {% if subfield.data == 'eft' %}
+                                            <small class="text-muted d-block ms-4">
+                                                <i class="fas fa-university"></i> Our banking details will be emailed to you after placing your order
+                                            </small>
+                                            {% elif subfield.data == 'cash_on_delivery' %}
+                                            <small class="text-muted d-block ms-4">
+                                                <i class="fas fa-money-bill-wave"></i> Pay in cash when you receive your order
+                                            </small>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% if form.payment_method.errors %}
+                                <div class="text-danger small mt-1">{{ form.payment_method.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+
                             <div class="mb-3">
                                 <small class="text-muted">
                                     <i class="fas fa-shield-alt"></i> By placing your order, you agree to our

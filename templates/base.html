@@ -56,8 +56,14 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('admin_orders') }}"><i class="fas fa-shopping-bag"></i> Orders</a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin_cutter_items') }}"><i class="fas fa-cookie"></i> Manage Items</a>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="manageItemsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-boxes"></i> Manage Items
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="manageItemsDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('admin_cutter_items') }}"><i class="fas fa-cookie"></i> Cookie & Clay Cutters</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin_candles_soaps_products') }}"><i class="fas fa-spa"></i> Candles & Soaps</a></li>
+                        </ul>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('admin_quotes') }}"><i class="fas fa-envelope"></i> Quotes</a>
@@ -92,8 +98,14 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('index') }}">Home</a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('index') }}#categories">Categories</a>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="shopDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-store"></i> Shop
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="shopDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('printing_3d') }}"><i class="fas fa-cube"></i> 3D Printing</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('candles_soaps') }}"><i class="fas fa-spa"></i> Candles & Soaps</a></li>
+                        </ul>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('index') }}#about">About</a>
