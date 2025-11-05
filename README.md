@@ -2,6 +2,17 @@
 
 Full-featured Flask e-commerce website for www.snowspoiledgifts.co.za
 
+## ⚠️ CRITICAL: Before Making Changes
+
+**AI Agents & Developers:** Read these files FIRST:
+- 📋 `.claude/PROJECT_CRITICAL_INFO.md` - Essential project configuration
+- 🗄️ `.claude/DATABASE_CONFIGURATION.md` - Database path and schema (MUST READ!)
+
+**Key Facts:**
+- **Database:** `database/signups.db` (NOT ssg.db!)
+- **Version:** 1.5.0
+- **Production:** Afrihost cPanel with Passenger
+
 ## Features
 
 ### Customer-Facing
