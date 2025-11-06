@@ -20,7 +20,10 @@ import sqlite3
 import os
 from datetime import datetime
 
-DATABASE_PATH = r'c:\Claude\SSG\database\signups.db'
+# Get database path relative to script location
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+DATABASE_PATH = os.path.join(PROJECT_ROOT, 'database', 'signups.db')
 
 def backup_database():
     """Create a backup of the database before migration"""
