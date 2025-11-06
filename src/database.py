@@ -795,6 +795,43 @@ class Database:
         conn.close()
         return count
 
+    def get_active_quotes_count(self):
+        """Get count of active quotes (pending, quoted, or in-progress) for admin notification badges"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        # Count all quotes from all quote tables that are NOT completed, converted, or cancelled
+        active_statuses = ('pending', 'quoted')
+
+        # Count from quote_requests table (Custom Design)
+        cursor.execute('''
+            SELECT COUNT(*) as count
+            FROM quote_requests
+            WHERE status IN (?, ?)
+        ''', active_statuses)
+        custom_count = cursor.fetchone()['count']
+
+        # Count from cake_topper_requests table
+        cursor.execute('''
+            SELECT COUNT(*) as count
+            FROM cake_topper_requests
+            WHERE status IN (?, ?)
+        ''', active_statuses)
+        cake_count = cursor.fetchone()['count']
+
+        # Count from print_service_requests table
+        cursor.execute('''
+            SELECT COUNT(*) as count
+            FROM print_service_requests
+            WHERE status IN (?, ?)
+        ''', active_statuses)
+        print_count = cursor.fetchone()['count']
+
+        conn.close()
+
+        # Return total of all active quotes across all types
+        return custom_count + cake_count + print_count
+
     def update_quote_status(self, quote_id, status):
         """Update the status of a quote request"""
         conn = self.get_connection()
@@ -829,6 +866,47 @@ class Database:
         except Exception as e:
             conn.close()
             return False, f"An error occurred: {str(e)}"
+
+    def get_user_quotes(self, email):
+        """Get all quote requests for a user by email"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT *
+            FROM quote_requests
+            WHERE email = ?
+            ORDER BY request_date DESC
+        ''', (email,))
+
+        requests = cursor.fetchall()
+        conn.close()
+
+        # Convert to list of dicts
+        result = []
+        for req in requests:
+            result.append({
+                'id': req['id'],
+                'service_type': req['service_type'],
+                'name': req['name'],
+                'email': req['email'],
+                'phone': req['phone'],
+                'preferred_contact': req['preferred_contact'],
+                'description': req['description'],
+                'intended_use': req['intended_use'],
+                'size': req['size'],
+                'quantity': req['quantity'],
+                'color': req['color'],
+                'material': req['material'],
+                'budget': req['budget'],
+                'additional_notes': req['additional_notes'],
+                'reference_images': req['reference_images'],
+                'request_date': req['request_date'],
+                'ip_address': req['ip_address'],
+                'status': req['status']
+            })
+
+        return result
 
     def unsubscribe_by_token(self, token):
         """Unsubscribe a user by their unique token"""
@@ -3035,6 +3113,37 @@ class Database:
         conn.close()
 
         return [dict(order) for order in orders]
+
+    def get_active_orders_count(self):
+        """Get count of active orders (NOT delivered or cancelled) for admin notification badges"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        # Count orders that are NOT delivered or cancelled (i.e., need attention)
+        cursor.execute('''
+            SELECT COUNT(*) as count
+            FROM orders
+            WHERE status NOT IN ('delivered', 'cancelled')
+        ''')
+        count = cursor.fetchone()['count']
+
+        conn.close()
+        return count
+
+    def get_total_carts_count(self):
+        """Get total number of active carts for admin notification badges"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        # Count distinct carts (by session_id or user_id)
+        cursor.execute('''
+            SELECT COUNT(DISTINCT COALESCE(user_id, session_id)) as count
+            FROM cart_items
+        ''')
+        count = cursor.fetchone()['count']
+
+        conn.close()
+        return count
 
     def get_order_items(self, order_id):
         """Get all items in an order"""

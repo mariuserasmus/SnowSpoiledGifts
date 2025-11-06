@@ -5,11 +5,19 @@ from src.config import Config
 from src.database import Database
 from src.forms import EmailSignupForm, RegistrationForm, LoginForm, EditProfileForm, CheckoutForm, ChangePasswordForm
 from src.email_utils import send_quote_notification, send_customer_confirmation, send_signup_confirmation, send_cake_topper_notification, send_print_service_notification, send_admin_reply_to_customer, send_order_confirmation
-from version_check import get_version_info
+from scripts.version_check import get_version_info
 from datetime import datetime
+from werkzeug.utils import secure_filename
 import os
 import random
 import re
+
+# Configuration for file uploads
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+def allowed_file(filename):
+    """Check if file extension is allowed"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # Utility function to sanitize filenames
 def sanitize_filename(filename):
@@ -326,10 +334,20 @@ def account():
         form.email.data = current_user.email
         form.phone.data = current_user.phone
 
-    # Get order history
+    return render_template('account.html', form=form, password_form=password_form, config=app.config)
+
+
+@app.route('/orders-quotes')
+@login_required
+def orders_quotes():
+    """User orders and quotes tracking page"""
+    # Get user's orders
     orders = db.get_user_orders(current_user.id)
 
-    return render_template('account.html', form=form, password_form=password_form, orders=orders, config=app.config)
+    # Get user's quotes
+    quotes = db.get_user_quotes(current_user.email)
+
+    return render_template('orders_quotes.html', orders=orders, quotes=quotes, config=app.config)
 
 
 @app.route('/change-password', methods=['POST'])
@@ -356,6 +374,102 @@ def change_password():
                 flash(error, 'error')
 
     return redirect(url_for('account'))
+
+
+@app.route('/quote/delete/<int:quote_id>', methods=['POST'])
+@login_required
+def delete_quote(quote_id):
+    """Delete a quote request (user can only delete their own quotes)"""
+    try:
+        # Get the quote to verify ownership
+        quote = db.get_quote_request(quote_id)
+
+        if not quote:
+            return jsonify({'success': False, 'message': 'Quote not found'}), 404
+
+        # Verify the quote belongs to the current user
+        if quote['email'] != current_user.email:
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+        # Delete the quote
+        success, message = db.delete_quote_request(quote_id)
+
+        return jsonify({'success': success, 'message': message})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/quote/upload-photos', methods=['POST'])
+@login_required
+def upload_quote_photos():
+    """Upload photos for a quote request"""
+    try:
+        quote_id = request.form.get('quote_id')
+        if not quote_id:
+            return jsonify({'success': False, 'message': 'Quote ID is required'}), 400
+
+        # Get the quote to verify ownership
+        quote = db.get_quote_request(int(quote_id))
+
+        if not quote:
+            return jsonify({'success': False, 'message': 'Quote not found'}), 404
+
+        # Verify the quote belongs to the current user
+        if quote['email'] != current_user.email:
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+        # Get uploaded files
+        if 'photos' not in request.files:
+            return jsonify({'success': False, 'message': 'No photos uploaded'}), 400
+
+        files = request.files.getlist('photos')
+
+        if len(files) == 0:
+            return jsonify({'success': False, 'message': 'No photos selected'}), 400
+
+        if len(files) > 5:
+            return jsonify({'success': False, 'message': 'Maximum 5 photos allowed'}), 400
+
+        # Save photos
+        upload_folder = os.path.join('static', 'uploads', 'quote_photos')
+        os.makedirs(upload_folder, exist_ok=True)
+
+        saved_files = []
+        for file in files:
+            if file and allowed_file(file.filename):
+                # Generate unique filename
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                original_filename = secure_filename(file.filename)
+                filename = f"{timestamp}_{quote_id}_{original_filename}"
+                filepath = os.path.join(upload_folder, filename)
+
+                # Save file
+                file.save(filepath)
+                saved_files.append(filename)
+
+        # Update quote with new image paths
+        existing_images = quote.get('reference_images', '')
+        if existing_images:
+            all_images = existing_images + ',' + ','.join(saved_files)
+        else:
+            all_images = ','.join(saved_files)
+
+        # Update the quote in database
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE quote_requests
+            SET reference_images = ?
+            WHERE id = ?
+        ''', (all_images, quote_id))
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True, 'message': f'{len(saved_files)} photo(s) uploaded successfully'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @app.route('/unsubscribe', methods=['GET', 'POST'])
@@ -2431,6 +2545,24 @@ def cart_count():
     total_count = db.get_cart_count(session_id, user_id)
 
     return jsonify({'count': total_count})
+
+
+@app.route('/admin/counts')
+@admin_required
+def admin_counts():
+    """Get admin notification counts (for badge updates)"""
+    from flask import jsonify
+
+    # Get counts for admin badges
+    active_orders_count = db.get_active_orders_count()
+    active_quotes_count = db.get_active_quotes_count()
+    total_carts_count = db.get_total_carts_count()
+
+    return jsonify({
+        'orders': active_orders_count,
+        'quotes': active_quotes_count,
+        'carts': total_carts_count
+    })
 
 
 @app.route('/checkout', methods=['GET', 'POST'])

@@ -67,9 +67,11 @@
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Change Password Card -->
-                <div class="card shadow-sm mt-4">
+            <!-- Change Password Card -->
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow-sm">
                     <div class="card-header bg-warning text-dark">
                         <h5 class="mb-0"><i class="fas fa-lock"></i> Change Password</h5>
                     </div>
@@ -121,79 +123,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Order History -->
-            <div class="col-lg-6 mb-4">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0"><i class="fas fa-box"></i> Order History</h5>
-                    </div>
-                    <div class="card-body">
-                        {% if orders %}
-                            <div class="list-group">
-                                {% for order in orders %}
-                                <a href="{{ url_for('order_confirmation', order_number=order.order_number) }}" class="list-group-item list-group-item-action">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="mb-1">{{ order.order_number }}</h6>
-                                            <small class="text-muted">
-                                                <i class="far fa-calendar"></i> {{ order.created_date }}
-                                            </small>
-                                            <br>
-                                            <small class="text-muted">
-                                                <i class="fas fa-shipping-fast"></i>
-                                                {% if order.shipping_method == 'pickup' %}
-                                                Pickup in George
-                                                {% elif order.shipping_method == 'own_courier' %}
-                                                Own Courier
-                                                {% elif order.shipping_method == 'pudo' %}
-                                                PUDO
-                                                {% if order.pudo_option == 'locker_to_locker' %}(L2L)
-                                                {% elif order.pudo_option == 'locker_to_kiosk' %}(L2K)
-                                                {% elif order.pudo_option == 'locker_to_door' %}(L2D)
-                                                {% elif order.pudo_option == 'kiosk_to_door' %}(K2D)
-                                                {% endif %}
-                                                {% endif %}
-                                            </small>
-                                        </div>
-                                        <div class="text-end">
-                                            <strong class="d-block">R{{ "%.2f"|format(order.total_amount) }}</strong>
-                                            {% if order.status == 'pending' %}
-                                            <span class="badge bg-warning text-dark">PENDING</span>
-                                            {% elif order.status == 'confirmed' %}
-                                            <span class="badge bg-info">CONFIRMED</span>
-                                            {% elif order.status == 'awaiting_payment' %}
-                                            <span class="badge bg-warning">AWAITING PAYMENT</span>
-                                            {% elif order.status == 'paid' %}
-                                            <span class="badge bg-success">PAID</span>
-                                            {% elif order.status == 'processing' %}
-                                            <span class="badge bg-primary">PROCESSING</span>
-                                            {% elif order.status == 'shipped' %}
-                                            <span class="badge bg-info">SHIPPED</span>
-                                            {% elif order.status == 'delivered' %}
-                                            <span class="badge bg-success">DELIVERED</span>
-                                            {% elif order.status == 'cancelled' %}
-                                            <span class="badge bg-danger">CANCELLED</span>
-                                            {% else %}
-                                            <span class="badge bg-secondary">{{ order.status|upper }}</span>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </a>
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            <div class="text-center py-5">
-                                <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
-                                <p class="text-muted">You haven't placed any orders yet.</p>
-                                <a href="{{ url_for('index') }}#categories" class="btn btn-primary">
-                                    <i class="fas fa-shopping-bag"></i> Start Shopping
-                                </a>
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
         </div>
 
         <!-- Quick Actions -->
@@ -203,19 +132,25 @@
                     <div class="card-body">
                         <h5 class="card-title"><i class="fas fa-bolt"></i> Quick Actions</h5>
                         <div class="row text-center">
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
+                                <a href="{{ url_for('orders_quotes') }}" class="btn btn-outline-primary w-100">
+                                    <i class="fas fa-box fa-2x mb-2"></i><br>
+                                    My Orders & Quotes
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3">
                                 <a href="{{ url_for('cart') }}" class="btn btn-outline-primary w-100">
                                     <i class="fas fa-shopping-cart fa-2x mb-2"></i><br>
                                     View Cart
                                 </a>
                             </div>
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
                                 <a href="{{ url_for('index') }}#categories" class="btn btn-outline-primary w-100">
                                     <i class="fas fa-tags fa-2x mb-2"></i><br>
                                     Browse Products
                                 </a>
                             </div>
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
                                 <a href="{{ url_for('index') }}#contact" class="btn btn-outline-primary w-100">
                                     <i class="fas fa-envelope fa-2x mb-2"></i><br>
                                     Contact Support

@@ -54,7 +54,10 @@
                     {% if current_user.is_authenticated and current_user.is_admin %}
                     <!-- Admin Menu -->
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin_orders') }}"><i class="fas fa-shopping-bag"></i> Orders</a>
+                        <a class="nav-link position-relative" href="{{ url_for('admin_orders') }}">
+                            <i class="fas fa-shopping-bag"></i> Orders
+                            <span class="admin-badge admin-orders-badge badge bg-danger rounded-pill" style="display: none; position: absolute; top: -5px; right: -10px; font-size: 0.7rem; min-width: 20px;">0</span>
+                        </a>
                     </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="manageItemsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -66,13 +69,19 @@
                         </ul>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin_quotes') }}"><i class="fas fa-envelope"></i> Quotes</a>
+                        <a class="nav-link position-relative" href="{{ url_for('admin_quotes') }}">
+                            <i class="fas fa-envelope"></i> Quotes
+                            <span class="admin-badge admin-quotes-badge badge bg-warning text-dark rounded-pill" style="display: none; position: absolute; top: -5px; right: -10px; font-size: 0.7rem; min-width: 20px;">0</span>
+                        </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('admin_users') }}"><i class="fas fa-users-cog"></i> Users</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin_carts') }}"><i class="fas fa-shopping-cart"></i> Carts</a>
+                        <a class="nav-link position-relative" href="{{ url_for('admin_carts') }}">
+                            <i class="fas fa-shopping-cart"></i> Carts
+                            <span class="admin-badge admin-carts-badge badge bg-info rounded-pill" style="display: none; position: absolute; top: -5px; right: -10px; font-size: 0.7rem; min-width: 20px;">0</span>
+                        </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('admin_signups') }}"><i class="fas fa-bell"></i> Signups</a>
@@ -120,7 +129,7 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                             <li><a class="dropdown-item" href="{{ url_for('account') }}"><i class="fas fa-user"></i> My Account</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('account') }}"><i class="fas fa-box"></i> My Orders</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('orders_quotes') }}"><i class="fas fa-box"></i> My Orders\Quotes</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
                         </ul>
@@ -209,6 +218,13 @@
         // Load cart count on page load
         document.addEventListener('DOMContentLoaded', function() {
             updateCartBadgeFromServer();
+
+            // If admin is logged in, also update admin badges
+            if (document.querySelector('.admin-badge')) {
+                updateAdminBadges();
+                // Update admin badges every 60 seconds
+                setInterval(updateAdminBadges, 60000);
+            }
         });
 
         function updateCartBadgeFromServer() {
@@ -239,6 +255,47 @@
                     badge.style.display = 'none';
                 }
             }
+        }
+
+        // Update admin notification badges
+        function updateAdminBadges() {
+            fetch('/admin/counts')
+                .then(response => response.json())
+                .then(data => {
+                    // Update Orders badge
+                    const ordersBadge = document.querySelector('.admin-orders-badge');
+                    if (ordersBadge) {
+                        ordersBadge.textContent = data.orders;
+                        if (data.orders > 0) {
+                            ordersBadge.style.display = 'inline-block';
+                        } else {
+                            ordersBadge.style.display = 'none';
+                        }
+                    }
+
+                    // Update Quotes badge
+                    const quotesBadge = document.querySelector('.admin-quotes-badge');
+                    if (quotesBadge) {
+                        quotesBadge.textContent = data.quotes;
+                        if (data.quotes > 0) {
+                            quotesBadge.style.display = 'inline-block';
+                        } else {
+                            quotesBadge.style.display = 'none';
+                        }
+                    }
+
+                    // Update Carts badge
+                    const cartsBadge = document.querySelector('.admin-carts-badge');
+                    if (cartsBadge) {
+                        cartsBadge.textContent = data.carts;
+                        if (data.carts > 0) {
+                            cartsBadge.style.display = 'inline-block';
+                        } else {
+                            cartsBadge.style.display = 'none';
+                        }
+                    }
+                })
+                .catch(error => console.error('Error loading admin counts:', error));
         }
     </script>
 
