@@ -9,6 +9,37 @@ from version_check import get_version_info
 from datetime import datetime
 import os
 import random
+import re
+
+# Utility function to sanitize filenames
+def sanitize_filename(filename):
+    """
+    Sanitize filename to remove problematic characters that might cause issues
+    with web servers or file systems.
+    - Replaces spaces with underscores
+    - Removes or replaces special characters
+    - Preserves file extension
+    """
+    if not filename:
+        return filename
+
+    # Split filename and extension
+    name, ext = os.path.splitext(filename)
+
+    # Replace spaces with underscores
+    name = name.replace(' ', '_')
+
+    # Remove or replace other problematic characters
+    # Keep only alphanumeric, underscores, hyphens, and periods
+    name = re.sub(r'[^\w\-.]', '_', name)
+
+    # Remove consecutive underscores
+    name = re.sub(r'_+', '_', name)
+
+    # Remove leading/trailing underscores
+    name = name.strip('_')
+
+    return name + ext
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -508,9 +539,11 @@ def quote_request():
 
         for file in uploaded_files:
             if file and file.filename:
-                # Create a unique filename
+                # Sanitize the original filename to remove problematic characters
+                sanitized_name = sanitize_filename(file.filename)
+                # Create a unique filename with timestamp
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                filename = f"{timestamp}_{file.filename}"
+                filename = f"{timestamp}_{sanitized_name}"
                 file_path = os.path.join(upload_folder, filename)
                 file.save(file_path)
                 file_names.append(filename)
@@ -592,8 +625,10 @@ def cake_topper_request():
 
         for file in uploaded_files:
             if file and file.filename:
+                # Sanitize the original filename to remove problematic characters
+                sanitized_name = sanitize_filename(file.filename)
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                filename = f"{timestamp}_{file.filename}"
+                filename = f"{timestamp}_{sanitized_name}"
                 file_path = os.path.join(upload_folder, filename)
                 file.save(file_path)
                 file_names.append(filename)
@@ -666,8 +701,10 @@ def print_service_request():
 
         for file in uploaded_files:
             if file and file.filename:
+                # Sanitize the original filename to remove problematic characters
+                sanitized_name = sanitize_filename(file.filename)
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                filename = f"{timestamp}_{file.filename}"
+                filename = f"{timestamp}_{sanitized_name}"
                 file_path = os.path.join(upload_folder, filename)
                 file.save(file_path)
                 file_names.append(filename)
@@ -1416,9 +1453,10 @@ def admin_add_cutter_item_page():
 
                 for idx, file in enumerate(uploaded_files):
                     if file and file.filename:
-                        # Create unique filename
+                        # Sanitize and create unique filename
+                        sanitized_name = sanitize_filename(file.filename)
                         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                        filename = f"{timestamp}_{idx}_{file.filename}"
+                        filename = f"{timestamp}_{idx}_{sanitized_name}"
                         file_path = os.path.join(folder_path, filename)
                         file.save(file_path)
 
@@ -1486,8 +1524,10 @@ def admin_edit_cutter_item_page(item_id):
 
                 for idx, file in enumerate(uploaded_files):
                     if file and file.filename:
+                        # Sanitize and create unique filename
+                        sanitized_name = sanitize_filename(file.filename)
                         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                        filename = f"{timestamp}_{idx}_{file.filename}"
+                        filename = f"{timestamp}_{idx}_{sanitized_name}"
                         file_path = os.path.join(folder_path, filename)
                         file.save(file_path)
 
@@ -1754,9 +1794,10 @@ def admin_create_candles_soaps_product():
 
             for idx, file in enumerate(uploaded_files):
                 if file and file.filename:
-                    # Create unique filename
+                    # Create unique filename with sanitized extension
+                    sanitized_name = sanitize_filename(file.filename)
                     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                    ext = os.path.splitext(file.filename)[1]
+                    ext = os.path.splitext(sanitized_name)[1]
                     filename = f"{timestamp}_{idx}{ext}"
                     file_path = os.path.join(folder_path, filename)
                     file.save(file_path)
@@ -1835,9 +1876,10 @@ def admin_update_candles_soaps_product(product_id):
 
             for idx, file in enumerate(uploaded_files):
                 if file and file.filename:
-                    # Create unique filename
+                    # Create unique filename with sanitized extension
+                    sanitized_name = sanitize_filename(file.filename)
                     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                    ext = os.path.splitext(file.filename)[1]
+                    ext = os.path.splitext(sanitized_name)[1]
                     filename = f"{timestamp}_{idx}{ext}"
                     file_path = os.path.join(folder_path, filename)
                     file.save(file_path)
@@ -1942,10 +1984,10 @@ def admin_upload_candles_soaps_photo(product_id):
     upload_folder = os.path.join('static', 'uploads', 'candles_soaps', category_name, product['product_code'])
     os.makedirs(upload_folder, exist_ok=True)
 
-    # Generate unique filename
-    filename = secure_filename(photo.filename)
+    # Generate unique filename with sanitization
+    sanitized_name = sanitize_filename(photo.filename)
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    unique_filename = f"{timestamp}_{filename}"
+    unique_filename = f"{timestamp}_{sanitized_name}"
 
     # Save file
     file_path = os.path.join(upload_folder, unique_filename)
@@ -2035,18 +2077,19 @@ def email_customer(request_type, quote_id):
     if uploaded_files:
         for file in uploaded_files:
             if file and file.filename:
+                # Sanitize filename before attaching to email
+                sanitized_name = sanitize_filename(file.filename)
                 # Read file into memory
                 file_data = file.read()
-                file_name = file.filename
 
                 # Get MIME type based on file extension
                 import mimetypes
-                mime_type, _ = mimetypes.guess_type(file_name)
+                mime_type, _ = mimetypes.guess_type(sanitized_name)
                 if not mime_type:
                     mime_type = 'application/octet-stream'
 
                 attachments.append({
-                    'filename': file_name,
+                    'filename': sanitized_name,
                     'data': file_data,
                     'mime_type': mime_type
                 })
@@ -2108,10 +2151,10 @@ def convert_quote_to_sale(request_type, quote_id):
                 item_id = result_data.get('item_id')
 
                 if item_id:
-                    # Secure the filename
-                    filename = secure_filename(photo.filename)
+                    # Sanitize the filename
+                    sanitized_name = sanitize_filename(photo.filename)
                     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                    filename = f"{timestamp}_{filename}"
+                    filename = f"{timestamp}_{sanitized_name}"
 
                     # Create upload directory if it doesn't exist
                     upload_dir = os.path.join('static', 'uploads', 'cutter_items')

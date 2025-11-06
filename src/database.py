@@ -3264,11 +3264,25 @@ class Database:
 
             item_id = cursor.lastrowid
 
-            # Add item to customer's cart (using unified cart schema)
-            cursor.execute('''
-                INSERT INTO cart_items (user_id, product_type, product_id, quantity, added_date)
-                VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
-            ''', (user_id, 'cutter_item', item_id))
+            # Add item to customer's cart
+            # Check which cart schema is in use (old 'item_id' vs new unified 'product_id')
+            cursor.execute("PRAGMA table_info(cart_items)")
+            cart_columns = [col[1] for col in cursor.fetchall()]
+
+            if 'product_id' in cart_columns:
+                # New unified cart schema
+                cursor.execute('''
+                    INSERT INTO cart_items (user_id, product_type, product_id, quantity, added_date)
+                    VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
+                ''', (user_id, 'cutter_item', item_id))
+            elif 'item_id' in cart_columns:
+                # Old cart schema (backward compatibility)
+                cursor.execute('''
+                    INSERT INTO cart_items (user_id, item_id, quantity, added_date)
+                    VALUES (?, ?, 1, CURRENT_TIMESTAMP)
+                ''', (user_id, item_id))
+            else:
+                raise Exception("Unknown cart_items schema - neither product_id nor item_id column found")
 
             # Update quote status to 'converted'
             cursor.execute(f'''
