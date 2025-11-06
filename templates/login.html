@@ -18,7 +18,8 @@
 
                         <div class="mb-3">
                             <label for="email" class="form-label">{{ form.email.label.text }}</label>
-                            {{ form.email(class="form-control", placeholder="your@email.com") }}
+                            {{ form.email(class="form-control", placeholder="your@email.com", id="email") }}
+                            <small class="form-text text-muted">Email addresses are case-insensitive</small>
                             {% if form.email.errors %}
                                 <div class="text-danger small mt-1">
                                     {% for error in form.email.errors %}{{ error }}{% endfor %}
@@ -57,4 +58,16 @@
         </div>
     </div>
 </section>
+
+<script>
+// Auto-lowercase email input on blur for better UX
+document.addEventListener('DOMContentLoaded', function() {
+    const emailInput = document.getElementById('email');
+    if (emailInput) {
+        emailInput.addEventListener('blur', function() {
+            this.value = this.value.toLowerCase().trim();
+        });
+    }
+});
+</script>
 {% endblock %}

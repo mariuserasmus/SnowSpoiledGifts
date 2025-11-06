@@ -131,6 +131,7 @@
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Email Address *</label>
                                     <input type="email" name="email" class="form-control" value="{% if current_user.is_authenticated %}{{ current_user.email }}{% endif %}" required>
+                                    <small class="form-text text-muted">Email addresses are case-insensitive</small>
                                 </div>
                             </div>
 
@@ -447,6 +448,7 @@
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Email Address *</label>
                                     <input type="email" name="email" class="form-control" value="{% if current_user.is_authenticated %}{{ current_user.email }}{% endif %}" required>
+                                    <small class="form-text text-muted">Email addresses are case-insensitive</small>
                                 </div>
                             </div>
 
@@ -590,6 +592,7 @@
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Email Address *</label>
                                     <input type="email" name="email" class="form-control" value="{% if current_user.is_authenticated %}{{ current_user.email }}{% endif %}" required>
+                                    <small class="form-text text-muted">Email addresses are case-insensitive</small>
                                 </div>
                             </div>
 
@@ -1819,5 +1822,15 @@
             button.disabled = false;
         });
     }
+
+    // Auto-lowercase email inputs on blur for better UX
+    document.addEventListener('DOMContentLoaded', function() {
+        const emailInputs = document.querySelectorAll('input[type="email"][name="email"]');
+        emailInputs.forEach(function(emailInput) {
+            emailInput.addEventListener('blur', function() {
+                this.value = this.value.toLowerCase().trim();
+            });
+        });
+    });
 </script>
 {% endblock %}

@@ -3308,7 +3308,7 @@ class Database:
                 customer_phone = ''
 
             # Check if customer has a user account
-            cursor.execute('SELECT id FROM users WHERE email = ?', (customer_email,))
+            cursor.execute('SELECT id FROM users WHERE email = ?', (customer_email.lower(),))
             user = cursor.fetchone()
 
             if not user:
@@ -3319,7 +3319,7 @@ class Database:
                 cursor.execute('''
                     INSERT INTO users (email, password_hash, name, phone, is_active, email_verified)
                     VALUES (?, ?, ?, ?, 1, 0)
-                ''', (customer_email, password_hash, customer_name, customer_phone))
+                ''', (customer_email.lower(), password_hash, customer_name, customer_phone))
 
                 user_id = cursor.lastrowid
                 user_created = True

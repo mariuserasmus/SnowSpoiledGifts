@@ -237,7 +237,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
 
                         <div class="mb-3">
-                            {{ form.email(class="form-control form-control-lg", placeholder="Your Email") }}
+                            {{ form.email(class="form-control form-control-lg", placeholder="Your Email", id="email") }}
+                            <small class="form-text text-muted">Email addresses are case-insensitive</small>
                         </div>
 
                         <div class="mb-3">
@@ -338,4 +339,16 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 </section>
+
+<script>
+// Auto-lowercase email input on blur for better UX
+document.addEventListener('DOMContentLoaded', function() {
+    const emailInput = document.getElementById('email');
+    if (emailInput) {
+        emailInput.addEventListener('blur', function() {
+            this.value = this.value.toLowerCase().trim();
+        });
+    }
+});
+</script>
 {% endblock %}

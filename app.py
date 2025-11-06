@@ -630,7 +630,7 @@ def quote_request():
     # Get form data
     service_type = request.form.get('service_type')
     name = request.form.get('name')
-    email = request.form.get('email')
+    email = request.form.get('email', '').lower().strip()
     phone = request.form.get('phone', '')
     preferred_contact = request.form.get('preferred_contact', 'Email')
     description = request.form.get('description')
@@ -718,7 +718,7 @@ def cake_topper_request():
     """Handle cake topper quote request submissions"""
     # Get form data
     name = request.form.get('name')
-    email = request.form.get('email')
+    email = request.form.get('email', '').lower().strip()
     phone = request.form.get('phone', '')
     event_date = request.form.get('event_date', '')
     occasion = request.form.get('occasion')
@@ -796,7 +796,7 @@ def print_service_request():
     """Handle 3D print service request submissions"""
     # Get form data
     name = request.form.get('name')
-    email = request.form.get('email')
+    email = request.form.get('email', '').lower().strip()
     material = request.form.get('material')
     color = request.form.get('color')
     layer_height = request.form.get('layer_height', '0.2mm (Standard - Balanced)')
@@ -1187,7 +1187,7 @@ def admin_users():
 def admin_edit_user(user_id):
     """Admin function to edit user details"""
     name = request.form.get('name')
-    email = request.form.get('email')
+    email = request.form.get('email', '').lower().strip()
     phone = request.form.get('phone')
 
     if not name or not email:

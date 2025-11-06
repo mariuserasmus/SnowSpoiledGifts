@@ -21,6 +21,13 @@ class EmailSignupForm(FlaskForm):
         ]
     )
 
+    def validate(self, extra_validators=None):
+        """Override validate to normalize email to lowercase"""
+        rv = super(EmailSignupForm, self).validate(extra_validators)
+        if self.email.data:
+            self.email.data = self.email.data.lower().strip()
+        return rv
+
     interests = SelectMultipleField(
         'What are you interested in?',
         choices=[
@@ -76,6 +83,13 @@ class RegistrationForm(FlaskForm):
         ]
     )
 
+    def validate(self, extra_validators=None):
+        """Override validate to normalize email to lowercase"""
+        rv = super(RegistrationForm, self).validate(extra_validators)
+        if self.email.data:
+            self.email.data = self.email.data.lower().strip()
+        return rv
+
 
 class LoginForm(FlaskForm):
     """Form for user login"""
@@ -94,6 +108,13 @@ class LoginForm(FlaskForm):
             DataRequired(message='Please enter your password')
         ]
     )
+
+    def validate(self, extra_validators=None):
+        """Override validate to normalize email to lowercase"""
+        rv = super(LoginForm, self).validate(extra_validators)
+        if self.email.data:
+            self.email.data = self.email.data.lower().strip()
+        return rv
 
 
 class EditProfileForm(FlaskForm):
@@ -121,6 +142,13 @@ class EditProfileForm(FlaskForm):
             Length(max=20, message='Phone number must be less than 20 characters')
         ]
     )
+
+    def validate(self, extra_validators=None):
+        """Override validate to normalize email to lowercase"""
+        rv = super(EditProfileForm, self).validate(extra_validators)
+        if self.email.data:
+            self.email.data = self.email.data.lower().strip()
+        return rv
 
 
 class CheckoutForm(FlaskForm):
