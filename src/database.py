@@ -2915,7 +2915,7 @@ class Database:
                 ''', (order_id, item['item_id'], item['quantity'], item['price']))
 
                 # Deduct stock for candles/soaps products
-                if item.get('product_type') == 'candle_soap':
+                if item['product_type'] == 'candle_soap':
                     # Get current stock
                     current_stock = item['stock_quantity']
                     new_stock = current_stock - item['quantity']
@@ -2937,7 +2937,7 @@ class Database:
                           current_stock, new_stock, order_id, f'Order: {order_number}'))
 
                 # Check if this item is from a quote (item_number starts with "QUOTE-")
-                if item.get('product_type') == 'cutter':
+                if item['product_type'] == 'cutter':
                     cursor.execute('SELECT item_number FROM cutter_items WHERE id = ?', (item['item_id'],))
                     item_data = cursor.fetchone()
                     if item_data and item_data['item_number'].startswith('QUOTE-'):
