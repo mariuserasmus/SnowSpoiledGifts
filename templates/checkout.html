@@ -87,6 +87,56 @@
         background: #28a745;
         color: white;
     }
+
+    /* Loading Overlay for Order Submission */
+    #order-loading-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 99999;
+        justify-content: center;
+        align-items: center;
+        backdrop-filter: blur(4px);
+    }
+
+    #order-loading-overlay .loading-content {
+        text-align: center;
+        padding: 3rem;
+        background: rgba(37, 99, 235, 0.1);
+        border-radius: 16px;
+        border: 2px solid rgba(37, 99, 235, 0.3);
+        max-width: 500px;
+        margin: 0 1rem;
+    }
+
+    #order-loading-overlay .spinner-border {
+        border-width: 0.35rem;
+    }
+
+    #order-loading-overlay h4 {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: white;
+    }
+
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+        #order-loading-overlay .loading-content {
+            padding: 2rem;
+        }
+
+        #order-loading-overlay h4 {
+            font-size: 1.25rem;
+        }
+
+        #order-loading-overlay p {
+            font-size: 0.9rem;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -348,7 +398,92 @@
 
 {% block extra_js %}
 <script>
+// ============================================================================
+// ORDER SUBMISSION LOADING INDICATOR
+// ============================================================================
+
+/**
+ * Shows a loading overlay when order is being placed
+ */
+function showOrderLoadingIndicator() {
+    // Create overlay if it doesn't exist
+    let overlay = document.getElementById('order-loading-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'order-loading-overlay';
+        overlay.innerHTML = `
+            <div class="loading-content">
+                <div class="spinner-border text-primary" role="status" style="width: 4rem; height: 4rem;">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <h4 class="mt-4">Processing Your Order...</h4>
+                <p class="text-white-50">Please wait while we create your order and send confirmation.</p>
+                <p class="text-white-50 small"><i class="fas fa-info-circle"></i> Do not close or refresh this page</p>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+    }
+
+    // Show overlay
+    overlay.style.display = 'flex';
+
+    // Disable submit button and save original state
+    const submitBtn = document.querySelector('#checkoutForm button[type="submit"]');
+    let originalBtnHTML = '';
+    if (submitBtn) {
+        originalBtnHTML = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    }
+
+    // Change cursor to wait
+    document.body.style.cursor = 'wait';
+
+    // Only show navigation warning if submission takes longer than 2 seconds
+    // This prevents annoying popups for fast submissions while protecting slow connections
+    setTimeout(function() {
+        window.onbeforeunload = function() {
+            return "Your order is being processed. Are you sure you want to leave?";
+        };
+    }, 2000);
+
+    // Safety timeout: If form hasn't redirected within 30 seconds, assume connection error
+    setTimeout(function() {
+        // Check if overlay is still visible (form hasn't redirected)
+        if (overlay && overlay.style.display === 'flex') {
+            // Hide overlay
+            overlay.style.display = 'none';
+
+            // Re-enable submit button
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnHTML || '<i class="fas fa-shopping-cart"></i> Place Order';
+            }
+
+            // Reset cursor
+            document.body.style.cursor = 'default';
+
+            // Clear navigation warning
+            window.onbeforeunload = null;
+
+            // Show error message
+            alert('Connection timeout: Unable to process your order. Please check your internet connection and try again.');
+        }
+    }, 30000); // 30 second timeout
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    // Add loading indicator to checkout form
+    const checkoutForm = document.getElementById('checkoutForm');
+    if (checkoutForm) {
+        checkoutForm.addEventListener('submit', function(e) {
+            // Only show loading if form is valid (let HTML5 validation happen first)
+            if (checkoutForm.checkValidity()) {
+                showOrderLoadingIndicator();
+            }
+        });
+    }
+
     const shippingMethodRadios = document.querySelectorAll('input[name="shipping_method"]');
     const pudoOptionsSection = document.getElementById('pudoOptionsSection');
     const deliveryAddressSection = document.getElementById('deliveryAddressSection');

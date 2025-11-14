@@ -1326,12 +1326,170 @@
     .coming-soon-toast .toast-body .fa-info-circle {
         color: #2563eb !important;
     }
+
+    /* ============================================================================
+       QUOTE FORM LOADING OVERLAY
+       ============================================================================ */
+    #quote-loading-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 99999;
+        justify-content: center;
+        align-items: center;
+        backdrop-filter: blur(4px);
+    }
+
+    #quote-loading-overlay .loading-content {
+        text-align: center;
+        padding: 3rem;
+        background: rgba(37, 99, 235, 0.1);
+        border-radius: 16px;
+        border: 2px solid rgba(37, 99, 235, 0.3);
+        max-width: 500px;
+        margin: 0 1rem;
+    }
+
+    #quote-loading-overlay .spinner-border {
+        border-width: 0.35rem;
+    }
+
+    #quote-loading-overlay h4 {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+        #quote-loading-overlay .loading-content {
+            padding: 2rem;
+        }
+
+        #quote-loading-overlay h4 {
+            font-size: 1.25rem;
+        }
+
+        #quote-loading-overlay p {
+            font-size: 0.9rem;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+    // ============================================================================
+    // QUOTE FORM LOADING INDICATOR SYSTEM
+    // ============================================================================
+
+    /**
+     * Shows a loading overlay with spinner when quote forms are submitted
+     * Prevents users from navigating away during submission
+     */
+    function initQuoteFormLoadingIndicators() {
+        // Get all quote forms
+        const quoteFormIds = ['customDesignForm'];
+        const quoteFormActions = ['cake-topper-request', 'print-service-request'];
+
+        // Handle forms with IDs
+        quoteFormIds.forEach(formId => {
+            const form = document.getElementById(formId);
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    showLoadingIndicator(form);
+                });
+            }
+        });
+
+        // Handle forms with action attributes
+        quoteFormActions.forEach(action => {
+            const forms = document.querySelectorAll(`form[action*="${action}"]`);
+            forms.forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    showLoadingIndicator(form);
+                });
+            });
+        });
+    }
+
+    /**
+     * Creates and displays loading overlay with spinner
+     */
+    function showLoadingIndicator(form) {
+        // Create overlay if it doesn't exist
+        let overlay = document.getElementById('quote-loading-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'quote-loading-overlay';
+            overlay.innerHTML = `
+                <div class="loading-content">
+                    <div class="spinner-border text-primary" role="status" style="width: 4rem; height: 4rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h4 class="mt-4 text-white">Submitting Your Request...</h4>
+                    <p class="text-white-50">Please wait while we process your quote request.</p>
+                    <p class="text-white-50 small"><i class="fas fa-info-circle"></i> Do not close or refresh this page</p>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+        }
+
+        // Show overlay
+        overlay.style.display = 'flex';
+
+        // Disable submit button and save original state
+        const submitBtn = form.querySelector('button[type="submit"]');
+        let originalBtnHTML = '';
+        if (submitBtn) {
+            originalBtnHTML = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+        }
+
+        // Change cursor to wait
+        document.body.style.cursor = 'wait';
+
+        // Only show navigation warning if submission takes longer than 2 seconds
+        // This prevents annoying popups for fast submissions while protecting slow connections
+        setTimeout(function() {
+            window.onbeforeunload = function() {
+                return "Your quote request is being submitted. Are you sure you want to leave?";
+            };
+        }, 2000);
+
+        // Safety timeout: If form hasn't redirected within 30 seconds, assume connection error
+        setTimeout(function() {
+            // Check if overlay is still visible (form hasn't redirected)
+            if (overlay && overlay.style.display === 'flex') {
+                // Hide overlay
+                overlay.style.display = 'none';
+
+                // Re-enable submit button
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnHTML || '<i class="fas fa-paper-plane"></i> Submit Request for Quote';
+                }
+
+                // Reset cursor
+                document.body.style.cursor = 'default';
+
+                // Clear navigation warning
+                window.onbeforeunload = null;
+
+                // Show error message
+                alert('Connection timeout: Unable to submit your request. Please check your internet connection and try again.');
+            }
+        }, 30000); // 30 second timeout
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
+        // Initialize quote form loading indicators
+        initQuoteFormLoadingIndicators();
+
         const subProductCards = document.querySelectorAll('.sub-product-card');
         const productDetails = document.querySelectorAll('.product-detail-content');
         const defaultMessage = document.getElementById('default-message');
