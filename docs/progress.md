@@ -755,3 +755,125 @@ send_admin_reply_to_customer(config, email, name, subject, message, attachments=
 - **Documentation:** Attach care instructions, warranty info, or other documents
 
 ---
+
+## Session Summary (2025-11-14 - Quote Form Loading Indicators & Cookie/Clay Cutter System)
+
+### 🎯 MAJOR IMPROVEMENTS: User Experience & Critical Bug Fixes
+
+**Status:** 100% Complete ✅
+
+#### What Was Completed
+
+**Part 1: Quote Form Loading Indicators (All Forms)**
+1. **Loading Indicator System**
+   - Added full-screen loading overlays with spinners to ALL quote submission forms
+   - Forms covered: Custom Design, Cake Toppers, 3D Print Service, Email Signup, Checkout
+   - Shows "Submitting Your Request..." message with professional blue-themed spinner
+   - Prevents users from navigating away during slow submissions
+
+2. **Smart Navigation Warning**
+   - 2-second delay before navigation warning activates
+   - Prevents annoying popups for fast submissions (localhost, good connections)
+   - Protects slow connections from users navigating away prematurely
+   - Only appears if user tries to close/refresh during submission
+
+3. **Connection Timeout Safety**
+   - 30-second timeout mechanism on all forms
+   - Auto-recovers from connection failures
+   - Re-enables submit button after timeout
+   - Shows clear error message: "Connection timeout: Unable to submit your request..."
+   - Allows users to retry submission
+
+4. **User Experience Enhancements**
+   - Submit button disabled during processing
+   - Button text changes to "Submitting..." with spinner icon
+   - Cursor changes to wait state
+   - Clear instructions: "Do not close or refresh this page"
+   - Professional Bootstrap 5 spinner animation
+
+**Files Modified (Part 1):**
+- `templates/3d_printing.html` - Added loading indicators to 3 quote forms
+- `templates/index.html` - Added loading indicator to email signup
+- `templates/checkout.html` - Added loading indicator to checkout form
+
+**Problem Solved:**
+Customers with slow internet connections were navigating away before quote requests completed, thinking nothing was happening. Quote requests were being lost because users didn't wait for the success message.
+
+---
+
+**Part 2: Cookie/Clay Cutter Quote System (CRITICAL BUG FIX)**
+1. **Backend Route Created**
+   - New `/cutter-request` POST endpoint (app.py lines 867-968)
+   - Handles form data + multiple file uploads
+   - Saves to `quote_requests` table with `service_type = "Cookie/Clay Cutter"`
+   - Uploads reference images to `static/uploads/cutter_references/`
+   - Sends admin notification email
+   - Sends customer confirmation email
+   - Proper validation: name, email, description, at least one image required
+
+2. **Frontend Form Fixed**
+   - Fixed broken modal form in `templates/3d_printing.html` (lines 811-883)
+   - Added proper form attributes: action, method, enctype, id
+   - Added `name` attributes to ALL input fields (were completely missing!)
+   - Changed submit button from `type="button"` to `type="submit"`
+   - Integrated with existing loading indicator system
+
+3. **Admin Panel Integration**
+   - Separated Cookie/Clay Cutter quotes from Custom Design quotes in admin panel
+   - Added "Cookie/Clay Cutter" request type with yellow/warning badge
+   - Added cutter-specific detail section in admin modals
+   - Fixed reference image paths to use correct folder: `uploads/cutter_references/`
+   - Added "Cookie/Clay Cutter" to filter dropdown
+
+4. **Admin Panel Bug Fixes**
+   - Fixed modal IDs to handle slashes in "Cookie/Clay Cutter" type name
+   - Added proper URL encoding for all admin actions
+   - Fixed all admin routes to handle `cookie_clay_cutter` parameter
+   - Updated database.py convert_quote_to_sale table mapping
+
+5. **Filename Sanitization**
+   - Uploaded files saved with timestamp + sanitized name
+   - Format: `YYYYMMDD_HHMMSS_[sanitized_original_name]`
+   - Prevents filename conflicts and security issues
+
+**Files Modified (Part 2):**
+- `app.py` - Added `/cutter-request` route, fixed admin route handlers
+- `templates/3d_printing.html` - Fixed form configuration, added loading indicator
+- `templates/admin-quotes.html` - Added cutter section, fixed modal IDs and URLs
+- `src/database.py` - Fixed convert_quote_to_sale table mapping
+
+**Problem Solved:**
+Cookie/Clay Cutter "Can't Find What You Need?" form was completely non-functional. When customers submitted requests, nothing happened - no backend processing, no database storage, no email notifications. This was a CRITICAL bug causing complete loss of customer quote requests.
+
+---
+
+#### Git Commits
+
+**Commit 1:** `a079532` - "Add loading indicators to quote and checkout forms with smart timeout"
+
+**Commit 2:** `25edc2f` - "Fix Cookie/Clay Cutter quote request system and add to admin panel"
+
+**Total Changes:**
+- 648 lines added
+- 33 lines removed
+- 6 files modified
+
+---
+
+#### Benefits to Business
+
+**Loading Indicators:**
+- Reduces lost quote requests from impatient users
+- Prevents duplicate submissions (disabled button)
+- Professional user experience with clear feedback
+- Fewer support tickets about form submissions
+- Increases quote request completion rates
+
+**Cookie/Clay Cutter System:**
+- Recovers completely lost revenue stream
+- Customers can now request custom cutters successfully
+- Email notifications keep admin informed
+- Proper admin management of cutter quotes
+- Professional quote-to-order conversion workflow
+
+---

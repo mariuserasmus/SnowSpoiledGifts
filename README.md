@@ -116,7 +116,8 @@ Visit: http://localhost:5000
 - ✅ Customer landing page with dark mode
 - ✅ 3D Printing services showcase
 - ✅ Cookie & Clay Cutters shop (admin + frontend)
-- ✅ Quote request system (3 types)
+- ✅ Quote request system (4 types: Custom Design, Cake Topper, Print Service, Cookie/Clay Cutter)
+- ✅ Quote form loading indicators with timeout safety (Nov 2025)
 - ✅ Email notifications (Afrihost SMTP)
 - ✅ Admin panel (signups, quotes, products)
 - ✅ Admin email customer functionality
