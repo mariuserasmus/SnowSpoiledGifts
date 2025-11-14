@@ -864,6 +864,110 @@ def print_service_request():
     return redirect(url_for('printing_3d') + '#print-service')
 
 
+@app.route('/cutter-request', methods=['POST'])
+def cutter_request():
+    """Handle cookie/clay cutter custom request submissions"""
+    # Get form data
+    name = request.form.get('name')
+    email = request.form.get('email', '').lower().strip()
+    base_product = request.form.get('base_product', '')
+    description = request.form.get('description')
+    size = request.form.get('size', '')
+    cutter_type = request.form.get('cutter_type', '')
+    quantity = request.form.get('quantity', 1)
+    additional_notes = request.form.get('additional_notes', '')
+    ip_address = request.remote_addr
+
+    # Handle file uploads
+    uploaded_files = request.files.getlist('reference_images')
+    file_names = []
+    if uploaded_files:
+        upload_folder = os.path.join('static', 'uploads', 'cutter_references')
+        os.makedirs(upload_folder, exist_ok=True)
+
+        for file in uploaded_files:
+            if file and file.filename:
+                # Sanitize the original filename
+                sanitized_name = sanitize_filename(file.filename)
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = f"{timestamp}_{sanitized_name}"
+                file_path = os.path.join(upload_folder, filename)
+                file.save(file_path)
+                file_names.append(filename)
+
+    reference_images = ','.join(file_names) if file_names else ''
+
+    # Validate required fields
+    if not all([name, email, description]) or not file_names:
+        flash('Please fill in all required fields (name, email, description) and upload at least one reference image.', 'error')
+        return redirect(url_for('printing_3d') + '#cookie-cutters')
+
+    # Prepare service_type for database
+    service_type = f"Cookie/Clay Cutter: {cutter_type}" if cutter_type else "Cookie/Clay Cutter"
+
+    # Format the description to include all details
+    full_description = f"{description}"
+    if base_product:
+        full_description = f"Based on: {base_product}\n\n{full_description}"
+
+    intended_use = f"Cutter Type: {cutter_type}" if cutter_type else ""
+
+    # Add to database using existing quote_requests table
+    success, message = db.add_quote_request(
+        service_type=service_type,
+        name=name,
+        email=email,
+        phone='',
+        preferred_contact='Email',
+        description=full_description,
+        intended_use=intended_use,
+        size=size,
+        quantity=quantity,
+        color='',
+        material='PLA (Food Safe)',
+        budget='',
+        additional_notes=additional_notes,
+        reference_images=reference_images,
+        ip_address=ip_address
+    )
+
+    if success:
+        # Send email notification to admin
+        quote_data = {
+            'service_type': service_type,
+            'name': name,
+            'email': email,
+            'phone': '',
+            'preferred_contact': 'Email',
+            'description': full_description,
+            'intended_use': intended_use,
+            'size': size,
+            'quantity': quantity,
+            'color': '',
+            'material': 'PLA (Food Safe)',
+            'budget': '',
+            'additional_notes': additional_notes,
+            'reference_images': reference_images,
+            'ip_address': ip_address
+        }
+
+        # Send email notification to admin (non-blocking)
+        email_success, email_message = send_quote_notification(app.config, quote_data)
+        if not email_success:
+            print(f"Admin email notification failed: {email_message}")
+
+        # Send confirmation email to customer
+        customer_email_success, customer_email_message = send_customer_confirmation(app.config, quote_data)
+        if not customer_email_success:
+            print(f"Customer confirmation email failed: {customer_email_message}")
+
+        flash('Your custom cutter request has been submitted successfully! We\'ll get back to you within 24-48 hours with a quote.', 'success')
+    else:
+        flash(message, 'error')
+
+    return redirect(url_for('printing_3d') + '#cookie-cutters')
+
+
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
     """Admin login page"""
@@ -1297,22 +1401,35 @@ def admin_delete_user(user_id):
 @app.route('/admin/quotes')
 @admin_required
 def admin_quotes():
-    """Admin page to view all quote requests (Custom Design, Cake Topper, Print Service)"""
-    # Get all three types of requests
-    custom_design_quotes = db.get_all_quote_requests()
+    """Admin page to view all quote requests (Custom Design, Cookie/Clay Cutter, Cake Topper, Print Service)"""
+    # Get all requests from quote_requests table
+    all_quote_requests = db.get_all_quote_requests()
+
+    # Separate Custom Design from Cookie/Clay Cutter quotes based on service_type
+    custom_design_quotes = []
+    cutter_quotes = []
+
+    for quote in all_quote_requests:
+        service_type = quote.get('service_type', '')
+        if service_type.startswith('Cookie/Clay Cutter'):
+            quote['request_type'] = 'Cookie/Clay Cutter'
+            cutter_quotes.append(quote)
+        else:
+            quote['request_type'] = 'Custom Design'
+            custom_design_quotes.append(quote)
+
+    # Get other quote types
     cake_topper_quotes = db.get_all_cake_topper_requests()
     print_service_quotes = db.get_all_print_service_requests()
 
-    # Add type identifier to each quote
-    for quote in custom_design_quotes:
-        quote['request_type'] = 'Custom Design'
+    # Add type identifier to other quote types
     for quote in cake_topper_quotes:
         quote['request_type'] = 'Cake Topper'
     for quote in print_service_quotes:
         quote['request_type'] = 'Print Service'
 
     # Combine all quotes
-    all_quotes = custom_design_quotes + cake_topper_quotes + print_service_quotes
+    all_quotes = custom_design_quotes + cutter_quotes + cake_topper_quotes + print_service_quotes
 
     # Sort by request_date (most recent first)
     all_quotes.sort(key=lambda x: x['request_date'], reverse=True)
@@ -1332,7 +1449,8 @@ def update_quote_status(request_type, quote_id):
     status = request.form.get('status')
 
     # Call the appropriate update method based on request type
-    if request_type == 'custom_design':
+    if request_type == 'custom_design' or request_type == 'cookie_clay_cutter':
+        # Both Custom Design and Cookie/Clay Cutter use the same table
         success, message = db.update_quote_status(quote_id, status)
     elif request_type == 'cake_topper':
         success, message = db.update_cake_topper_status(quote_id, status)
@@ -1355,7 +1473,8 @@ def update_quote_status(request_type, quote_id):
 def delete_quote_request(request_type, quote_id):
     """Delete quote request for any type"""
     # Call the appropriate delete method based on request type
-    if request_type == 'custom_design':
+    if request_type == 'custom_design' or request_type == 'cookie_clay_cutter':
+        # Both Custom Design and Cookie/Clay Cutter use the same table
         success, message = db.delete_quote_request(quote_id)
     elif request_type == 'cake_topper':
         success, message = db.delete_cake_topper_request(quote_id)
@@ -2171,7 +2290,8 @@ def email_customer(request_type, quote_id):
     message = request.form.get('email_message')
 
     # Get quote details based on request type
-    if request_type == 'custom_design':
+    if request_type == 'custom_design' or request_type == 'cookie_clay_cutter':
+        # Both Custom Design and Cookie/Clay Cutter use the same table
         quote_details = db.get_quote_request(quote_id)
     elif request_type == 'cake_topper':
         quote_details = db.get_cake_topper_request(quote_id)

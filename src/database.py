@@ -3282,6 +3282,7 @@ class Database:
             # Get quote details and customer email based on quote type
             table_map = {
                 'custom_design': 'quote_requests',
+                'cookie_clay_cutter': 'quote_requests',  # Same table as custom_design
                 'cake_topper': 'cake_topper_requests',
                 'print_service': 'print_service_requests'
             }
