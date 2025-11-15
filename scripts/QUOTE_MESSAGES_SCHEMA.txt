@@ -1,0 +1,277 @@
+================================================================================
+QUOTE MESSAGING SYSTEM - DATABASE SCHEMA
+================================================================================
+
+Date: 2025-11-14
+Database: c:\Claude\SSG\database\signups.db
+Author: SQLite Database Specialist
+
+================================================================================
+NEW TABLE: quote_messages
+================================================================================
+
++-------------------------+-------------+-----------+-------------------------+
+| Column                  | Type        | Null      | Default                 |
++-------------------------+-------------+-----------+-------------------------+
+| id                      | INTEGER     | NOT NULL  | (auto increment)        |
+| quote_type              | TEXT        | NOT NULL  | -                       |
+| quote_id                | INTEGER     | NOT NULL  | -                       |
+| message_text            | TEXT        | NOT NULL  | -                       |
+| sender                  | TEXT        | NOT NULL  | 'admin'                 |
+| quoted_price_per_item   | REAL        | NULL      | -                       |
+| quoted_total            | REAL        | NULL      | -                       |
+| attached_image          | TEXT        | NULL      | -                       |
+| message_type            | TEXT        | NULL      | 'admin_message'         |
+| created_at              | TIMESTAMP   | NULL      | CURRENT_TIMESTAMP       |
++-------------------------+-------------+-----------+-------------------------+
+
+INDEXES:
+  - idx_quote_messages_quote (quote_type, quote_id)
+  - idx_quote_messages_created (created_at)
+  - idx_quote_messages_type (message_type)
+
+FOREIGN KEY:
+  - quote_id references quote_requests(id) [or cake_topper_requests(id) or print_service_requests(id)]
+    (enforced by application logic, not database constraint)
+
+CONSTRAINTS:
+  - PRIMARY KEY (id)
+  - quote_type must be one of: 'quote_requests', 'cake_topper_requests', 'print_service_requests'
+  - message_type typically: 'admin_message', 'quote_sent', 'status_update'
+
+================================================================================
+MODIFIED TABLE: quote_requests
+================================================================================
+
+ADDED COLUMNS:
++-------------------------+-------------+-----------+-------------------------+
+| Column                  | Type        | Null      | Default                 |
++-------------------------+-------------+-----------+-------------------------+
+| quoted_price_per_item   | REAL        | NULL      | -                       |
+| quoted_total            | REAL        | NULL      | -                       |
+| quoted_date             | TIMESTAMP   | NULL      | -                       |
++-------------------------+-------------+-----------+-------------------------+
+
+EXISTING COLUMNS (relevant):
+  - id (INTEGER, PRIMARY KEY)
+  - service_type (TEXT)
+  - name (TEXT)
+  - email (TEXT)
+  - description (TEXT)
+  - quantity (INTEGER)
+  - status (TEXT, default 'pending')
+  - request_date (TIMESTAMP)
+  - user_id (INTEGER)
+
+================================================================================
+MODIFIED TABLE: cake_topper_requests
+================================================================================
+
+ADDED COLUMNS:
++-------------------------+-------------+-----------+-------------------------+
+| Column                  | Type        | Null      | Default                 |
++-------------------------+-------------+-----------+-------------------------+
+| quoted_price_per_item   | REAL        | NULL      | -                       |
+| quoted_total            | REAL        | NULL      | -                       |
+| quoted_date             | TIMESTAMP   | NULL      | -                       |
++-------------------------+-------------+-----------+-------------------------+
+
+EXISTING COLUMNS (relevant):
+  - id (INTEGER, PRIMARY KEY)
+  - name (TEXT)
+  - email (TEXT)
+  - occasion (TEXT)
+  - design_details (TEXT)
+  - status (TEXT, default 'pending')
+  - request_date (TIMESTAMP)
+  - user_id (INTEGER)
+
+================================================================================
+MODIFIED TABLE: print_service_requests
+================================================================================
+
+ADDED COLUMNS:
++-------------------------+-------------+-----------+-------------------------+
+| Column                  | Type        | Null      | Default                 |
++-------------------------+-------------+-----------+-------------------------+
+| quoted_price_per_item   | REAL        | NULL      | -                       |
+| quoted_total            | REAL        | NULL      | -                       |
+| quoted_date             | TIMESTAMP   | NULL      | -                       |
++-------------------------+-------------+-----------+-------------------------+
+
+EXISTING COLUMNS (relevant):
+  - id (INTEGER, PRIMARY KEY)
+  - name (TEXT)
+  - email (TEXT)
+  - uploaded_files (TEXT)
+  - material (TEXT)
+  - color (TEXT)
+  - quantity (INTEGER)
+  - status (TEXT, default 'pending')
+  - request_date (TIMESTAMP)
+  - user_id (INTEGER)
+
+================================================================================
+RELATIONSHIPS
+================================================================================
+
+┌─────────────────────────┐
+│   quote_requests        │
+│  ─────────────────────  │
+│  id (PK)                │◄─────┐
+│  name                   │      │
+│  email                  │      │
+│  description            │      │
+│  quantity               │      │
+│  status                 │      │
+│  quoted_price_per_item  │      │  1:N relationship
+│  quoted_total           │      │  (one quote has many messages)
+│  quoted_date            │      │
+└─────────────────────────┘      │
+                                 │
+┌─────────────────────────┐      │
+│ cake_topper_requests    │      │
+│  ─────────────────────  │      │
+│  id (PK)                │◄─────┤
+│  name                   │      │
+│  occasion               │      │
+│  design_details         │      │
+│  status                 │      │
+│  quoted_price_per_item  │      │
+│  quoted_total           │      │
+│  quoted_date            │      │
+└─────────────────────────┘      │
+                                 │
+┌─────────────────────────┐      │
+│ print_service_requests  │      │
+│  ─────────────────────  │      │
+│  id (PK)                │◄─────┤
+│  name                   │      │
+│  uploaded_files         │      │
+│  material               │      │
+│  quantity               │      │
+│  status                 │      │
+│  quoted_price_per_item  │      │
+│  quoted_total           │      │
+│  quoted_date            │      │
+└─────────────────────────┘      │
+                                 │
+                                 │
+┌─────────────────────────────┐  │
+│    quote_messages           │  │
+│  ───────────────────────    │  │
+│  id (PK)                    │  │
+│  quote_type ───────────────────┘
+│  quote_id (FK)              │
+│  message_text               │
+│  sender                     │
+│  quoted_price_per_item      │
+│  quoted_total               │
+│  attached_image             │
+│  message_type               │
+│  created_at                 │
+└─────────────────────────────┘
+
+================================================================================
+DATA FLOW: Sending a Quote
+================================================================================
+
+1. Admin adds a quote message:
+   ┌─────────────────────────────────────────────┐
+   │ db.add_quote_message(                       │
+   │   quote_type='quote_requests',              │
+   │   quote_id=123,                             │
+   │   message_text='Quote: R150',               │
+   │   quoted_price_per_item=150.00,             │
+   │   quoted_total=150.00,                      │
+   │   message_type='quote_sent'                 │
+   │ )                                           │
+   └─────────────────────────────────────────────┘
+                     │
+                     ▼
+   ┌─────────────────────────────────────────────┐
+   │ INSERT INTO quote_messages                  │
+   │   (quote_type, quote_id, message_text, ...) │
+   │   VALUES (...)                              │
+   └─────────────────────────────────────────────┘
+                     │
+                     ▼
+   ┌─────────────────────────────────────────────┐
+   │ UPDATE quote_requests                       │
+   │   SET quoted_price_per_item = 150.00,       │
+   │       quoted_total = 150.00,                │
+   │       quoted_date = CURRENT_TIMESTAMP       │
+   │   WHERE id = 123                            │
+   └─────────────────────────────────────────────┘
+                     │
+                     ▼
+              ┌────────────┐
+              │  SUCCESS   │
+              └────────────┘
+
+================================================================================
+DATA FLOW: Retrieving Messages
+================================================================================
+
+1. Get all messages for a quote:
+   ┌─────────────────────────────────────────────┐
+   │ messages = db.get_quote_messages(           │
+   │   'quote_requests', 123                     │
+   │ )                                           │
+   └─────────────────────────────────────────────┘
+                     │
+                     ▼
+   ┌─────────────────────────────────────────────┐
+   │ SELECT * FROM quote_messages                │
+   │ WHERE quote_type = 'quote_requests'         │
+   │   AND quote_id = 123                        │
+   │ ORDER BY created_at ASC                     │
+   └─────────────────────────────────────────────┘
+                     │
+                     ▼
+              ┌────────────┐
+              │ List[dict] │
+              └────────────┘
+
+================================================================================
+INDEXES AND PERFORMANCE
+================================================================================
+
+QUERY TYPE                          INDEX USED                    COMPLEXITY
+─────────────────────────────────────────────────────────────────────────────
+Get messages by quote               idx_quote_messages_quote      O(log n)
+Order messages by date              idx_quote_messages_created    O(log n)
+Filter by message type              idx_quote_messages_type       O(log n)
+Get quotes with pricing             (quote table PK)              O(1)
+Insert new message                  (index maintenance)           O(log n)
+
+================================================================================
+STORAGE ESTIMATES
+================================================================================
+
+Assuming average message size: 200 characters
+Average messages per quote: 3
+
+quote_messages row size:
+  - Fixed fields: ~100 bytes
+  - message_text: ~200 bytes
+  - Total per message: ~300 bytes
+
+For 1000 quotes with 3 messages each:
+  - Total messages: 3,000
+  - Total storage: ~900 KB
+  - With indexes: ~1.2 MB
+
+================================================================================
+SECURITY NOTES
+================================================================================
+
+1. All database methods use parameterized queries (SQL injection protection)
+2. quote_type validated against whitelist before any database operations
+3. Quote existence verified before adding messages
+4. All write operations use transactions with rollback on error
+5. Connection cleanup in finally blocks to prevent leaks
+
+================================================================================
+END OF SCHEMA DOCUMENTATION
+================================================================================
