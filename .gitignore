@@ -34,3 +34,12 @@ Thumbs.db
 
 # Logs
 *.log
+
+# User Uploads (don't commit user data)
+static/uploads/
+static/invoices/
+
+# Local Development
+.claude/
+.github/
+test_*.py
