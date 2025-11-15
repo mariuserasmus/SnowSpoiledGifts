@@ -4,7 +4,7 @@ from functools import wraps
 from src.config import Config
 from src.database import Database
 from src.forms import EmailSignupForm, RegistrationForm, LoginForm, EditProfileForm, CheckoutForm, ChangePasswordForm
-from src.email_utils import send_quote_notification, send_customer_confirmation, send_signup_confirmation, send_cake_topper_notification, send_print_service_notification, send_admin_reply_to_customer, send_order_confirmation
+from src.email_utils import send_quote_notification, send_customer_confirmation, send_signup_confirmation, send_cake_topper_notification, send_print_service_notification, send_admin_reply_to_customer, send_order_confirmation, send_quote_to_customer
 from scripts.version_check import get_version_info
 from datetime import datetime
 from werkzeug.utils import secure_filename
@@ -217,6 +217,10 @@ def register():
 
     form = RegistrationForm()
 
+    # Pre-populate email from quote request if available
+    if request.method == 'GET' and 'pending_quote_email' in session:
+        form.email.data = session['pending_quote_email']
+
     if form.validate_on_submit():
         name = form.name.data
         email = form.email.data
@@ -259,6 +263,10 @@ def login():
         return redirect(url_for('index'))
 
     form = LoginForm()
+
+    # Pre-populate email from quote request if available
+    if request.method == 'GET' and 'pending_quote_email' in session:
+        form.email.data = session['pending_quote_email']
 
     if form.validate_on_submit():
         email = form.email.data
@@ -341,13 +349,98 @@ def account():
 @login_required
 def orders_quotes():
     """User orders and quotes tracking page"""
+    from datetime import datetime, timedelta
+    import pytz
+
+    # Get date filter parameter (default to 30days)
+    date_filter = request.args.get('date_filter', '30days')
+
     # Get user's orders
     orders = db.get_user_orders(current_user.id)
 
-    # Get user's quotes
-    quotes = db.get_user_quotes(current_user.email)
+    # Get user's quotes (queries by user_id AND email to capture anonymous quotes)
+    quotes = db.get_user_quotes(current_user.id, current_user.email)
 
-    return render_template('orders_quotes.html', orders=orders, quotes=quotes, config=app.config)
+    # Convert dates to South African time (GMT+2)
+    sa_tz = pytz.timezone('Africa/Johannesburg')
+    utc_tz = pytz.UTC
+
+    def convert_to_sa_time(date_str):
+        """Convert UTC datetime string to South African time"""
+        if not date_str:
+            return date_str
+        try:
+            for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d']:
+                try:
+                    dt = datetime.strptime(date_str, fmt)
+                    # Assume UTC if no timezone info
+                    dt_utc = utc_tz.localize(dt)
+                    dt_sa = dt_utc.astimezone(sa_tz)
+                    return dt_sa.strftime('%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    continue
+        except:
+            pass
+        return date_str
+
+    # Convert order dates
+    for order in orders:
+        if 'created_date' in order:
+            order['created_date'] = convert_to_sa_time(order['created_date'])
+
+    # Convert quote dates
+    for quote in quotes:
+        if 'request_date' in quote:
+            quote['request_date'] = convert_to_sa_time(quote['request_date'])
+
+    # Filter by date range
+    if date_filter != 'all':
+        current_date = datetime.now()
+
+        if date_filter == '30days':
+            cutoff_date = current_date - timedelta(days=30)
+        elif date_filter == 'year':
+            cutoff_date = current_date - timedelta(days=365)
+        else:
+            cutoff_date = None
+
+        if cutoff_date:
+            # Helper function to parse dates with multiple format attempts
+            def parse_date(date_str):
+                if not date_str:
+                    return None
+                for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d']:
+                    try:
+                        return datetime.strptime(date_str, fmt)
+                    except (ValueError, TypeError):
+                        continue
+                return None
+
+            # Filter orders by created_date
+            filtered_orders = []
+            for order in orders:
+                order_date = parse_date(order.get('created_date'))
+                if order_date and order_date >= cutoff_date:
+                    filtered_orders.append(order)
+                elif not order_date:
+                    # If date parsing fails, include the order to be safe
+                    filtered_orders.append(order)
+            orders = filtered_orders
+
+            # Filter quotes by request_date
+            filtered_quotes = []
+            for quote in quotes:
+                # Handle different date field names
+                date_str = quote.get('request_date') or quote.get('created_date')
+                quote_date = parse_date(date_str)
+                if quote_date and quote_date >= cutoff_date:
+                    filtered_quotes.append(quote)
+                elif not quote_date:
+                    # If date parsing fails, include the quote to be safe
+                    filtered_quotes.append(quote)
+            quotes = filtered_quotes
+
+    return render_template('orders_quotes.html', orders=orders, quotes=quotes, date_filter=date_filter, config=app.config)
 
 
 @app.route('/change-password', methods=['POST'])
@@ -376,25 +469,240 @@ def change_password():
     return redirect(url_for('account'))
 
 
-@app.route('/quote/delete/<int:quote_id>', methods=['POST'])
+@app.route('/quote/delete/<string:quote_type>/<int:quote_id>', methods=['POST'])
 @login_required
-def delete_quote(quote_id):
+def delete_quote(quote_type, quote_id):
     """Delete a quote request (user can only delete their own quotes)"""
     try:
         # Get the quote to verify ownership
-        quote = db.get_quote_request(quote_id)
+        quote = None
+        if quote_type == 'quote_requests':
+            quote = db.get_quote_request(quote_id)
+        elif quote_type == 'cake_topper_requests':
+            quote = db.get_cake_topper_request(quote_id)
+        elif quote_type == 'print_service_requests':
+            quote = db.get_print_service_request(quote_id)
 
         if not quote:
             return jsonify({'success': False, 'message': 'Quote not found'}), 404
 
-        # Verify the quote belongs to the current user
-        if quote['email'] != current_user.email:
+        # Verify the quote belongs to the current user (case-insensitive)
+        if quote['email'].lower() != current_user.email.lower():
             return jsonify({'success': False, 'message': 'Unauthorized'}), 403
 
-        # Delete the quote
-        success, message = db.delete_quote_request(quote_id)
+        # Delete the quote from the appropriate table
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(f'DELETE FROM {quote_type} WHERE id = ?', (quote_id,))
+        conn.commit()
+        conn.close()
 
-        return jsonify({'success': success, 'message': message})
+        return jsonify({'success': True, 'message': 'Quote deleted successfully'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/quote/messages/<string:quote_type>/<int:quote_id>', methods=['GET'])
+@login_required
+def get_quote_messages_route(quote_type, quote_id):
+    """Get all messages for a specific quote"""
+    try:
+        from datetime import datetime
+        import pytz
+
+        # Get the quote to verify ownership
+        quote_details = None
+        quote_status = None
+
+        if quote_type == 'quote_requests':
+            quote_details = db.get_quote_request(quote_id)
+        elif quote_type == 'cake_topper_requests':
+            quote_details = db.get_cake_topper_request(quote_id)
+        elif quote_type == 'print_service_requests':
+            quote_details = db.get_print_service_request(quote_id)
+
+        if not quote_details:
+            return jsonify({'success': False, 'message': 'Quote not found'}), 404
+
+        # Verify the quote belongs to the current user (case-insensitive)
+        quote_email = quote_details['email'] if 'email' in quote_details.keys() else ''
+        if quote_email.lower() != current_user.email.lower():
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+        # Get quote status
+        quote_status = quote_details['status'] if 'status' in quote_details.keys() else 'pending'
+
+        # Get messages
+        messages = db.get_quote_messages(quote_type, quote_id)
+
+        # Convert message timestamps to South African time
+        sa_tz = pytz.timezone('Africa/Johannesburg')
+        utc_tz = pytz.UTC
+
+        for msg in messages:
+            if 'created_at' in msg and msg['created_at']:
+                try:
+                    for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M:%S.%f']:
+                        try:
+                            dt = datetime.strptime(msg['created_at'], fmt)
+                            dt_utc = utc_tz.localize(dt)
+                            dt_sa = dt_utc.astimezone(sa_tz)
+                            msg['created_at'] = dt_sa.strftime('%Y-%m-%d %H:%M:%S')
+                            break
+                        except ValueError:
+                            continue
+                except:
+                    pass
+
+        return jsonify({
+            'success': True,
+            'messages': messages,
+            'quote_status': quote_status
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/quote/accept/<string:quote_type>/<int:quote_id>', methods=['POST'])
+@login_required
+def accept_quote_route(quote_type, quote_id):
+    """Accept a quote and add to cart (customer-facing version)"""
+    try:
+        # Get the quote to verify ownership and get details
+        quote_details = None
+
+        if quote_type == 'quote_requests':
+            quote_details = db.get_quote_request(quote_id)
+        elif quote_type == 'cake_topper_requests':
+            quote_details = db.get_cake_topper_request(quote_id)
+        elif quote_type == 'print_service_requests':
+            quote_details = db.get_print_service_request(quote_id)
+
+        if not quote_details:
+            return jsonify({'success': False, 'message': 'Quote not found'}), 404
+
+        # Verify the quote belongs to the current user (case-insensitive)
+        quote_email = quote_details['email'] if 'email' in quote_details.keys() else ''
+        if quote_email.lower() != current_user.email.lower():
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+        # Check if quote is in 'quoted' status
+        quote_status = quote_details['status'] if 'status' in quote_details.keys() else ''
+        if quote_status != 'quoted':
+            return jsonify({'success': False, 'message': 'Quote must be in quoted status to accept'}), 400
+
+        # Get the latest quoted pricing from messages
+        messages = db.get_quote_messages(quote_type, quote_id)
+        quoted_total = None
+        quoted_price_per_item = None
+        item_name = None
+        item_description = None
+
+        # Find the latest message with pricing
+        for msg in reversed(messages):
+            msg_total = msg['quoted_total'] if 'quoted_total' in msg.keys() else None
+            if msg_total and msg_total > 0:
+                quoted_total = msg_total
+                quoted_price_per_item = msg['quoted_price_per_item'] if 'quoted_price_per_item' in msg.keys() else quoted_total
+                break
+
+        if not quoted_total:
+            return jsonify({'success': False, 'message': 'No pricing found for this quote'}), 400
+
+        # Build item name, description, and get quantity from quote details
+        # Handle sqlite3.Row object - use bracket notation with defaults
+        try:
+            quantity = quote_details['quantity'] if quote_details['quantity'] else 1
+        except (KeyError, IndexError):
+            quantity = 1
+
+        if quote_type == 'quote_requests':
+            service_type = quote_details['service_type'] if 'service_type' in quote_details.keys() else 'Design'
+            description = quote_details['description'] if 'description' in quote_details.keys() else 'Custom quote item'
+
+            item_name = f"Custom {service_type}"
+            item_description = description
+            # Determine if it's custom_design or cookie_clay_cutter
+            convert_quote_type = 'cookie_clay_cutter' if 'Cookie' in service_type or 'Clay' in service_type else 'custom_design'
+        elif quote_type == 'cake_topper_requests':
+            occasion = quote_details['occasion'] if 'occasion' in quote_details.keys() else 'Custom'
+            design_details = quote_details['design_details'] if 'design_details' in quote_details.keys() else 'Custom cake topper'
+
+            item_name = f"Cake Topper - {occasion}"
+            item_description = design_details
+            convert_quote_type = 'cake_topper'
+        elif quote_type == 'print_service_requests':
+            special_instructions = quote_details['special_instructions'] if 'special_instructions' in quote_details.keys() else 'Custom 3D print'
+
+            item_name = "3D Print Service"
+            item_description = special_instructions
+            convert_quote_type = 'print_service'
+
+        # Convert quote to sale using existing function
+        success, message, result_data = db.convert_quote_to_sale(
+            convert_quote_type,  # Use the mapped type, not the table name
+            quote_id,
+            item_name,
+            quoted_price_per_item,  # Use price per item, not total
+            item_description,
+            quantity  # Pass the quantity from quote
+        )
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Quote accepted! Item added to your cart.',
+                'cart_item_id': result_data.get('item_id')
+            })
+        else:
+            return jsonify({'success': False, 'message': message}), 400
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/quote/reject/<string:quote_type>/<int:quote_id>', methods=['POST'])
+@login_required
+def reject_quote_route(quote_type, quote_id):
+    """Reject a quote (customer-facing version)"""
+    try:
+        # Get the quote to verify ownership
+        quote_details = None
+
+        if quote_type == 'quote_requests':
+            quote_details = db.get_quote_request(quote_id)
+        elif quote_type == 'cake_topper_requests':
+            quote_details = db.get_cake_topper_request(quote_id)
+        elif quote_type == 'print_service_requests':
+            quote_details = db.get_print_service_request(quote_id)
+
+        if not quote_details:
+            return jsonify({'success': False, 'message': 'Quote not found'}), 404
+
+        # Verify the quote belongs to the current user (case-insensitive)
+        quote_email = quote_details['email'] if 'email' in quote_details.keys() else ''
+        if quote_email.lower() != current_user.email.lower():
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+        # Update quote status to 'cancelled'
+        conn = db.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(f'''
+            UPDATE {quote_type}
+            SET status = 'cancelled'
+            WHERE id = ?
+        ''', (quote_id,))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': 'Quote has been rejected and marked as cancelled.'
+        })
 
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -406,17 +714,27 @@ def upload_quote_photos():
     """Upload photos for a quote request"""
     try:
         quote_id = request.form.get('quote_id')
+        quote_type = request.form.get('quote_type')
+
         if not quote_id:
             return jsonify({'success': False, 'message': 'Quote ID is required'}), 400
+        if not quote_type:
+            return jsonify({'success': False, 'message': 'Quote type is required'}), 400
 
         # Get the quote to verify ownership
-        quote = db.get_quote_request(int(quote_id))
+        quote = None
+        if quote_type == 'quote_requests':
+            quote = db.get_quote_request(int(quote_id))
+        elif quote_type == 'cake_topper_requests':
+            quote = db.get_cake_topper_request(int(quote_id))
+        elif quote_type == 'print_service_requests':
+            quote = db.get_print_service_request(int(quote_id))
 
         if not quote:
             return jsonify({'success': False, 'message': 'Quote not found'}), 404
 
-        # Verify the quote belongs to the current user
-        if quote['email'] != current_user.email:
+        # Verify the quote belongs to the current user (case-insensitive)
+        if quote['email'].lower() != current_user.email.lower():
             return jsonify({'success': False, 'message': 'Unauthorized'}), 403
 
         # Get uploaded files
@@ -455,11 +773,11 @@ def upload_quote_photos():
         else:
             all_images = ','.join(saved_files)
 
-        # Update the quote in database
+        # Update the quote in the appropriate table
         conn = db.get_connection()
         cursor = conn.cursor()
-        cursor.execute('''
-            UPDATE quote_requests
+        cursor.execute(f'''
+            UPDATE {quote_type}
             SET reference_images = ?
             WHERE id = ?
         ''', (all_images, quote_id))
@@ -643,6 +961,9 @@ def quote_request():
     additional_notes = request.form.get('additional_notes', '')
     ip_address = request.remote_addr
 
+    # Get user_id if logged in, otherwise NULL (allows anonymous quotes)
+    user_id = current_user.id if current_user.is_authenticated else None
+
     # Handle file uploads (store filenames for now)
     uploaded_files = request.files.getlist('reference_images')
     file_names = []
@@ -669,11 +990,11 @@ def quote_request():
         flash('Please fill in all required fields.', 'error')
         return redirect(url_for('printing_3d') + '#custom-design')
 
-    # Add to database
+    # Add to database with user_id
     success, message = db.add_quote_request(
         service_type, name, email, phone, preferred_contact,
         description, intended_use, size, quantity, color, material,
-        budget, additional_notes, reference_images, ip_address
+        budget, additional_notes, reference_images, ip_address, user_id
     )
 
     if success:
@@ -706,11 +1027,18 @@ def quote_request():
         if not customer_email_success:
             print(f"Customer confirmation email failed: {customer_email_message}")
 
-        flash('Your quote request has been submitted successfully! We\'ll get back to you within 24-48 hours.', 'success')
+        # Different message and redirect based on login status
+        if current_user.is_authenticated:
+            flash('Your quote request has been submitted successfully! We\'ll get back to you within 24-48 hours.', 'success')
+            return redirect(url_for('orders_quotes') + '#quotes')
+        else:
+            # Show success modal for anonymous users
+            return render_template('quote_success.html',
+                                 quote_type='Custom Design Quote',
+                                 config=app.config)
     else:
         flash(message, 'error')
-
-    return redirect(url_for('printing_3d') + '#custom-design')
+        return redirect(url_for('printing_3d') + '#custom-design')
 
 
 @app.route('/cake-topper-request', methods=['POST'])
@@ -729,6 +1057,9 @@ def cake_topper_request():
     stand_type = request.form.get('stand_type', '')
     additional_notes = request.form.get('additional_notes', '')
     ip_address = request.remote_addr
+
+    # Get user_id if logged in, otherwise NULL (allows anonymous quotes)
+    user_id = current_user.id if current_user.is_authenticated else None
 
     # Handle file uploads
     uploaded_files = request.files.getlist('reference_images')
@@ -754,11 +1085,11 @@ def cake_topper_request():
         flash('Please fill in all required fields.', 'error')
         return redirect(url_for('printing_3d') + '#cake-toppers')
 
-    # Add to database
+    # Add to database with user_id
     success, message = db.add_cake_topper_request(
         name, email, phone, event_date, occasion, size_preference,
         text_to_include, design_details, color_preferences, stand_type,
-        reference_images, additional_notes, ip_address
+        reference_images, additional_notes, ip_address, user_id
     )
 
     if success:
@@ -784,11 +1115,18 @@ def cake_topper_request():
         if not email_success:
             print(f"Admin email notification failed: {email_message}")
 
-        flash('Your cake topper request has been submitted successfully! We\'ll send you a quote within 24-48 hours.', 'success')
+        # Different message and redirect based on login status
+        if current_user.is_authenticated:
+            flash('Your cake topper request has been submitted successfully! We\'ll send you a quote within 24-48 hours.', 'success')
+            return redirect(url_for('orders_quotes') + '#quotes')
+        else:
+            # Show success modal for anonymous users
+            return render_template('quote_success.html',
+                                 quote_type='Cake Topper Quote',
+                                 config=app.config)
     else:
         flash(message, 'error')
-
-    return redirect(url_for('printing_3d') + '#cake-toppers')
+        return redirect(url_for('printing_3d') + '#cake-toppers')
 
 
 @app.route('/print-service-request', methods=['POST'])
@@ -805,6 +1143,9 @@ def print_service_request():
     supports = request.form.get('supports', 'Automatic (Recommended)')
     special_instructions = request.form.get('special_instructions', '')
     ip_address = request.remote_addr
+
+    # Get user_id if logged in, otherwise NULL (allows anonymous quotes)
+    user_id = current_user.id if current_user.is_authenticated else None
 
     # Handle 3D file uploads
     uploaded_files = request.files.getlist('print_files')
@@ -830,10 +1171,10 @@ def print_service_request():
         flash('Please fill in all required fields and upload at least one 3D file.', 'error')
         return redirect(url_for('printing_3d') + '#print-service')
 
-    # Add to database
+    # Add to database with user_id
     success, message = db.add_print_service_request(
         name, email, uploaded_files_str, material, color, layer_height,
-        infill_density, quantity, supports, special_instructions, ip_address
+        infill_density, quantity, supports, special_instructions, ip_address, user_id
     )
 
     if success:
@@ -857,11 +1198,18 @@ def print_service_request():
         if not email_success:
             print(f"Admin email notification failed: {email_message}")
 
-        flash('Your 3D print service request has been submitted successfully! You\'ll receive a confirmation email with quote and payment instructions.', 'success')
+        # Different message and redirect based on login status
+        if current_user.is_authenticated:
+            flash('Your 3D print service request has been submitted successfully! You\'ll receive a confirmation email with quote and payment instructions.', 'success')
+            return redirect(url_for('orders_quotes') + '#quotes')
+        else:
+            # Show success modal for anonymous users
+            return render_template('quote_success.html',
+                                 quote_type='3D Print Service Quote',
+                                 config=app.config)
     else:
         flash(message, 'error')
-
-    return redirect(url_for('printing_3d') + '#print-service')
+        return redirect(url_for('printing_3d') + '#print-service')
 
 
 @app.route('/cutter-request', methods=['POST'])
@@ -877,6 +1225,9 @@ def cutter_request():
     quantity = request.form.get('quantity', 1)
     additional_notes = request.form.get('additional_notes', '')
     ip_address = request.remote_addr
+
+    # Get user_id if logged in, otherwise NULL (allows anonymous quotes)
+    user_id = current_user.id if current_user.is_authenticated else None
 
     # Handle file uploads
     uploaded_files = request.files.getlist('reference_images')
@@ -912,7 +1263,7 @@ def cutter_request():
 
     intended_use = f"Cutter Type: {cutter_type}" if cutter_type else ""
 
-    # Add to database using existing quote_requests table
+    # Add to database using existing quote_requests table with user_id
     success, message = db.add_quote_request(
         service_type=service_type,
         name=name,
@@ -928,7 +1279,8 @@ def cutter_request():
         budget='',
         additional_notes=additional_notes,
         reference_images=reference_images,
-        ip_address=ip_address
+        ip_address=ip_address,
+        user_id=user_id
     )
 
     if success:
@@ -961,11 +1313,18 @@ def cutter_request():
         if not customer_email_success:
             print(f"Customer confirmation email failed: {customer_email_message}")
 
-        flash('Your custom cutter request has been submitted successfully! We\'ll get back to you within 24-48 hours with a quote.', 'success')
+        # Different message and redirect based on login status
+        if current_user.is_authenticated:
+            flash('Your custom cutter request has been submitted successfully! We\'ll get back to you within 24-48 hours with a quote.', 'success')
+            return redirect(url_for('orders_quotes') + '#quotes')
+        else:
+            # Show success modal for anonymous users
+            return render_template('quote_success.html',
+                                 quote_type='Cookie/Clay Cutter Quote',
+                                 config=app.config)
     else:
         flash(message, 'error')
-
-    return redirect(url_for('printing_3d') + '#cookie-cutters')
+        return redirect(url_for('printing_3d') + '#cookie-cutters')
 
 
 @app.route('/admin/login', methods=['GET', 'POST'])
@@ -1448,6 +1807,34 @@ def update_quote_status(request_type, quote_id):
     """Update quote request status for any type"""
     status = request.form.get('status')
 
+    # If status is being changed to "quoted", intercept and show modal
+    if status == 'quoted':
+        # Get quote details to pass to modal
+        quote = None
+        if request_type == 'custom_design' or request_type == 'cookie_clay_cutter':
+            all_quotes = db.get_all_quote_requests()
+            quote = next((q for q in all_quotes if q['id'] == quote_id), None)
+        elif request_type == 'cake_topper':
+            all_quotes = db.get_all_cake_topper_requests()
+            quote = next((q for q in all_quotes if q['id'] == quote_id), None)
+        elif request_type == 'print_service':
+            all_quotes = db.get_all_print_service_requests()
+            quote = next((q for q in all_quotes if q['id'] == quote_id), None)
+
+        if quote:
+            quantity = quote.get('quantity', 1)
+            return jsonify({
+                'show_quote_modal': True,
+                'quote_id': quote_id,
+                'quote_type': request_type,
+                'quantity': quantity
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Quote not found'
+            }), 404
+
     # Call the appropriate update method based on request type
     if request_type == 'custom_design' or request_type == 'cookie_clay_cutter':
         # Both Custom Design and Cookie/Clay Cutter use the same table
@@ -1490,6 +1877,128 @@ def delete_quote_request(request_type, quote_id):
         flash(message, 'error')
 
     return redirect(url_for('admin_quotes'))
+
+
+@app.route('/admin/quotes/send-quote/<string:request_type>/<int:quote_id>', methods=['POST'])
+@admin_required
+def send_quote(request_type, quote_id):
+    """Send quote with pricing to customer"""
+    try:
+        # Get form data
+        price_per_item = float(request.form.get('price_per_item', 0))
+        quantity = int(request.form.get('quantity', 1))
+        message = request.form.get('message', '').strip()
+
+        # Validate required fields
+        if not message:
+            return jsonify({'success': False, 'message': 'Message is required'}), 400
+        if price_per_item <= 0:
+            return jsonify({'success': False, 'message': 'Price must be greater than 0'}), 400
+
+        # Calculate total
+        total = price_per_item * quantity
+
+        # Handle optional image upload
+        image_filename = None
+        if 'quote_image' in request.files:
+            file = request.files['quote_image']
+            if file and file.filename and allowed_file(file.filename):
+                # Create upload directory if it doesn't exist
+                upload_dir = os.path.join('static', 'uploads', 'quote_messages')
+                os.makedirs(upload_dir, exist_ok=True)
+
+                # Generate unique filename
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                original_filename = secure_filename(file.filename)
+                sanitized_filename = sanitize_filename(original_filename)
+                image_filename = f"{timestamp}_{sanitized_filename}"
+
+                # Save file
+                file_path = os.path.join(upload_dir, image_filename)
+                file.save(file_path)
+
+        # Map request_type to quote_type for database
+        quote_type_map = {
+            'custom_design': 'quote_requests',
+            'cookie_clay_cutter': 'quote_requests',
+            'cake_topper': 'cake_topper_requests',
+            'print_service': 'print_service_requests'
+        }
+
+        quote_type = quote_type_map.get(request_type)
+        if not quote_type:
+            return jsonify({'success': False, 'message': 'Invalid request type'}), 400
+
+        # Add quote message with pricing
+        success, msg, message_id = db.add_quote_message(
+            quote_type=quote_type,
+            quote_id=quote_id,
+            message_text=message,
+            sender='admin',
+            quoted_price_per_item=price_per_item,
+            quoted_total=total,
+            attached_image=image_filename,
+            message_type='quote_sent'
+        )
+
+        if not success:
+            return jsonify({'success': False, 'message': msg}), 500
+
+        # Update quote status to 'quoted'
+        if request_type in ['custom_design', 'cookie_clay_cutter']:
+            db.update_quote_status(quote_id, 'quoted')
+        elif request_type == 'cake_topper':
+            db.update_cake_topper_status(quote_id, 'quoted')
+        elif request_type == 'print_service':
+            db.update_print_service_status(quote_id, 'quoted')
+
+        # Get quote details for email
+        quote = None
+        if request_type in ['custom_design', 'cookie_clay_cutter']:
+            quotes = db.get_all_quote_requests()
+            quote = next((q for q in quotes if q['id'] == quote_id), None)
+        elif request_type == 'cake_topper':
+            quotes = db.get_all_cake_topper_requests()
+            quote = next((q for q in quotes if q['id'] == quote_id), None)
+        elif request_type == 'print_service':
+            quotes = db.get_all_print_service_requests()
+            quote = next((q for q in quotes if q['id'] == quote_id), None)
+
+        # Send email to customer
+        if quote:
+            # Determine quote type name
+            quote_type_name = {
+                'custom_design': 'Custom Design Quote',
+                'cookie_clay_cutter': 'Cookie/Clay Cutter Quote',
+                'cake_topper': 'Cake Topper Quote',
+                'print_service': '3D Print Service Quote'
+            }.get(request_type, 'Quote')
+
+            quote_email_data = {
+                'customer_name': quote['name'],
+                'customer_email': quote['email'],
+                'quote_type': quote_type_name,
+                'price_per_item': price_per_item,
+                'quantity': quantity,
+                'total_price': total,
+                'admin_message': message,
+                'attached_image': f'quote_messages/{image_filename}' if image_filename else None
+            }
+
+            # Send email (non-blocking, don't fail if email fails)
+            email_success, email_message = send_quote_to_customer(app.config, quote_email_data)
+            if not email_success:
+                print(f"Quote email failed: {email_message}")
+
+        return jsonify({
+            'success': True,
+            'message': 'Quote sent successfully!'
+        })
+
+    except ValueError as e:
+        return jsonify({'success': False, 'message': 'Invalid price or quantity format'}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'An error occurred: {str(e)}'}), 500
 
 
 @app.route('/admin/export-csv')
@@ -2307,13 +2816,20 @@ def email_customer(request_type, quote_id):
 
     # Handle file attachments
     attachments = []
+    saved_image_filename = None  # For timeline display
     uploaded_files = request.files.getlist('email_attachments')
+
     if uploaded_files:
+        # Create upload directory for quote messages if it doesn't exist
+        upload_dir = os.path.join('static', 'uploads', 'quote_messages')
+        os.makedirs(upload_dir, exist_ok=True)
+
         for file in uploaded_files:
             if file and file.filename:
                 # Sanitize filename before attaching to email
                 sanitized_name = sanitize_filename(file.filename)
-                # Read file into memory
+                # Read file into memory for email
+                file.seek(0)  # Reset file pointer
                 file_data = file.read()
 
                 # Get MIME type based on file extension
@@ -2328,6 +2844,18 @@ def email_customer(request_type, quote_id):
                     'mime_type': mime_type
                 })
 
+                # Save first image to disk for timeline display
+                if saved_image_filename is None and mime_type and mime_type.startswith('image/'):
+                    # Generate unique filename
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    file_extension = os.path.splitext(sanitized_name)[1]
+                    saved_image_filename = f"{timestamp}_email_{sanitized_name}"
+
+                    # Save to disk
+                    file_path = os.path.join(upload_dir, saved_image_filename)
+                    with open(file_path, 'wb') as f:
+                        f.write(file_data)
+
     # Send email
     success, result_message = send_admin_reply_to_customer(
         app.config,
@@ -2339,6 +2867,25 @@ def email_customer(request_type, quote_id):
     )
 
     if success:
+        # Save message to timeline
+        quote_type_map = {
+            'custom_design': 'quote_requests',
+            'cookie_clay_cutter': 'quote_requests',
+            'cake_topper': 'cake_topper_requests',
+            'print_service': 'print_service_requests'
+        }
+        quote_type = quote_type_map.get(request_type, 'quote_requests')
+
+        # Add message to quote timeline with image if present
+        db.add_quote_message(
+            quote_type=quote_type,
+            quote_id=quote_id,
+            message_text=f"Subject: {subject}\n\n{message}",
+            sender='admin',
+            message_type='admin_message',
+            attached_image=saved_image_filename  # Just the filename, template will construct full path
+        )
+
         flash(f'Email sent successfully to {quote_details["email"]}!', 'success')
     else:
         flash(f'Failed to send email: {result_message}', 'error')

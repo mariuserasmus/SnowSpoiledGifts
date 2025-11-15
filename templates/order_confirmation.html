@@ -225,40 +225,39 @@
                 <!-- Banking Details Card (for EFT payments) -->
                 <div class="card shadow-sm mb-4" style="border-left: 4px solid #ffc107;">
                     <div class="card-header" style="background-color: #fff3cd; color: #856404;">
-                        <h5 class="mb-0"><i class="fas fa-university"></i> Banking Details for EFT Payment</h5>
+                        <h6 class="mb-0"><i class="fas fa-university"></i> Banking Details</h6>
                     </div>
                     <div class="card-body">
-                        <p class="fw-bold text-warning mb-3">Please use the following details to make your payment:</p>
-                        <table class="table table-sm">
+                        <p class="small mb-3" style="color: #856404;">Use these details to make your payment:</p>
+                        <table class="table table-sm table-borderless mb-3" style="font-size: 0.9rem;">
                             <tr>
-                                <th width="40%">Bank:</th>
-                                <td>{{ config.BANK_NAME }}</td>
+                                <td width="45%" class="text-muted" style="padding: 0.25rem 0.5rem;">Bank:</td>
+                                <td style="padding: 0.25rem 0.5rem;">{{ config.BANK_NAME }}</td>
                             </tr>
                             <tr>
-                                <th>Account Holder:</th>
-                                <td>{{ config.BANK_ACCOUNT_HOLDER }}</td>
+                                <td class="text-muted" style="padding: 0.25rem 0.5rem;">Account Holder:</td>
+                                <td style="padding: 0.25rem 0.5rem;">{{ config.BANK_ACCOUNT_HOLDER }}</td>
                             </tr>
                             <tr>
-                                <th>Account Number:</th>
-                                <td><strong>{{ config.BANK_ACCOUNT_NUMBER }}</strong></td>
+                                <td class="text-muted" style="padding: 0.25rem 0.5rem;">Account Number:</td>
+                                <td style="padding: 0.25rem 0.5rem;"><strong>{{ config.BANK_ACCOUNT_NUMBER }}</strong></td>
                             </tr>
                             <tr>
-                                <th>Branch Code:</th>
-                                <td>{{ config.BANK_BRANCH_CODE }}</td>
+                                <td class="text-muted" style="padding: 0.25rem 0.5rem;">Branch Code:</td>
+                                <td style="padding: 0.25rem 0.5rem;">{{ config.BANK_BRANCH_CODE }}</td>
                             </tr>
                             <tr>
-                                <th>Account Type:</th>
-                                <td>{{ config.BANK_ACCOUNT_TYPE }}</td>
+                                <td class="text-muted" style="padding: 0.25rem 0.5rem;">Account Type:</td>
+                                <td style="padding: 0.25rem 0.5rem;">{{ config.BANK_ACCOUNT_TYPE }}</td>
                             </tr>
                             <tr>
-                                <th>Reference:</th>
-                                <td><strong class="text-danger">{{ order.order_number }}</strong></td>
+                                <td class="text-muted" style="padding: 0.25rem 0.5rem;">Reference:</td>
+                                <td style="padding: 0.25rem 0.5rem;"><strong class="text-danger">{{ order.order_number }}</strong></td>
                             </tr>
                         </table>
-                        <div class="alert alert-warning mb-0">
+                        <div class="alert alert-warning mb-0" style="font-size: 0.85rem; padding: 0.75rem;">
                             <i class="fas fa-exclamation-triangle"></i>
-                            <strong>Important:</strong> Please use your order number <strong>{{ order.order_number }}</strong> as the payment reference.
-                            This helps us identify your payment quickly. Your order will be processed once payment is received.
+                            <strong>Important:</strong> Use <strong>{{ order.order_number }}</strong> as your payment reference so we can identify your payment quickly.
                         </div>
                     </div>
                 </div>
@@ -294,7 +293,7 @@
                         </ul>
                         <hr>
                         <div class="d-grid gap-2">
-                            <a href="{{ url_for('account') }}" class="btn btn-primary btn-lg">
+                            <a href="{{ url_for('orders_quotes') }}" class="btn btn-primary btn-lg">
                                 <i class="fas fa-receipt"></i> View All My Orders
                             </a>
                             <a href="{{ url_for('printing_3d') }}" class="btn btn-outline-secondary">

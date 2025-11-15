@@ -820,11 +820,11 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Your Name *</label>
-                            <input type="text" name="name" class="form-control" required>
+                            <input type="text" name="name" class="form-control" value="{% if current_user.is_authenticated %}{{ current_user.name }}{% endif %}" required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Email Address *</label>
-                            <input type="email" name="email" class="form-control" required>
+                            <input type="email" name="email" class="form-control" value="{% if current_user.is_authenticated %}{{ current_user.email }}{% endif %}" required>
                         </div>
                     </div>
 

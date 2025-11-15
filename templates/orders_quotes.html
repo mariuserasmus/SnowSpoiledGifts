@@ -2,6 +2,142 @@
 
 {% block title %}My Orders & Quotes - {{ config.SITE_NAME }}{% endblock %}
 
+{% block extra_css %}
+<style>
+/* Quote Timeline Styles */
+.quote-timeline {
+    position: relative;
+    padding: 0;
+}
+
+.timeline-item {
+    position: relative;
+    padding-left: 50px;
+    padding-bottom: 30px;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 30px;
+    bottom: -30px;
+    width: 2px;
+    background: linear-gradient(to bottom, #007bff 0%, #d1d5db 100%);
+}
+
+.timeline-item:last-child::before {
+    display: none;
+}
+
+.timeline-dot {
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #007bff;
+    border: 3px solid var(--card-bg);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
+}
+
+.timeline-dot.admin {
+    background: #28a745;
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.2);
+}
+
+.timeline-dot.system {
+    background: #6c757d;
+    box-shadow: 0 0 0 3px rgba(108, 117, 125, 0.2);
+}
+
+.timeline-content {
+    background: var(--card-bg);
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--light-color);
+}
+
+.timeline-sender {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.timeline-sender.admin {
+    color: #28a745;
+}
+
+.timeline-sender.system {
+    color: #6c757d;
+}
+
+.timeline-timestamp {
+    font-size: 0.85rem;
+    color: var(--muted-text);
+}
+
+.timeline-message {
+    color: var(--text-color);
+    margin-bottom: 10px;
+}
+
+.quote-price-table {
+    background: var(--light-color);
+    border-radius: 6px;
+    padding: 12px;
+    margin-top: 10px;
+}
+
+.quote-price-table table {
+    width: 100%;
+    margin-bottom: 0;
+}
+
+.quote-price-table td {
+    padding: 6px;
+    border: none;
+    color: var(--text-color);
+}
+
+.quote-price-table .total-row {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--primary-color);
+    border-top: 2px solid rgba(0, 123, 255, 0.3);
+}
+
+.timeline-image {
+    max-width: 100%;
+    border-radius: 6px;
+    margin-top: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.no-image-text {
+    color: var(--muted-text);
+    font-style: italic;
+    font-size: 0.9rem;
+}
+
+/* Dark mode support for quote request cards */
+.list-group-item {
+    background: var(--card-bg) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-color) !important;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <section class="orders-quotes-section" style="padding: 100px 0 50px;">
     <div class="container">
@@ -14,21 +150,37 @@
             </div>
         </div>
 
+        <!-- Date Range Filter -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="d-flex justify-content-end align-items-center">
+                    <label for="dateFilter" class="me-2 mb-0 text-muted small">Show:</label>
+                    <select id="dateFilter" class="form-select form-select-sm" style="width: auto; max-width: 200px;" onchange="window.location.href=this.value">
+                        <option value="{{ url_for('orders_quotes', date_filter='30days') }}" {% if date_filter == '30days' %}selected{% endif %}>Last 30 Days</option>
+                        <option value="{{ url_for('orders_quotes', date_filter='year') }}" {% if date_filter == 'year' %}selected{% endif %}>Last Year</option>
+                        <option value="{{ url_for('orders_quotes', date_filter='all') }}" {% if date_filter == 'all' %}selected{% endif %}>All Time</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
         <!-- Tabs for Orders and Quotes -->
         <ul class="nav nav-tabs mb-4" id="ordersQuotesTabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders-panel" type="button" role="tab" aria-controls="orders-panel" aria-selected="true">
                     <i class="fas fa-shopping-bag"></i> Orders
-                    {% if orders|length > 0 %}
-                    <span class="badge bg-primary ms-2">{{ orders|length }}</span>
+                    {% set active_orders = orders | rejectattr('status', 'in', ['delivered', 'cancelled']) | list %}
+                    {% if active_orders|length > 0 %}
+                    <span class="badge bg-primary ms-2">{{ active_orders|length }}</span>
                     {% endif %}
                 </button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="quotes-tab" data-bs-toggle="tab" data-bs-target="#quotes-panel" type="button" role="tab" aria-controls="quotes-panel" aria-selected="false">
                     <i class="fas fa-envelope"></i> Quotes
-                    {% if quotes|length > 0 %}
-                    <span class="badge bg-info ms-2">{{ quotes|length }}</span>
+                    {% set active_quotes = quotes | rejectattr('status', 'in', ['converted', 'cancelled']) | list %}
+                    {% if active_quotes|length > 0 %}
+                    <span class="badge bg-info ms-2">{{ active_quotes|length }}</span>
                     {% endif %}
                 </button>
             </li>
@@ -119,6 +271,7 @@
                         {% if quotes %}
                             <div class="list-group">
                                 {% for quote in quotes %}
+                                {% set unique_id = quote.table_name ~ '-' ~ quote.id %}
                                 <div class="list-group-item">
                                     <div class="d-flex justify-content-between align-items-start">
                                         <div class="flex-grow-1">
@@ -185,9 +338,19 @@
                                                 <span class="badge bg-danger">DECLINED</span>
                                                 {% elif quote.status == 'converted' %}
                                                 <span class="badge bg-success">CONVERTED TO ORDER</span>
+                                                {% elif quote.status == 'cancelled' %}
+                                                <span class="badge bg-secondary">CANCELLED</span>
                                                 {% else %}
                                                 <span class="badge bg-secondary">{{ quote.status|upper }}</span>
                                                 {% endif %}
+                                            </div>
+
+                                            <!-- View Quote Details Button -->
+                                            <div class="mt-3">
+                                                <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="collapse" data-bs-target="#quote-details-{{ unique_id }}" aria-expanded="false">
+                                                    <i class="fas fa-comments"></i> View Quote Details & Messages
+                                                    <span class="badge bg-info ms-1" id="message-count-{{ unique_id }}">...</span>
+                                                </button>
                                             </div>
                                         </div>
 
@@ -195,16 +358,42 @@
                                         <div class="ms-3">
                                             <div class="btn-group-vertical" role="group">
                                                 <!-- Upload Photos Button -->
-                                                <button type="button" class="btn btn-sm btn-outline-primary mb-2" onclick="openPhotoUpload({{ quote.id }})">
+                                                <button type="button" class="btn btn-sm btn-outline-primary mb-2" onclick="openPhotoUpload({{ quote.id }}, '{{ quote.table_name }}')">
                                                     <i class="fas fa-camera"></i> {% if quote.reference_images %}Update{% else %}Add{% endif %} Photos
                                                 </button>
 
                                                 <!-- Delete Button -->
                                                 {% if quote.status != 'converted' %}
-                                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteQuote({{ quote.id }})">
+                                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteQuote({{ quote.id }}, '{{ quote.table_name }}')">
                                                     <i class="fas fa-trash"></i> Delete
                                                 </button>
                                                 {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Collapsible Quote Timeline -->
+                                    <div class="collapse mt-3" id="quote-details-{{ unique_id }}">
+                                        <div class="card" style="background: var(--light-color); border: none;">
+                                            <div class="card-body">
+                                                <h6 class="mb-3"><i class="fas fa-history"></i> Quote Timeline</h6>
+                                                <div id="quote-timeline-{{ unique_id }}" class="quote-timeline">
+                                                    <div class="text-center py-3">
+                                                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                                            <span class="visually-hidden">Loading...</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Accept/Reject Buttons -->
+                                                <div id="quote-actions-{{ unique_id }}" class="text-center mt-4" style="display: none;">
+                                                    <button type="button" class="btn btn-success me-2" onclick="openAcceptModal({{ quote.id }}, '{{ quote.table_name }}')">
+                                                        <i class="fas fa-check-circle"></i> Accept Quote
+                                                    </button>
+                                                    <button type="button" class="btn btn-danger" onclick="openRejectModal({{ quote.id }}, '{{ quote.table_name }}')">
+                                                        <i class="fas fa-times-circle"></i> Reject Quote
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -238,6 +427,7 @@
             <div class="modal-body">
                 <form id="photoUploadForm" enctype="multipart/form-data">
                     <input type="hidden" id="quote_id" name="quote_id">
+                    <input type="hidden" id="quote_type" name="quote_type">
                     <div class="mb-3">
                         <label for="photo_files" class="form-label">Select Photos (Max 5, 5MB each)</label>
                         <input type="file" class="form-control" id="photo_files" name="photo_files" multiple accept="image/*" required>
@@ -258,18 +448,89 @@
     </div>
 </div>
 
+<!-- Accept Quote Modal -->
+<div class="modal fade" id="acceptQuoteModal" tabindex="-1" aria-labelledby="acceptQuoteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="acceptQuoteModalLabel">
+                    <i class="fas fa-check-circle"></i> Accept Quote
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="accept_quote_id">
+                <input type="hidden" id="accept_quote_type">
+
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Accepting this quote will add the item to your cart.</strong>
+                </div>
+
+                <div id="accept-quote-summary">
+                    <!-- Price summary will be loaded here -->
+                </div>
+
+                <p class="mb-0">Are you sure you want to accept this quote and proceed to checkout?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="acceptQuote()">
+                    <i class="fas fa-check"></i> Yes, Accept Quote
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reject Quote Modal -->
+<div class="modal fade" id="rejectQuoteModal" tabindex="-1" aria-labelledby="rejectQuoteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="rejectQuoteModalLabel">
+                    <i class="fas fa-times-circle"></i> Reject Quote
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="reject_quote_id">
+                <input type="hidden" id="reject_quote_type">
+
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>This will mark the quote as cancelled.</strong>
+                </div>
+
+                <p class="mb-0">Are you sure you want to reject this quote? This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="rejectQuote()">
+                    <i class="fas fa-times"></i> Yes, Reject Quote
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    function openPhotoUpload(quoteId) {
+    // Store quote messages data
+    let quoteMessagesData = {};
+
+    function openPhotoUpload(quoteId, quoteType) {
         document.getElementById('quote_id').value = quoteId;
+        document.getElementById('quote_type').value = quoteType;
         const modal = new bootstrap.Modal(document.getElementById('photoUploadModal'));
         modal.show();
     }
 
     function uploadPhotos() {
         const quoteId = document.getElementById('quote_id').value;
+        const quoteType = document.getElementById('quote_type').value;
         const fileInput = document.getElementById('photo_files');
         const files = fileInput.files;
 
@@ -293,6 +554,7 @@
 
         const formData = new FormData();
         formData.append('quote_id', quoteId);
+        formData.append('quote_type', quoteType);
         for (let i = 0; i < files.length; i++) {
             formData.append('photos', files[i]);
         }
@@ -336,12 +598,12 @@
         }, 200);
     }
 
-    function deleteQuote(quoteId) {
+    function deleteQuote(quoteId, quoteType) {
         if (!confirm('Are you sure you want to delete this quote request? This action cannot be undone.')) {
             return;
         }
 
-        fetch('/quote/delete/' + quoteId, {
+        fetch('/quote/delete/' + quoteType + '/' + quoteId, {
             method: 'POST'
         })
         .then(response => response.json())
@@ -358,5 +620,286 @@
             alert('An error occurred while deleting the quote');
         });
     }
+
+    // Load quote messages when timeline is expanded
+    function loadQuoteMessages(uniqueId, quoteId, quoteType) {
+        const timelineDiv = document.getElementById('quote-timeline-' + uniqueId);
+        const messageCountBadge = document.getElementById('message-count-' + uniqueId);
+
+        fetch('/quote/messages/' + quoteType + '/' + quoteId)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    quoteMessagesData[quoteId] = data.messages;
+                    displayQuoteTimeline(uniqueId, data.messages, data.quote_status);
+                    messageCountBadge.textContent = data.messages.length;
+
+                    // Show accept/reject buttons if quote is 'quoted' and has pricing
+                    const actionsDiv = document.getElementById('quote-actions-' + uniqueId);
+                    const hasQuotedPrice = data.messages.some(msg => msg.quoted_total && msg.quoted_total > 0);
+
+                    if (data.quote_status === 'quoted' && hasQuotedPrice) {
+                        actionsDiv.style.display = 'block';
+                    } else {
+                        actionsDiv.style.display = 'none';
+                    }
+                } else {
+                    timelineDiv.innerHTML = '<div class="alert alert-warning">Failed to load messages</div>';
+                    messageCountBadge.textContent = '0';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                timelineDiv.innerHTML = '<div class="alert alert-danger">Error loading messages</div>';
+                messageCountBadge.textContent = '!';
+            });
+    }
+
+    function displayQuoteTimeline(uniqueId, messages, quoteStatus) {
+        const timelineDiv = document.getElementById('quote-timeline-' + uniqueId);
+
+        if (messages.length === 0) {
+            timelineDiv.innerHTML = '<div class="text-center text-muted py-3">No messages yet</div>';
+            return;
+        }
+
+        let html = '';
+        messages.forEach((msg, index) => {
+            const senderClass = msg.sender.toLowerCase();
+            const timestamp = formatTimestamp(msg.created_at);
+
+            html += `
+                <div class="timeline-item">
+                    <div class="timeline-dot ${senderClass}"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-header">
+                            <span class="timeline-sender ${senderClass}">
+                                <i class="fas fa-${senderClass === 'admin' ? 'user-shield' : 'cog'}"></i>
+                                ${msg.sender}
+                            </span>
+                            <span class="timeline-timestamp">${timestamp}</span>
+                        </div>
+                        <div class="timeline-message">${escapeHtml(msg.message_text)}</div>
+            `;
+
+            // Show pricing if available
+            if (msg.quoted_price_per_item || msg.quoted_total) {
+                html += `
+                    <div class="quote-price-table">
+                        <table>
+                            <tr>
+                                <td><strong>Price per item:</strong></td>
+                                <td class="text-end">R${formatPrice(msg.quoted_price_per_item || 0)}</td>
+                            </tr>
+                            <tr class="total-row">
+                                <td><strong>Total:</strong></td>
+                                <td class="text-end">R${formatPrice(msg.quoted_total || 0)}</td>
+                            </tr>
+                        </table>
+                    </div>
+                `;
+            }
+
+            // Show image if available
+            if (msg.attached_image) {
+                // Check if image path is valid (simple check)
+                if (msg.attached_image.trim()) {
+                    // Construct full static path for image
+                    const imagePath = msg.attached_image.startsWith('static/') || msg.attached_image.startsWith('/static/')
+                        ? '/' + msg.attached_image.replace(/^\//, '')  // Already has static/ prefix
+                        : '/static/uploads/quote_messages/' + msg.attached_image;  // Just filename, add path
+                    html += `
+                        <div>
+                            <img src="${imagePath}"
+                                 alt="Quote attachment"
+                                 class="timeline-image"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <div class="no-image-text" style="display: none;">Image not available</div>
+                        </div>
+                    `;
+                } else {
+                    html += '<div class="no-image-text">No image attached</div>';
+                }
+            }
+
+            html += `
+                    </div>
+                </div>
+            `;
+        });
+
+        timelineDiv.innerHTML = html;
+    }
+
+    function formatTimestamp(timestamp) {
+        // SQLite stores timestamps as UTC without 'Z', so append it for proper parsing
+        const timestampUTC = timestamp.includes('Z') ? timestamp : timestamp + 'Z';
+        const date = new Date(timestampUTC);
+        const now = new Date();
+        const diff = now - date;
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+        if (days === 0) {
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            if (hours === 0) {
+                const minutes = Math.floor(diff / (1000 * 60));
+                return minutes < 1 ? 'Just now' : minutes + ' min ago';
+            }
+            return hours + ' hour' + (hours > 1 ? 's' : '') + ' ago';
+        } else if (days < 7) {
+            return days + ' day' + (days > 1 ? 's' : '') + ' ago';
+        }
+
+        return date.toLocaleDateString('en-ZA', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'Africa/Johannesburg'  // Explicitly set SA timezone
+        });
+    }
+
+    function formatPrice(price) {
+        return parseFloat(price).toFixed(2);
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Open accept modal
+    function openAcceptModal(quoteId, quoteType) {
+        document.getElementById('accept_quote_id').value = quoteId;
+        document.getElementById('accept_quote_type').value = quoteType;
+
+        // Get the latest quoted price from messages
+        const messages = quoteMessagesData[quoteId] || [];
+        let quotedTotal = 0;
+        let quotedPricePerItem = 0;
+
+        for (let i = messages.length - 1; i >= 0; i--) {
+            if (messages[i].quoted_total && messages[i].quoted_total > 0) {
+                quotedTotal = messages[i].quoted_total;
+                quotedPricePerItem = messages[i].quoted_price_per_item || 0;
+                break;
+            }
+        }
+
+        // Display price summary
+        const summaryDiv = document.getElementById('accept-quote-summary');
+        summaryDiv.innerHTML = `
+            <div class="quote-price-table">
+                <table>
+                    <tr>
+                        <td><strong>Price per item:</strong></td>
+                        <td class="text-end">R${formatPrice(quotedPricePerItem)}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td><strong>Total:</strong></td>
+                        <td class="text-end">R${formatPrice(quotedTotal)}</td>
+                    </tr>
+                </table>
+            </div>
+        `;
+
+        const modal = new bootstrap.Modal(document.getElementById('acceptQuoteModal'));
+        modal.show();
+    }
+
+    // Open reject modal
+    function openRejectModal(quoteId, quoteType) {
+        document.getElementById('reject_quote_id').value = quoteId;
+        document.getElementById('reject_quote_type').value = quoteType;
+
+        const modal = new bootstrap.Modal(document.getElementById('rejectQuoteModal'));
+        modal.show();
+    }
+
+    // Accept quote
+    function acceptQuote() {
+        const quoteId = document.getElementById('accept_quote_id').value;
+        const quoteType = document.getElementById('accept_quote_type').value;
+
+        fetch('/quote/accept/' + quoteType + '/' + quoteId, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Quote accepted! Item has been added to your cart.');
+                bootstrap.Modal.getInstance(document.getElementById('acceptQuoteModal')).hide();
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while accepting the quote');
+        });
+    }
+
+    // Reject quote
+    function rejectQuote() {
+        const quoteId = document.getElementById('reject_quote_id').value;
+        const quoteType = document.getElementById('reject_quote_type').value;
+
+        fetch('/quote/reject/' + quoteType + '/' + quoteId, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Quote has been rejected.');
+                bootstrap.Modal.getInstance(document.getElementById('rejectQuoteModal')).hide();
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while rejecting the quote');
+        });
+    }
+
+    // Check if URL has #quotes hash and switch to quotes tab
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.location.hash === '#quotes') {
+            const quotesTab = new bootstrap.Tab(document.getElementById('quotes-tab'));
+            quotesTab.show();
+        }
+
+        // Load message counts for all quotes when collapse is shown
+        {% if quotes %}
+        {% for quote in quotes %}
+        {% set unique_id_js = quote.table_name ~ '-' ~ quote.id %}
+        (function() {
+            const uniqueId = '{{ unique_id_js }}';
+            const quoteId = {{ quote.id }};
+            const quoteType = '{{ quote.table_name }}';
+            const collapseElement = document.getElementById('quote-details-' + uniqueId);
+            if (collapseElement) {
+                collapseElement.addEventListener('show.bs.collapse', function() {
+                    loadQuoteMessages(uniqueId, quoteId, quoteType);
+                });
+
+                // Load message count immediately (but don't show timeline)
+                fetch('/quote/messages/' + quoteType + '/' + quoteId)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            document.getElementById('message-count-' + uniqueId).textContent = data.messages.length;
+                        }
+                    })
+                    .catch(error => console.error('Error loading message count:', error));
+            }
+        })();
+        {% endfor %}
+        {% endif %}
+    });
 </script>
 {% endblock %}

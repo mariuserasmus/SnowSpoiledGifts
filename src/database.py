@@ -719,7 +719,7 @@ class Database:
 
     def add_quote_request(self, service_type, name, email, phone, preferred_contact,
                          description, intended_use, size, quantity, color, material,
-                         budget, additional_notes, reference_images, ip_address):
+                         budget, additional_notes, reference_images, ip_address, user_id=None):
         """Add a new quote request"""
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -729,12 +729,12 @@ class Database:
                 INSERT INTO quote_requests (
                     service_type, name, email, phone, preferred_contact,
                     description, intended_use, size, quantity, color, material,
-                    budget, additional_notes, reference_images, ip_address
+                    budget, additional_notes, reference_images, ip_address, user_id
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (service_type, name, email, phone, preferred_contact,
                   description, intended_use, size, quantity, color, material,
-                  budget, additional_notes, reference_images, ip_address))
+                  budget, additional_notes, reference_images, ip_address, user_id))
 
             conn.commit()
             conn.close()
@@ -867,26 +867,29 @@ class Database:
             conn.close()
             return False, f"An error occurred: {str(e)}"
 
-    def get_user_quotes(self, email):
-        """Get all quote requests for a user by email"""
+    def get_user_quotes(self, user_id, email):
+        """Get all quote requests for a user by user_id AND email (queries all 3 quote tables)
+        This captures both logged-in quotes (user_id) and anonymous quotes (matching email)"""
         conn = self.get_connection()
         cursor = conn.cursor()
 
+        all_quotes = []
+
+        # 1. Get Custom Design & Cookie/Clay Cutter quotes
         cursor.execute('''
-            SELECT *
+            SELECT id, service_type, name, email, phone, preferred_contact,
+                   description, intended_use, size, quantity, color, material,
+                   budget, additional_notes, reference_images, request_date,
+                   ip_address, status, 'quote_requests' as table_name
             FROM quote_requests
-            WHERE email = ?
+            WHERE user_id = ? OR email = ?
             ORDER BY request_date DESC
-        ''', (email,))
+        ''', (user_id, email))
 
-        requests = cursor.fetchall()
-        conn.close()
-
-        # Convert to list of dicts
-        result = []
-        for req in requests:
-            result.append({
+        for req in cursor.fetchall():
+            all_quotes.append({
                 'id': req['id'],
+                'quote_type': 'Custom Design' if not req['service_type'].startswith('Cookie/Clay Cutter') else 'Cookie/Clay Cutter',
                 'service_type': req['service_type'],
                 'name': req['name'],
                 'email': req['email'],
@@ -903,10 +906,81 @@ class Database:
                 'reference_images': req['reference_images'],
                 'request_date': req['request_date'],
                 'ip_address': req['ip_address'],
-                'status': req['status']
+                'status': req['status'],
+                'table_name': 'quote_requests'
             })
 
-        return result
+        # 2. Get Cake Topper quotes
+        cursor.execute('''
+            SELECT id, name, email, phone, event_date, occasion, size_preference,
+                   text_to_include, design_details, color_preferences, stand_type,
+                   reference_images, additional_notes, request_date, ip_address,
+                   status, 'cake_topper_requests' as table_name
+            FROM cake_topper_requests
+            WHERE user_id = ? OR email = ?
+            ORDER BY request_date DESC
+        ''', (user_id, email))
+
+        for req in cursor.fetchall():
+            all_quotes.append({
+                'id': req['id'],
+                'quote_type': 'Cake Topper',
+                'service_type': 'Cake Topper',
+                'name': req['name'],
+                'email': req['email'],
+                'phone': req['phone'],
+                'event_date': req['event_date'],
+                'occasion': req['occasion'],
+                'size_preference': req['size_preference'],
+                'text_to_include': req['text_to_include'],
+                'design_details': req['design_details'],
+                'color_preferences': req['color_preferences'],
+                'stand_type': req['stand_type'],
+                'reference_images': req['reference_images'],
+                'additional_notes': req['additional_notes'],
+                'request_date': req['request_date'],
+                'ip_address': req['ip_address'],
+                'status': req['status'],
+                'table_name': 'cake_topper_requests'
+            })
+
+        # 3. Get 3D Print Service quotes
+        cursor.execute('''
+            SELECT id, name, email, uploaded_files, material, color, layer_height,
+                   infill_density, quantity, supports, special_instructions,
+                   request_date, ip_address, status, 'print_service_requests' as table_name
+            FROM print_service_requests
+            WHERE user_id = ? OR email = ?
+            ORDER BY request_date DESC
+        ''', (user_id, email))
+
+        for req in cursor.fetchall():
+            all_quotes.append({
+                'id': req['id'],
+                'quote_type': '3D Print Service',
+                'service_type': '3D Print Service',
+                'name': req['name'],
+                'email': req['email'],
+                'uploaded_files': req['uploaded_files'],
+                'material': req['material'],
+                'color': req['color'],
+                'layer_height': req['layer_height'],
+                'infill_density': req['infill_density'],
+                'quantity': req['quantity'],
+                'supports': req['supports'],
+                'special_instructions': req['special_instructions'],
+                'request_date': req['request_date'],
+                'ip_address': req['ip_address'],
+                'status': req['status'],
+                'table_name': 'print_service_requests'
+            })
+
+        conn.close()
+
+        # Sort all quotes by request_date (most recent first)
+        all_quotes.sort(key=lambda x: x['request_date'], reverse=True)
+
+        return all_quotes
 
     def unsubscribe_by_token(self, token):
         """Unsubscribe a user by their unique token"""
@@ -973,7 +1047,7 @@ class Database:
     def add_cake_topper_request(self, name, email, phone, event_date, occasion,
                                size_preference, text_to_include, design_details,
                                color_preferences, stand_type, reference_images,
-                               additional_notes, ip_address):
+                               additional_notes, ip_address, user_id=None):
         """Add a new cake topper quote request"""
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -983,12 +1057,12 @@ class Database:
                 INSERT INTO cake_topper_requests (
                     name, email, phone, event_date, occasion, size_preference,
                     text_to_include, design_details, color_preferences, stand_type,
-                    reference_images, additional_notes, ip_address
+                    reference_images, additional_notes, ip_address, user_id
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (name, email, phone, event_date, occasion, size_preference,
                   text_to_include, design_details, color_preferences, stand_type,
-                  reference_images, additional_notes, ip_address))
+                  reference_images, additional_notes, ip_address, user_id))
 
             conn.commit()
             conn.close()
@@ -1073,7 +1147,7 @@ class Database:
 
     def add_print_service_request(self, name, email, uploaded_files, material,
                                   color, layer_height, infill_density, quantity,
-                                  supports, special_instructions, ip_address):
+                                  supports, special_instructions, ip_address, user_id=None):
         """Add a new 3D print service request"""
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -1082,11 +1156,11 @@ class Database:
             cursor.execute('''
                 INSERT INTO print_service_requests (
                     name, email, uploaded_files, material, color, layer_height,
-                    infill_density, quantity, supports, special_instructions, ip_address
+                    infill_density, quantity, supports, special_instructions, ip_address, user_id
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (name, email, uploaded_files, material, color, layer_height,
-                  infill_density, quantity, supports, special_instructions, ip_address))
+                  infill_density, quantity, supports, special_instructions, ip_address, user_id))
 
             conn.commit()
             conn.close()
@@ -2256,11 +2330,15 @@ class Database:
 
                 stats = cursor.fetchone()
 
+                # Handle deleted users (user_name and user_email might be None)
+                user_name = owner['user_name'] if owner['user_name'] else f'[Deleted User #{user_id}]'
+                user_email = owner['user_email'] if owner['user_email'] else 'No email (user deleted)'
+
                 result.append({
                     'user_id': user_id,
                     'session_id': session_id,
-                    'user_name': owner['user_name'],
-                    'user_email': owner['user_email'],
+                    'user_name': user_name,
+                    'user_email': user_email,
                     'item_count': stats['item_count'] or 0,
                     'total_quantity': stats['total_quantity'] or 0,
                     'cart_total': stats['cart_total'] or 0,
@@ -3261,7 +3339,7 @@ class Database:
             conn.close()
             return False, f"An error occurred: {str(e)}"
 
-    def convert_quote_to_sale(self, quote_type, quote_id, item_name, item_price, item_description="Custom quote item"):
+    def convert_quote_to_sale(self, quote_type, quote_id, item_name, item_price, item_description="Custom quote item", quantity=1):
         """
         Convert a quote to a sale by creating a temporary custom item and adding to customer's cart.
 
@@ -3269,8 +3347,9 @@ class Database:
             quote_type: Type of quote ('custom_design', 'cake_topper', 'print_service')
             quote_id: ID of the quote request
             item_name: Name for the custom item
-            item_price: Price for the item
+            item_price: Price per item (not total)
             item_description: Description of the item
+            quantity: Number of items to add to cart (default 1)
 
         Returns:
             Tuple (success: bool, message: str, user_id: int or None)
@@ -3374,6 +3453,97 @@ class Database:
 
             item_id = cursor.lastrowid
 
+            # Try to attach an image from the quote to the item
+            image_path = None
+            print(f"[DEBUG] Looking for images for quote {quote_id} from table {table_name}")
+
+            # First, check if quote has reference_images (safely handle missing field)
+            try:
+                reference_images = quote['reference_images'] if quote['reference_images'] else None
+                if reference_images:
+                    print(f"[DEBUG] Found reference_images: {reference_images}")
+            except (KeyError, IndexError):
+                reference_images = None
+                print(f"[DEBUG] No reference_images field in quote")
+
+            if reference_images:
+                # reference_images is comma-separated filenames
+                images_list = reference_images.split(',')
+
+                # Find the first image file (skip non-image files like STL)
+                for img_file in images_list:
+                    img_file = img_file.strip()
+                    if img_file:
+                        # Check if it's an image file
+                        img_lower = img_file.lower()
+                        if img_lower.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp')):
+                            # Determine upload folder based on table_name and service_type
+                            if table_name == 'quote_requests':
+                                # Check service_type to determine correct folder
+                                service_type = quote.get('service_type', '').lower()
+                                # Cookie/Clay cutter quotes are saved to cutter_references
+                                if 'cookie' in service_type and 'cutter' in service_type:
+                                    upload_folder = 'cutter_references'
+                                elif 'clay' in service_type and 'cutter' in service_type:
+                                    upload_folder = 'cutter_references'
+                                else:
+                                    # Custom design/3D printing quotes use quote_references
+                                    upload_folder = 'quote_references'
+                            elif table_name == 'cake_topper_requests':
+                                upload_folder = 'cake_topper_references'
+                            elif table_name == 'print_service_requests':
+                                upload_folder = 'print_files'
+                            else:
+                                upload_folder = 'quote_references'  # Default
+
+                            image_path = f"static/uploads/{upload_folder}/{img_file}"
+                            print(f"[DEBUG] Using reference image: {image_path}")
+                            break  # Use the first image found
+
+            # If no reference images, check quote_messages for attached images
+            if not image_path:
+                print(f"[DEBUG] No reference images found, checking quote_messages...")
+                # Get messages for this quote to find attached images
+                cursor.execute('''
+                    SELECT attached_image FROM quote_messages
+                    WHERE quote_type = ? AND quote_id = ?
+                    AND attached_image IS NOT NULL AND attached_image != ''
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                ''', (table_name, quote_id))
+
+                message_with_image = cursor.fetchone()
+                if message_with_image and message_with_image['attached_image']:
+                    # Quote message images are stored as just filenames in the database
+                    # but the actual files are in 'static/uploads/quote_messages/'
+                    attached_img = message_with_image['attached_image']
+                    print(f"[DEBUG] Found quote message image: {attached_img}")
+                    # Check if it's already a full path or just a filename
+                    if attached_img.startswith('static/'):
+                        image_path = attached_img
+                    elif attached_img.startswith('uploads/'):
+                        image_path = f"static/{attached_img}"
+                    else:
+                        # Just a filename - construct full path to quote_messages folder
+                        image_path = f"static/uploads/quote_messages/{attached_img}"
+                    print(f"[DEBUG] Using quote message image: {image_path}")
+                else:
+                    print(f"[DEBUG] No quote message images found")
+
+            # If we found an image, insert it into cutter_item_photos
+            if image_path:
+                try:
+                    cursor.execute('''
+                        INSERT INTO cutter_item_photos (item_id, photo_path, is_main, display_order)
+                        VALUES (?, ?, 1, 0)
+                    ''', (item_id, image_path))
+                    print(f"[DEBUG] Inserted photo for item {item_id}: {image_path}")
+                except Exception as photo_error:
+                    print(f"[WARNING] Failed to insert photo for item {item_id}: {photo_error}")
+                    # Don't fail the whole transaction, just continue without photo
+            else:
+                print(f"[DEBUG] No image found for quote {quote_id}, cart item will have no photo")
+
             # Add item to customer's cart
             # Check which cart schema is in use (old 'item_id' vs new unified 'product_id')
             cursor.execute("PRAGMA table_info(cart_items)")
@@ -3383,14 +3553,14 @@ class Database:
                 # New unified cart schema
                 cursor.execute('''
                     INSERT INTO cart_items (user_id, product_type, product_id, quantity, added_date)
-                    VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
-                ''', (user_id, 'cutter_item', item_id))
+                    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ''', (user_id, 'cutter_item', item_id, quantity))
             elif 'item_id' in cart_columns:
                 # Old cart schema (backward compatibility)
                 cursor.execute('''
                     INSERT INTO cart_items (user_id, item_id, quantity, added_date)
-                    VALUES (?, ?, 1, CURRENT_TIMESTAMP)
-                ''', (user_id, item_id))
+                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ''', (user_id, item_id, quantity))
             else:
                 raise Exception("Unknown cart_items schema - neither product_id nor item_id column found")
 
@@ -3961,3 +4131,175 @@ class Database:
         """Migrate guest candles & soaps cart items to user cart (wrapper for unified migrate_guest_cart_to_user)"""
         success, _ = self.migrate_guest_cart_to_user(session_id, user_id)
         return success
+
+    # ========================================================================
+    # QUOTE MESSAGING SYSTEM
+    # ========================================================================
+
+    def add_quote_message(self, quote_type, quote_id, message_text, sender='admin',
+                         quoted_price_per_item=None, quoted_total=None,
+                         attached_image=None, message_type='admin_message'):
+        """
+        Add a message to a quote conversation.
+
+        Args:
+            quote_type: 'quote_requests', 'cake_topper_requests', or 'print_service_requests'
+            quote_id: The ID of the quote
+            message_text: The message content
+            sender: Who sent the message (default: 'admin')
+            quoted_price_per_item: Optional price per item (for quote messages)
+            quoted_total: Optional total price (for quote messages)
+            attached_image: Optional filename of attached image
+            message_type: Type of message ('quote_sent', 'admin_message', 'status_update')
+
+        Returns:
+            Tuple (success: bool, message: str, message_id: int or None)
+        """
+        # Validate quote_type
+        valid_quote_types = ['quote_requests', 'cake_topper_requests', 'print_service_requests']
+        if quote_type not in valid_quote_types:
+            return False, f"Invalid quote_type. Must be one of: {', '.join(valid_quote_types)}", None
+
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Verify the quote exists
+            cursor.execute(f'SELECT id FROM {quote_type} WHERE id = ?', (quote_id,))
+            if not cursor.fetchone():
+                conn.close()
+                return False, f"Quote not found: {quote_type} ID {quote_id}", None
+
+            # Insert the message
+            cursor.execute('''
+                INSERT INTO quote_messages (
+                    quote_type, quote_id, message_text, sender,
+                    quoted_price_per_item, quoted_total,
+                    attached_image, message_type, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (quote_type, quote_id, message_text, sender,
+                  quoted_price_per_item, quoted_total,
+                  attached_image, message_type))
+
+            message_id = cursor.lastrowid
+
+            # If this is a quote message with pricing, update the quote table
+            if message_type == 'quote_sent' and (quoted_price_per_item or quoted_total):
+                cursor.execute(f'''
+                    UPDATE {quote_type}
+                    SET quoted_price_per_item = ?,
+                        quoted_total = ?,
+                        quoted_date = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ''', (quoted_price_per_item, quoted_total, quote_id))
+
+            conn.commit()
+            conn.close()
+            return True, "Message added successfully", message_id
+
+        except Exception as e:
+            conn.rollback()
+            conn.close()
+            return False, f"Error adding message: {str(e)}", None
+
+    def get_quote_messages(self, quote_type, quote_id):
+        """
+        Get all messages for a specific quote, ordered by timestamp.
+
+        Args:
+            quote_type: 'quote_requests', 'cake_topper_requests', or 'print_service_requests'
+            quote_id: The ID of the quote
+
+        Returns:
+            List of message dictionaries, or empty list if none found
+        """
+        # Validate quote_type
+        valid_quote_types = ['quote_requests', 'cake_topper_requests', 'print_service_requests']
+        if quote_type not in valid_quote_types:
+            return []
+
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('''
+                SELECT
+                    id,
+                    quote_type,
+                    quote_id,
+                    message_text,
+                    sender,
+                    quoted_price_per_item,
+                    quoted_total,
+                    attached_image,
+                    message_type,
+                    created_at
+                FROM quote_messages
+                WHERE quote_type = ? AND quote_id = ?
+                ORDER BY created_at ASC
+            ''', (quote_type, quote_id))
+
+            messages = [dict(row) for row in cursor.fetchall()]
+            conn.close()
+            return messages
+
+        except Exception as e:
+            conn.close()
+            return []
+
+    def update_quote_pricing(self, quote_type, quote_id, price_per_item, total, quoted_date=None):
+        """
+        Update the pricing information for a quote.
+
+        Args:
+            quote_type: 'quote_requests', 'cake_topper_requests', or 'print_service_requests'
+            quote_id: The ID of the quote
+            price_per_item: Price per item
+            total: Total price
+            quoted_date: Optional custom quote date (defaults to current timestamp)
+
+        Returns:
+            Tuple (success: bool, message: str)
+        """
+        # Validate quote_type
+        valid_quote_types = ['quote_requests', 'cake_topper_requests', 'print_service_requests']
+        if quote_type not in valid_quote_types:
+            return False, f"Invalid quote_type. Must be one of: {', '.join(valid_quote_types)}"
+
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Verify the quote exists
+            cursor.execute(f'SELECT id FROM {quote_type} WHERE id = ?', (quote_id,))
+            if not cursor.fetchone():
+                conn.close()
+                return False, f"Quote not found: {quote_type} ID {quote_id}"
+
+            # Update pricing
+            if quoted_date:
+                cursor.execute(f'''
+                    UPDATE {quote_type}
+                    SET quoted_price_per_item = ?,
+                        quoted_total = ?,
+                        quoted_date = ?
+                    WHERE id = ?
+                ''', (price_per_item, total, quoted_date, quote_id))
+            else:
+                cursor.execute(f'''
+                    UPDATE {quote_type}
+                    SET quoted_price_per_item = ?,
+                        quoted_total = ?,
+                        quoted_date = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ''', (price_per_item, total, quote_id))
+
+            conn.commit()
+            conn.close()
+            return True, "Quote pricing updated successfully"
+
+        except Exception as e:
+            conn.rollback()
+            conn.close()
+            return False, f"Error updating quote pricing: {str(e)}"

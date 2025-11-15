@@ -69,12 +69,14 @@
                                                  class="img-thumbnail"
                                                  style="width: 80px; height: 80px; object-fit: cover; cursor: pointer;"
                                                  onclick="showImageZoom(this.src, '{{ item.name }}')"
-                                                 onerror="this.src='https://images.unsplash.com/photo-1551754655-cd27e38d2076?w=80&h=80&fit=crop&q=80'">
+                                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                            <div style="display: none; width: 80px; height: 80px; border: 1px solid #dee2e6; border-radius: 4px; align-items: center; justify-content: center; background-color: #f8f9fa; font-size: 11px; color: #6c757d; text-align: center;">
+                                                No Image
+                                            </div>
                                             {% else %}
-                                            <img src="https://images.unsplash.com/photo-1551754655-cd27e38d2076?w=80&h=80&fit=crop&q=80"
-                                                 alt="{{ item.name }}"
-                                                 class="img-thumbnail"
-                                                 style="width: 80px; height: 80px; object-fit: cover;">
+                                            <div style="width: 80px; height: 80px; border: 1px solid #dee2e6; border-radius: 4px; display: flex; align-items: center; justify-content: center; background-color: #f8f9fa; font-size: 11px; color: #6c757d; text-align: center;">
+                                                No Image
+                                            </div>
                                             {% endif %}
                                         </td>
                                         <td class="align-middle">

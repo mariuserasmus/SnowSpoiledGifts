@@ -2174,3 +2174,294 @@ Contact us: {config['MAIL_DEFAULT_SENDER']}
         error_msg = f"Failed to send bulk emails: {str(e)}"
         print(error_msg)
         return success_count, failed_count, error_msg
+
+
+def send_quote_to_customer(config, quote_data):
+    """
+    Send quote email to customer with pricing and admin message.
+
+    Args:
+        config: Flask app config object
+        quote_data: Dictionary containing:
+            - customer_name: Customer's name
+            - customer_email: Customer's email address
+            - quote_type: Type of quote (e.g., "Custom Design Quote")
+            - price_per_item: Price per individual item
+            - quantity: Number of items
+            - total_price: Total quoted price
+            - admin_message: Message from admin
+            - attached_image: Filename of attached image or None
+
+    Returns:
+        Tuple (success: bool, message: str)
+    """
+    # Check if email password is configured
+    if not config.get('MAIL_PASSWORD'):
+        print("Warning: Email password not configured. Skipping quote email.")
+        return False, "Email not configured"
+
+    try:
+        # Extract quote data
+        customer_name = quote_data.get('customer_name', 'Valued Customer')
+        customer_email = quote_data.get('customer_email')
+        quote_type = quote_data.get('quote_type', 'Custom Quote')
+        price_per_item = float(quote_data.get('price_per_item', 0))
+        quantity = int(quote_data.get('quantity', 1))
+        total_price = float(quote_data.get('total_price', 0))
+        admin_message = quote_data.get('admin_message', '')
+        attached_image = quote_data.get('attached_image')
+
+        # Create message
+        msg = MIMEMultipart('related')
+        msg['Subject'] = f"Your Quote is Ready - {quote_type}"
+        msg['From'] = config['MAIL_DEFAULT_SENDER']
+        msg['To'] = customer_email
+
+        # Create alternative container for text/HTML
+        msg_alternative = MIMEMultipart('alternative')
+        msg.attach(msg_alternative)
+
+        # Admin message section (if provided)
+        admin_message_html = ""
+        admin_message_text = ""
+        if admin_message and admin_message.strip():
+            admin_message_html = f"""
+                    <div style="background: #f3f4f6; padding: 20px; border-radius: 8px;
+                                margin: 20px 0; border-left: 4px solid #2563eb;">
+                        <h3 style="color: #2563eb; margin-top: 0;">
+                            <i class="fas fa-comment"></i> Message from Our Team
+                        </h3>
+                        <p style="color: #333; white-space: pre-wrap; margin-bottom: 0;">
+                            {admin_message}
+                        </p>
+                    </div>
+            """
+            admin_message_text = f"""
+MESSAGE FROM OUR TEAM
+====================
+{admin_message}
+
+"""
+
+        # Attached image section (if provided)
+        image_html = ""
+        image_text = ""
+        image_cid = None
+        if attached_image:
+            image_cid = "attached_image"
+            image_html = f"""
+                    <div style="margin: 20px 0; text-align: center;">
+                        <h3 style="color: #2563eb;">Reference Image</h3>
+                        <img src="cid:{image_cid}" alt="Reference"
+                             style="max-width: 100%; height: auto; border: 2px solid #e5e7eb;
+                                    border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    </div>
+            """
+            image_text = "\n[Reference image attached]\n"
+
+        # Create HTML email body
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+                          color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
+                .header h1 {{ margin: 0; font-size: 28px; }}
+                .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }}
+                .pricing-table {{ background: white; border-radius: 8px; overflow: hidden;
+                                margin: 20px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+                .pricing-row {{ display: table; width: 100%; border-bottom: 1px solid #e5e7eb; }}
+                .pricing-row:last-child {{ border-bottom: none; }}
+                .pricing-label {{ display: table-cell; padding: 15px 20px; font-weight: 600;
+                                 color: #4b5563; width: 50%; }}
+                .pricing-value {{ display: table-cell; padding: 15px 20px; text-align: right;
+                                 color: #111827; }}
+                .total-row {{ background: #f0f9ff; }}
+                .total-row .pricing-label {{ color: #1e40af; font-size: 18px; }}
+                .total-row .pricing-value {{ color: #1e40af; font-size: 24px; font-weight: bold; }}
+                .button {{ display: inline-block; background: #2563eb; color: white !important;
+                         padding: 15px 30px; text-decoration: none; border-radius: 5px;
+                         margin: 20px 0; font-weight: bold; }}
+                .button:hover {{ background: #1d4ed8; }}
+                .footer {{ text-align: center; margin-top: 30px; padding-top: 20px;
+                          border-top: 1px solid #e5e7eb; color: #666; font-size: 12px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                {add_email_logo_header(config)}
+                <div class="header" style="margin-top: 0; border-radius: 0;">
+                    <h1>Your Quote is Ready!</h1>
+                    <p style="margin: 10px 0 0 0; opacity: 0.9;">
+                        We've prepared a custom quote for you
+                    </p>
+                </div>
+                <div class="content">
+                    <p>Hi {customer_name},</p>
+
+                    <p>Thank you for your interest in our services! We're pleased to provide you
+                    with the following quote:</p>
+
+                    <div class="pricing-table">
+                        <div class="pricing-row">
+                            <div class="pricing-label">Item</div>
+                            <div class="pricing-value">{quote_type}</div>
+                        </div>
+                        <div class="pricing-row">
+                            <div class="pricing-label">Price per Item</div>
+                            <div class="pricing-value">R{price_per_item:.2f}</div>
+                        </div>
+                        <div class="pricing-row">
+                            <div class="pricing-label">Quantity</div>
+                            <div class="pricing-value">{quantity}</div>
+                        </div>
+                        <div class="pricing-row total-row">
+                            <div class="pricing-label">Total Quote</div>
+                            <div class="pricing-value">R{total_price:.2f}</div>
+                        </div>
+                    </div>
+
+                    {admin_message_html}
+
+                    {image_html}
+
+                    <h3 style="color: #2563eb;">Next Steps</h3>
+                    <ol style="color: #4b5563;">
+                        <li>Review the quote details above</li>
+                        <li>If you have questions, reply to this email</li>
+                        <li>Ready to proceed? Log in to view your quote and place your order</li>
+                    </ol>
+
+                    <center>
+                        <a href="https://{config.get('SITE_URL', 'www.snowspoiledgifts.co.za')}/orders-quotes"
+                           class="button">
+                            View Your Quote
+                        </a>
+                    </center>
+
+                    <p style="margin-top: 30px;">This quote is valid for 30 days from the date of this email.
+                    Prices are subject to material availability and may change after this period.</p>
+
+                    <p>We look forward to working with you!</p>
+
+                    <p>Best regards,<br>
+                    The {config.get('SITE_NAME', 'Snow Spoiled Gifts')} Team</p>
+                </div>
+                <div class="footer">
+                    <p>{config.get('SITE_NAME', 'Snow Spoiled Gifts')}<br>
+                    Email: {config['MAIL_DEFAULT_SENDER']}<br>
+                    Phone: {config.get('CONTACT_PHONE', '')}<br>
+                    <a href="https://{config.get('SITE_URL', 'www.snowspoiledgifts.co.za')}"
+                       style="color: #2563eb;">
+                        {config.get('SITE_URL', 'www.snowspoiledgifts.co.za')}
+                    </a></p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        # Create plain text version
+        text_body = f"""
+YOUR QUOTE IS READY!
+
+Hi {customer_name},
+
+Thank you for your interest in our services! We're pleased to provide you with the following quote:
+
+QUOTE DETAILS
+=============
+Item: {quote_type}
+Price per Item: R{price_per_item:.2f}
+Quantity: {quantity}
+---------------------------------
+TOTAL QUOTE: R{total_price:.2f}
+=============
+
+{admin_message_text}
+{image_text}
+NEXT STEPS
+----------
+1. Review the quote details above
+2. If you have questions, reply to this email
+3. Ready to proceed? Log in to view your quote and place your order
+
+Visit: https://{config.get('SITE_URL', 'www.snowspoiledgifts.co.za')}/orders-quotes
+
+This quote is valid for 30 days from the date of this email.
+Prices are subject to material availability and may change after this period.
+
+We look forward to working with you!
+
+Best regards,
+The {config.get('SITE_NAME', 'Snow Spoiled Gifts')} Team
+
+---
+{config.get('SITE_NAME', 'Snow Spoiled Gifts')}
+Email: {config['MAIL_DEFAULT_SENDER']}
+Phone: {config.get('CONTACT_PHONE', '')}
+Web: {config.get('SITE_URL', 'www.snowspoiledgifts.co.za')}
+        """
+
+        # Attach text and HTML parts
+        msg_alternative.attach(MIMEText(text_body, 'plain'))
+        msg_alternative.attach(MIMEText(html_body, 'html'))
+
+        # Attach image if provided
+        if attached_image and image_cid:
+            try:
+                # Determine the full path to the image
+                project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                image_path = os.path.join(project_root, 'static', 'uploads', attached_image)
+
+                # Read and attach the image
+                if os.path.exists(image_path):
+                    with open(image_path, 'rb') as img_file:
+                        img_data = img_file.read()
+
+                    # Determine image type from extension
+                    _, ext = os.path.splitext(attached_image)
+                    ext = ext.lower().lstrip('.')
+
+                    # Map common extensions to MIME subtypes
+                    subtype_map = {
+                        'jpg': 'jpeg',
+                        'jpeg': 'jpeg',
+                        'png': 'png',
+                        'gif': 'gif',
+                        'bmp': 'bmp'
+                    }
+                    subtype = subtype_map.get(ext, 'jpeg')
+
+                    # Create MIMEImage and attach with Content-ID
+                    img_mime = MIMEImage(img_data, _subtype=subtype)
+                    img_mime.add_header('Content-ID', f'<{image_cid}>')
+                    img_mime.add_header('Content-Disposition', 'inline', filename=attached_image)
+                    msg.attach(img_mime)
+                else:
+                    print(f"Warning: Attached image not found at {image_path}")
+            except Exception as e:
+                print(f"Warning: Could not attach image {attached_image}: {str(e)}")
+
+        # Send email using SSL or TLS
+        if config.get('MAIL_USE_SSL'):
+            with smtplib.SMTP_SSL(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+                server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(config['MAIL_SERVER'], config['MAIL_PORT']) as server:
+                server.starttls()
+                server.login(config['MAIL_USERNAME'], config['MAIL_PASSWORD'])
+                server.send_message(msg)
+
+        success_msg = f"Quote email sent successfully to {customer_email}"
+        print(success_msg)
+        return True, success_msg
+
+    except Exception as e:
+        error_msg = f"Failed to send quote email: {str(e)}"
+        print(error_msg)
+        return False, error_msg
