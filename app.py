@@ -1516,6 +1516,56 @@ def admin_update_order_status(order_number):
     return redirect(url_for('admin_order_detail', order_number=order_number))
 
 
+@app.route('/admin/orders/<order_number>/whatsapp', methods=['POST'])
+@admin_required
+def admin_send_whatsapp_order(order_number):
+    """Send WhatsApp message to customer from order page"""
+    from src.whatsapp_utils import send_whatsapp_message, format_phone_number
+
+    message = request.form.get('whatsapp_message', '').strip()
+
+    if not message:
+        flash('WhatsApp message cannot be empty.', 'error')
+        return redirect(url_for('admin_order_detail', order_number=order_number))
+
+    # Get order and customer details
+    order = db.get_order_by_number(order_number)
+    if not order:
+        flash('Order not found.', 'error')
+        return redirect(url_for('admin_orders'))
+
+    customer = db.get_user_by_id(order['user_id'])
+    if not customer or not customer.get('phone'):
+        flash('Customer phone number is invalid or missing.', 'error')
+        return redirect(url_for('admin_order_detail', order_number=order_number))
+
+    # Format phone number
+    formatted_phone = format_phone_number(customer['phone'])
+    if not formatted_phone:
+        flash(f'Invalid phone number format: {customer["phone"]}', 'error')
+        return redirect(url_for('admin_order_detail', order_number=order_number))
+
+    # Send WhatsApp message
+    success, result = send_whatsapp_message(formatted_phone, message, app.config)
+
+    if success:
+        flash(f'WhatsApp message sent successfully to {customer["phone"]}!', 'success')
+
+        # Save to WhatsApp messages table
+        db.save_whatsapp_message(
+            message_id=result.get('messages', [{}])[0].get('id', ''),
+            direction='outbound',
+            from_phone=app.config.get('WHATSAPP_CONTACT_NUMBER', ''),
+            to_phone=formatted_phone,
+            message_text=message,
+            user_id=customer['id']
+        )
+    else:
+        flash(f'Failed to send WhatsApp: {result}', 'error')
+
+    return redirect(url_for('admin_order_detail', order_number=order_number))
+
+
 @app.route('/admin/orders/<order_number>/delete', methods=['POST'])
 @admin_required
 def admin_delete_order(order_number):

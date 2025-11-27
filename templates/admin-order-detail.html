@@ -228,10 +228,17 @@
                                     Send status update email to customer
                                 </label>
                             </div>
-                            <button type="submit" class="btn btn-primary w-100">
+                            <button type="submit" class="btn btn-primary w-100 mb-2">
                                 <i class="fas fa-save"></i> Update Status
                             </button>
                         </form>
+
+                        <!-- WhatsApp Button -->
+                        {% if config.WHATSAPP_ENABLED %}
+                        <button type="button" class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#whatsappModal{{ order.id }}">
+                            <i class="fab fa-whatsapp"></i> Send WhatsApp Message
+                        </button>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -310,4 +317,77 @@
     color: var(--text-color);
 }
 </style>
+
+<!-- WhatsApp Modal -->
+{% if config.WHATSAPP_ENABLED %}
+<div class="modal fade" id="whatsappModal{{ order.id }}" tabindex="-1" aria-labelledby="whatsappModalLabel{{ order.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="whatsappModalLabel{{ order.id }}">
+                    <i class="fab fa-whatsapp"></i> Send WhatsApp Message
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin_send_whatsapp_order', order_number=order.order_number) }}">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <strong><i class="fas fa-info-circle"></i> Customer:</strong> {{ customer.name if customer else 'N/A' }}<br>
+                        <strong><i class="fas fa-phone"></i> Phone:</strong>
+                        {% if customer and customer.phone %}
+                            {{ customer.phone }}
+                        {% else %}
+                            <span class="text-danger">No phone number provided</span>
+                        {% endif %}
+                    </div>
+
+                    {% if not customer or not customer.phone %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Cannot send WhatsApp:</strong> Customer has no phone number on record.
+                    </div>
+                    {% else %}
+                    <div class="mb-3">
+                        <label for="whatsapp_message{{ order.id }}" class="form-label">
+                            <strong>Message:</strong>
+                        </label>
+                        <textarea
+                            class="form-control"
+                            id="whatsapp_message{{ order.id }}"
+                            name="whatsapp_message"
+                            rows="6"
+                            required
+                            placeholder="Type your WhatsApp message here...">Hi {{ customer.name if customer else '' }},
+
+This is regarding your order {{ order.order_number }}.
+
+</textarea>
+                        <small class="text-muted">
+                            <i class="fas fa-lightbulb"></i>
+                            Tip: Personalize the message with order details, status updates, or payment instructions.
+                        </small>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <i class="fas fa-clock"></i>
+                        <strong>Note:</strong> Customer must have messaged you first, or be within 24-hour service window.
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    {% if customer and customer.phone %}
+                    <button type="submit" class="btn btn-success">
+                        <i class="fab fa-whatsapp"></i> Send WhatsApp
+                    </button>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}
