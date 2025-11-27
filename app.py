@@ -1551,15 +1551,27 @@ def admin_send_whatsapp_order(order_number):
     if success:
         flash(f'WhatsApp message sent successfully to {customer["phone"]}!', 'success')
 
+        # Parse result if it's a string
+        import json
+        if isinstance(result, str):
+            try:
+                result = json.loads(result)
+            except:
+                result = {}
+
         # Save to WhatsApp messages table
-        db.save_whatsapp_message(
-            message_id=result.get('messages', [{}])[0].get('id', ''),
-            direction='outbound',
-            from_phone=app.config.get('WHATSAPP_CONTACT_NUMBER', ''),
-            to_phone=formatted_phone,
-            message_text=message,
-            user_id=customer['id']
-        )
+        try:
+            db.save_whatsapp_message(
+                message_id=result.get('messages', [{}])[0].get('id', ''),
+                direction='outbound',
+                from_phone=app.config.get('WHATSAPP_CONTACT_NUMBER', ''),
+                to_phone=formatted_phone,
+                message_text=message,
+                user_id=customer['id']
+            )
+        except Exception as e:
+            print(f"Error saving WhatsApp message to database: {e}")
+            # Continue anyway - message was sent successfully
     else:
         flash(f'Failed to send WhatsApp: {result}', 'error')
 
