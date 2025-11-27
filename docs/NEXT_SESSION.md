@@ -1,215 +1,244 @@
-# Next Session Guide - Payment & Banking Details
+# Next Session Guide - WhatsApp Templates Implementation
 
-**Date:** 2025-10-31
-**Status:** Ready for Payment Integration Discussion
-
----
-
-## 🎯 Where We Left Off
-
-We just completed a MASSIVE session with these achievements:
-
-### ✅ Completed Today (2025-10-31):
-
-1. **Quote System Enhancements**
-   - ✅ View/download uploaded quote images in admin panel
-   - ✅ Fixed email notifications to include info@snowspoiledgifts.co.za
-   - ✅ Email attachments support (send files to customers from admin)
-
-2. **Complete User Management System (3 Phases)**
-   - ✅ Phase 1: User password change (self-service)
-   - ✅ Phase 2: Admin user dashboard (view all users, statistics, search)
-   - ✅ Phase 3: Admin actions (edit, reset password, toggle status/admin, delete)
-
-3. **Email Verified Field**
-   - Status: Exists in database but not enforced
-   - Decision: Left as-is for now (Option C) - can implement verification later if needed
+**Date:** 2025-11-27
+**Status:** ✅ WhatsApp FULLY WORKING in Production | ⏳ Waiting for Template Approval
 
 ---
 
-## 💭 Next Topic: Payment & Banking Details
+## 🎉 CURRENT STATUS
 
-### Your Thoughts to Consider:
-> "Then we need to think about the process to send someone my ETL Banking details. Let me think about it till then."
+### ✅ **WhatsApp Integration - COMPLETE & LIVE!**
 
-### Discussion Points for Next Session:
+**Production SA Number:** +27 82 675 4285
+- ✅ Registered and verified
+- ✅ Active on WhatsApp network
+- ✅ Receiving messages via webhook
+- ✅ Sending messages from admin panel
+- ✅ Two-way conversations working
+- ✅ Admin inbox functional
 
-**Questions to Think About:**
+**What's Working NOW:**
+1. **Admin WhatsApp Inbox** - `/admin/whatsapp-inbox`
+   - View all customer conversations
+   - Reply to messages
+   - Delete messages/conversations
+   - Unread message badges
 
-1. **When should banking details be sent?**
-   - After order is placed (in order confirmation email)?
-   - Only for specific payment methods?
-   - When order status changes to "Awaiting Payment"?
+2. **Send WhatsApp from Quotes**
+   - WhatsApp button in quote management
+   - Phone number validation
+   - Message saved to inbox
 
-2. **What payment methods do you want to support?**
-   - ✅ Cash on Delivery (already exists)
-   - 🏦 EFT/Bank Transfer (manual - send banking details)
-   - 💳 Instant EFT (PayFast integration)
-   - 💳 Credit/Debit Card (PayFast/Stripe/PayPal)
-   - 📱 Mobile Payment (SnapScan, Zapper, etc.)
+3. **Send WhatsApp from Orders**
+   - WhatsApp button in order detail page
+   - Customer phone number pre-filled
+   - Integration with order workflow
 
-3. **EFT Banking Details Format:**
-   - What information needs to be included?
-   - Bank name, account holder, account number, branch code, reference?
-   - Should it be in email template or separate PDF?
+4. **Customer-Facing Features**
+   - Floating WhatsApp button (site-wide)
+   - WhatsApp contact in email templates
+   - WhatsApp on quote success pages
+   - WhatsApp help on checkout page
+   - Support card on orders/dashboard
 
-4. **Payment Verification:**
-   - How do you verify EFT payments?
-   - Manual check vs automated reconciliation?
-   - How to update order status after payment received?
-
-5. **Order Flow with EFT:**
-   ```
-   Customer places order
-   ↓
-   Order created with status "Awaiting Payment"
-   ↓
-   Email sent with banking details & reference number
-   ↓
-   Customer makes EFT payment
-   ↓
-   ??? How do you know payment was made? ???
-   ↓
-   Update order status to "Paid"
-   ↓
-   Process order
-   ```
+**Current Limitations:**
+- ⏰ **24-hour window rule** - Customer must message first
+- 🚫 **Cannot initiate conversations** - Waiting for template approval
 
 ---
 
-## 🎨 Potential Solutions to Discuss:
+## ⏳ WAITING FOR: Template Approval
 
-### **Option A: Simple Manual EFT**
-- Add banking details to order confirmation email
-- Customer pays manually
-- You check bank statement and manually update order status in admin panel
-- **Pros:** Simple, no integration needed
-- **Cons:** Manual work, possible delays
+### **Templates Submitted (In Review):**
 
-### **Option B: PayFast Integration** (Recommended)
-- Integrate PayFast (South African payment gateway)
-- Supports: Instant EFT, Credit Cards, Debit Cards
-- Automatic payment confirmation
-- **Pros:** Professional, automated, instant confirmation
-- **Cons:** Requires setup, transaction fees (~3.9%)
+**Status:** All templates reclassified to "Utility" ✅
+**Awaiting:** Meta approval (4-48 hours typical)
 
-### **Option C: Hybrid Approach**
-- Keep manual EFT option with banking details
-- Add PayFast for customers who want instant payment
-- Give customers choice during checkout
-- **Pros:** Flexibility, caters to all customers
-- **Cons:** More complex implementation
+#### **1. Quote Ready Notification** (`quote_ready_notification`)
+- Variables: Name, Quote Type, Amount
+- Buttons: View Quote (URL), Call Us (Phone)
+- **Auto-send:** When quote is approved
+- **Manual:** Available in admin quotes page
 
-### **Option D: Admin-Triggered Banking Email**
-- Admin manually sends banking details email when ready
-- Button in admin order detail: "Send Banking Details"
-- More control over when details are sent
-- **Pros:** Flexible, controlled
-- **Cons:** Extra admin work per order
+#### **2. Payment Reminder** (`payment_reminder`)
+- Variables: Name, Order Number, Amount
+- Buttons: View Order (URL), 2x Quick Replies
+- **Manual only:** Admin decides when to send
+
+#### **3. Order Status Update** (`order_status_update`)
+- Variables: Name, Order Number, Status, Details
+- Buttons: Track Order (URL), Need Help (Phone)
+- **Checkbox option:** Send when updating order status
+
+#### **4. Order Ready Notification** (`order_ready_notification`)
+- Variables: Name, Order Number, Details (pickup/shipping info)
+- Buttons: View Order (URL), Pickup Location (Maps), Confirmed (Quick Reply)
+- **Auto-send:** When status changes to "Ready" or "Shipped"
 
 ---
 
-## 📋 Files to Read Next Session:
+## 🚀 RESUME HERE - When Templates Are Approved
 
-### **Essential Reading:**
-1. **progress.md** (lines 321-480) - Today's work summary
-2. **This file (NEXT_SESSION.md)** - Current context
+### **Step 1: Verify Template Approval**
 
-### **Reference if Needed:**
-3. **app.py** (lines 2037-2350) - Order creation & checkout flow
-4. **templates/order-confirmation.html** - Order confirmation email template
-5. **src/email_utils.py** (lines 1165-1400) - Email sending functions
+Check Meta Business Manager:
+- https://business.facebook.com/wa/manage/message-templates/
+- All 4 templates should show status: **"Approved" ✅**
 
-### **Optional Background:**
-6. **README.md** - Updated feature list
-7. **templates/checkout.html** - Current checkout page
-8. **templates/admin-order-detail.html** - Admin order management
+### **Step 2: Notify Claude**
 
----
+Simply say: **"Templates are approved!"**
 
-## 🔧 Current Payment System:
+Claude will then:
+1. Build template sender functions
+2. Add admin UI buttons for manual sends
+3. Add auto-send triggers (quote approval, status changes)
+4. Add quick reply webhook handlers
+5. Test locally
+6. Deploy to production
 
-**What Exists:**
-- ✅ Checkout page with shipping options
-- ✅ Order creation in database
-- ✅ Order confirmation emails (customer + admin)
-- ✅ Order status management (pending, confirmed, awaiting_payment, paid, processing, shipped, delivered, cancelled)
-- ✅ Admin order detail page with status updates
-
-**What's Missing:**
-- ❌ Payment method selection (currently defaults to "Cash on Delivery")
-- ❌ Banking details display/email
-- ❌ Payment gateway integration
-- ❌ Payment verification workflow
-- ❌ Proof of payment upload
+**Estimated time:** 30-45 minutes to build and deploy
 
 ---
 
-## 💡 Suggested Approach for Next Session:
+## 📋 Template Configuration Summary
 
-1. **Discuss Your Preferences:**
-   - What payment methods do you want?
-   - Manual vs automated verification?
-   - Budget for payment gateway fees?
+### **Auto-Send Preferences (Already Decided):**
 
-2. **Design the Flow:**
-   - Sketch out the customer payment journey
-   - Decide when/how banking details are sent
-   - Define admin workflow for payment verification
+| Template | Trigger | Auto/Manual | Notes |
+|----------|---------|-------------|-------|
+| Quote Ready | Quote approved | Auto + Manual | Sends when admin approves quote |
+| Payment Reminder | - | Manual only | Admin decides when to remind |
+| Order Status Update | Status change | Checkbox option | Like email notification |
+| Order Ready | Status = Ready/Shipped | Auto-send | Triggers on specific statuses |
 
-3. **Implement Solution:**
-   - Based on your decision, implement chosen approach
-   - Update checkout page
-   - Add payment method selection
-   - Create banking details email template
-   - Add admin controls if needed
+### **Quick Reply Handling:**
 
----
-
-## 📝 Action Items for You (Before Next Session):
-
-**Think About:**
-- [ ] Which payment methods you want to offer
-- [ ] Your banking details format (I can help structure this)
-- [ ] Whether you want automated payment gateway or manual process
-- [ ] Your typical order flow (do you confirm orders before requesting payment?)
-
-**Optional:**
-- [ ] Check PayFast fees and requirements: https://www.payfast.co.za/fees/
-- [ ] Consider which payment methods your customers prefer
-- [ ] Think about order references (use order number or generate unique payment reference?)
+When customer clicks quick reply buttons:
+- **"Resend Bank Details"** → Auto-reply with banking info
+- **"Already Paid"** → Notification to admin
+- **"Collected ✅"** → Updates order status notes
+- **"Confirmed ✅"** → Logged in order timeline
 
 ---
 
-## 🚀 Ready to Continue?
+## 🔧 Technical Details
 
-When you're ready for the next session:
-1. Read **progress.md** (lines 321-480) to refresh on what we did today
-2. Think about the payment discussion points above
-3. Tell me your preferences and we'll build the solution!
+### **WhatsApp Configuration (Production):**
+
+```bash
+# .env (Production)
+WHATSAPP_PHONE_NUMBER_ID=804077982799067
+WHATSAPP_ACCESS_TOKEN=<permanent_token>
+WHATSAPP_BUSINESS_ACCOUNT_ID=4123964607775539
+WHATSAPP_WEBHOOK_VERIFY_TOKEN=ssg_webhook_secret_2024
+
+WHATSAPP_CONTACT_LINK=https://wa.me/27826754285
+WHATSAPP_CONTACT_NUMBER=+27 82 675 4285
+```
+
+### **Webhook Configuration:**
+
+- **URL:** `https://www.snowspoiledgifts.co.za/webhooks/whatsapp`
+- **Verify Token:** `ssg_webhook_secret_2024`
+- **Subscribed Fields:** messages ✅
+
+### **Database Tables:**
+
+**whatsapp_messages:**
+- Stores all incoming/outgoing messages
+- Links to users and quotes
+- Tracks conversation threads
+
+**Relevant columns added:**
+- `print_service_requests.phone` - For 3D print quotes
 
 ---
 
-## 📊 System Status Summary:
+## 📁 Files Modified (Recent Session)
 
-**✅ Complete & Working:**
-- User authentication & registration
-- Product catalog & shopping cart
-- Checkout & order creation
-- Admin panel (orders, quotes, users, products)
-- Email notifications
-- User management system
+### **Code Changes:**
+- `app.py` - WhatsApp routes (inbox, send from orders/quotes, webhook)
+- `src/whatsapp_utils.py` - Send functions, phone formatting
+- `src/database.py` - WhatsApp message storage, retrieval
+- `src/config.py` - WhatsApp configuration
+- `src/email_utils.py` - Added WhatsApp contact to footers
 
-**🔨 Next to Build:**
-- Payment method selection
-- Banking details delivery
-- Payment verification workflow
-- (Optional) Payment gateway integration
+### **Templates:**
+- `templates/admin-whatsapp-inbox.html` - Inbox listing
+- `templates/admin-whatsapp-conversation.html` - Conversation view
+- `templates/admin-quotes.html` - Added WhatsApp send button
+- `templates/admin-order-detail.html` - Added WhatsApp send button
+- `templates/base.html` - Floating WhatsApp button
+- `templates/3d_printing.html` - Phone number required
+- `templates/checkout.html` - WhatsApp help section
+- `templates/orders_quotes.html` - WhatsApp support card
+- `templates/quote_success.html` - WhatsApp contact
 
-**Version:** 1.5.0 (User Management Complete)
-**Last Deploy:** 2025-10-31
-**Commit:** `3d656cb` - "Add complete user management system and quote enhancements"
+### **Documentation:**
+- `PRODUCTION_DEPLOYMENT_GUIDE.md` - Complete deployment instructions
+- `database_migration.sql` - Database schema updates
+- `docs/WHATSAPP_API_SETUP_PROGRESS.md` - Setup history
 
 ---
 
-**See you next session! 🎉**
+## 🎯 Next Session Workflow
+
+**When you return:**
+
+1. **Check template approval status**
+   - Go to Meta Business Manager
+   - Look for "Approved" status
+
+2. **If approved:**
+   - Tell Claude: "Templates approved!"
+   - Wait for code implementation (~30 min)
+   - Test locally
+   - Deploy to production
+   - Start using proactive WhatsApp messaging! 🚀
+
+3. **If still pending:**
+   - Continue waiting (can take up to 48 hours)
+   - Check email for Meta notifications
+   - No action needed
+
+4. **If rejected:**
+   - Share rejection reason with Claude
+   - Fix issues
+   - Resubmit
+
+---
+
+## 📞 Support Resources
+
+**Meta Resources:**
+- Business Manager: https://business.facebook.com
+- Message Templates: https://business.facebook.com/wa/manage/message-templates/
+- WhatsApp Configuration: https://developers.facebook.com/apps
+- Payment Methods: https://business.facebook.com/settings/payment-methods
+
+**Documentation:**
+- WhatsApp Cloud API Docs: https://developers.facebook.com/docs/whatsapp/cloud-api
+- Template Guidelines: https://developers.facebook.com/docs/whatsapp/message-templates/guidelines
+
+---
+
+## 🎉 Recent Wins
+
+- ✅ WhatsApp API fully integrated and working in production
+- ✅ SA business number registered and verified
+- ✅ Two-way messaging functional
+- ✅ Admin inbox with full conversation management
+- ✅ Customer-facing WhatsApp contact options site-wide
+- ✅ Phone number capture on all quote forms
+- ✅ Email templates updated with WhatsApp info
+- ✅ 4 professional templates submitted to Meta
+- ✅ Payment method registered
+- ✅ Templates reclassified to "Utility" category
+
+**You're 99% there!** Just waiting on Meta's final approval 🙌
+
+---
+
+**Last Updated:** November 27, 2025
+**Next Action:** Wait for template approval, then implement template sending code

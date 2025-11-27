@@ -386,6 +386,167 @@ Your WhatsApp Business API integration is fully configured and ready to handle c
 
 ---
 
+## 📋 APPENDIX: WhatsApp Message Templates
+
+### **Current Status (Nov 27, 2024)**
+
+**Templates Submitted:** 4 templates awaiting Meta approval
+**Status:** In Review (classified as "Utility")
+**Expected Approval:** 4-48 hours
+
+### **Templates Pending Approval:**
+
+#### **1. Quote Ready Notification** (`quote_ready_notification`)
+**Purpose:** Notify customers when quote is approved and ready for checkout
+
+**Variables:**
+- {{1}} Customer name
+- {{2}} Quote type (e.g., "Custom Cookie Cutter")
+- {{3}} Total amount (e.g., "250")
+
+**Buttons:**
+- View Quote & Pay (URL: website/orders)
+- Call Us (Phone: +27826754285)
+
+**Auto-Send:** When admin approves quote
+**Manual Send:** Available in admin quotes page
+
+---
+
+#### **2. Payment Reminder** (`payment_reminder`)
+**Purpose:** Remind customers about pending payment
+
+**Variables:**
+- {{1}} Customer name
+- {{2}} Order number
+- {{3}} Amount due
+
+**Buttons:**
+- View Order (URL)
+- Resend Bank Details (Quick Reply)
+- Already Paid (Quick Reply)
+
+**Auto-Send:** Manual only
+**Manual Send:** Admin decides when to remind
+
+---
+
+#### **3. Order Status Update** (`order_status_update`)
+**Purpose:** Notify customers of order status changes
+
+**Variables:**
+- {{1}} Customer name
+- {{2}} Order number
+- {{3}} New status
+- {{4}} Additional details
+
+**Buttons:**
+- Track Order (URL)
+- Need Help? (Phone)
+
+**Auto-Send:** Checkbox option when updating status
+**Manual Send:** Available in order detail page
+
+---
+
+#### **4. Order Ready Notification** (`order_ready_notification`)
+**Purpose:** Notify customers when order is ready (pickup or shipped)
+
+**Variables:**
+- {{1}} Customer name
+- {{2}} Order number
+- {{3}} Pickup/shipping details
+
+**Buttons:**
+- View Order (URL)
+- Pickup Location (Google Maps)
+- Confirmed ✅ (Quick Reply)
+
+**Auto-Send:** When status changes to "Ready" or "Shipped"
+**Manual Send:** Available in order detail page
+
+---
+
+### **When Templates Are Approved:**
+
+**Code Implementation Required:**
+1. Template sender functions (src/whatsapp_templates.py)
+2. Admin UI updates (manual send buttons)
+3. Auto-send triggers (quote approval, status changes)
+4. Quick reply webhook handlers
+
+**Deployment Steps:**
+1. Verify all templates show "Approved" status
+2. Pull updated code from Git
+3. Test template sending locally
+4. Deploy to production
+5. Test end-to-end flow
+
+**Testing Checklist:**
+- [ ] Send quote ready template manually
+- [ ] Approve quote and verify auto-send
+- [ ] Send payment reminder
+- [ ] Update order status with WhatsApp checkbox
+- [ ] Test quick reply responses
+- [ ] Verify messages appear in admin inbox
+
+---
+
+### **Template Usage Limits:**
+
+**Free Tier (Current):**
+- 1,000 business-initiated conversations/month
+- Unlimited customer-initiated conversations
+
+**What Counts as "Business-Initiated":**
+- Template messages (proactive outreach)
+- First message in 24-hour window
+
+**What's Free:**
+- Replies within 24-hour window
+- Customer messages to you
+- Quick reply responses
+
+**Monitoring Usage:**
+- Meta Business Manager → WhatsApp → Analytics
+- Check monthly conversation counts
+- Set up billing alerts if needed
+
+---
+
+### **Template Best Practices:**
+
+**DO:**
+- ✅ Personalize with customer name
+- ✅ Include clear call-to-action
+- ✅ Keep messages concise (under 1024 chars)
+- ✅ Use buttons for easy customer response
+- ✅ Send during business hours (9am-5pm)
+
+**DON'T:**
+- ❌ Send marketing messages without opt-in
+- ❌ Spam customers with frequent messages
+- ❌ Use all caps or excessive emojis
+- ❌ Send after 8pm or before 8am
+- ❌ Message customers who opt-out
+
+---
+
+### **Future Template Ideas:**
+
+Once you're comfortable with the 4 core templates, consider:
+- **Order Shipped** - With tracking link
+- **Review Request** - After delivery
+- **Cart Abandonment** - 24 hours after cart creation
+- **3D File Upload Reminder** - For print service quotes
+- **Special Offers** - Seasonal promotions (requires opt-in)
+
+---
+
+**Welcome to professional WhatsApp Business messaging!** 🚀
+
+---
+
 Generated: November 2024
-Version: 1.0
+Version: 1.1 (Updated with Template Information)
 System: Snow Spoiled Gifts - SSG
