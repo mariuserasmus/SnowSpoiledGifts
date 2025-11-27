@@ -394,7 +394,12 @@ def send_customer_confirmation(config, quote_data):
                 <div class="footer">
                     <p><strong>Snow Spoiled Gifts</strong></p>
                     <p>Premium 3D Printing Services</p>
-                    <p style="margin-top: 15px;">This is an automated confirmation email. Please do not reply to this message.</p>
+                    <p style="margin-top: 15px;">
+                        <strong>Contact Us:</strong><br>
+                        WhatsApp: {config.get('WHATSAPP_CONTACT_NUMBER', '+27 82 675 4285')}<br>
+                        Email: {config['CONTACT_EMAIL']}
+                    </p>
+                    <p style="margin-top: 10px; font-size: 11px; color: #9ca3af;">This is an automated confirmation email.</p>
                 </div>
             </div>
         </body>
@@ -583,7 +588,12 @@ def send_signup_confirmation(config, signup_data):
                 <div class="footer">
                     <p><strong>Snow Spoiled Gifts</strong></p>
                     <p>Premium 3D Printing & Personalized Gifts</p>
-                    <p style="margin-top: 15px;">We respect your privacy. Your email will never be shared.</p>
+                    <p style="margin-top: 15px;">
+                        <strong>Contact Us:</strong><br>
+                        WhatsApp: {config.get('WHATSAPP_CONTACT_NUMBER', '+27 82 675 4285')}<br>
+                        Email: {config['CONTACT_EMAIL']}
+                    </p>
+                    <p style="margin-top: 10px; font-size: 11px; color: #9ca3af;">We respect your privacy. Your email will never be shared.</p>
                 </div>
             </div>
         </body>
@@ -1104,7 +1114,11 @@ def send_admin_reply_to_customer(config, to_email, to_name, subject, message_bod
                 <div class="footer">
                     <p><strong>Snow Spoiled Gifts</strong></p>
                     <p>Premium 3D Printing & Personalized Gifts</p>
-                    <p style="margin-top: 15px;">Contact us: {config['MAIL_DEFAULT_SENDER']}</p>
+                    <p style="margin-top: 15px;">
+                        <strong>Contact Us:</strong><br>
+                        WhatsApp: {config.get('WHATSAPP_CONTACT_NUMBER', '+27 82 675 4285')}<br>
+                        Email: {config['CONTACT_EMAIL']}
+                    </p>
                 </div>
             </div>
         </body>
@@ -1320,9 +1334,13 @@ This helps us identify your payment quickly. Your order will be processed once p
                     <p>Thank you for shopping with Snow Spoiled Gifts!</p>
                 </div>
                 <div class="footer">
-                    <p>Snow Spoiled Gifts<br>
-                    Email: info@snowspoiledgifts.co.za<br>
-                    This is an automated email, please do not reply directly to this message.</p>
+                    <p><strong>Snow Spoiled Gifts</strong></p>
+                    <p style="margin-top: 10px;">
+                        <strong>Contact Us:</strong><br>
+                        WhatsApp: {config.get('WHATSAPP_CONTACT_NUMBER', '+27 82 675 4285')}<br>
+                        Email: info@snowspoiledgifts.co.za
+                    </p>
+                    <p style="margin-top: 10px; font-size: 11px; color: #9ca3af;">This is an automated email, please do not reply directly to this message.</p>
                 </div>
             </div>
         </body>
@@ -1635,9 +1653,13 @@ PUDO customers will receive a notification when the parcel arrives.
                     <p>Thank you for choosing Snow Spoiled Gifts!</p>
                 </div>
                 <div class="footer">
-                    <p>Snow Spoiled Gifts<br>
-                    Email: info@snowspoiledgifts.co.za<br>
-                    This is an automated notification.</p>
+                    <p><strong>Snow Spoiled Gifts</strong></p>
+                    <p style="margin-top: 10px;">
+                        <strong>Contact Us:</strong><br>
+                        WhatsApp: {config.get('WHATSAPP_CONTACT_NUMBER', '+27 82 675 4285')}<br>
+                        Email: info@snowspoiledgifts.co.za
+                    </p>
+                    <p style="margin-top: 10px; font-size: 11px; color: #9ca3af;">This is an automated notification.</p>
                 </div>
             </div>
         </body>
@@ -1801,9 +1823,13 @@ def send_quote_converted_notification(config, customer_email, customer_name, ite
                     <p>Thank you for choosing {config['SITE_NAME']}!</p>
                 </div>
                 <div class="footer">
-                    <p>{config['SITE_NAME']}<br>
-                    Email: {config['MAIL_DEFAULT_SENDER']}<br>
-                    This is an automated notification.</p>
+                    <p><strong>{config['SITE_NAME']}</strong></p>
+                    <p style="margin-top: 10px;">
+                        <strong>Contact Us:</strong><br>
+                        WhatsApp: {config.get('WHATSAPP_CONTACT_NUMBER', '+27 82 675 4285')}<br>
+                        Email: {config['MAIL_DEFAULT_SENDER']}
+                    </p>
+                    <p style="margin-top: 10px; font-size: 11px; color: #9ca3af;">This is an automated notification.</p>
                 </div>
             </div>
         </body>
@@ -1935,9 +1961,13 @@ def send_invoice_email(config, customer_email, customer_name, order_number, invo
                     <p>Thank you for your business!</p>
                 </div>
                 <div class="footer">
-                    <p>{config['SITE_NAME']}<br>
-                    Email: {config['MAIL_DEFAULT_SENDER']}<br>
-                    This is an automated notification.</p>
+                    <p><strong>{config['SITE_NAME']}</strong></p>
+                    <p style="margin-top: 10px;">
+                        <strong>Contact Us:</strong><br>
+                        WhatsApp: {config.get('WHATSAPP_CONTACT_NUMBER', '+27 82 675 4285')}<br>
+                        Email: {config['MAIL_DEFAULT_SENDER']}
+                    </p>
+                    <p style="margin-top: 10px; font-size: 11px; color: #9ca3af;">This is an automated notification.</p>
                 </div>
             </div>
         </body>
@@ -2097,7 +2127,11 @@ def send_bulk_email(config, recipients, subject, message_body, interest_filter=N
                 <div class="footer">
                     <p><strong>{config.get('SITE_NAME', 'Snow Spoiled Gifts')}</strong></p>
                     <p>Premium 3D Printing & Personalized Gifts</p>
-                    <p style="margin-top: 15px;">Contact us: {config['MAIL_DEFAULT_SENDER']}</p>
+                    <p style="margin-top: 15px;">
+                        <strong>Contact Us:</strong><br>
+                        WhatsApp: {config.get('WHATSAPP_CONTACT_NUMBER', '+27 82 675 4285')}<br>
+                        Email: {config['MAIL_DEFAULT_SENDER']}
+                    </p>
                 </div>
             </div>
         </body>
@@ -2351,13 +2385,17 @@ MESSAGE FROM OUR TEAM
                     The {config.get('SITE_NAME', 'Snow Spoiled Gifts')} Team</p>
                 </div>
                 <div class="footer">
-                    <p>{config.get('SITE_NAME', 'Snow Spoiled Gifts')}<br>
-                    Email: {config['MAIL_DEFAULT_SENDER']}<br>
-                    Phone: {config.get('CONTACT_PHONE', '')}<br>
-                    <a href="https://{config.get('SITE_URL', 'www.snowspoiledgifts.co.za')}"
-                       style="color: #2563eb;">
-                        {config.get('SITE_URL', 'www.snowspoiledgifts.co.za')}
-                    </a></p>
+                    <p><strong>{config.get('SITE_NAME', 'Snow Spoiled Gifts')}</strong></p>
+                    <p style="margin-top: 10px;">
+                        <strong>Contact Us:</strong><br>
+                        WhatsApp: {config.get('WHATSAPP_CONTACT_NUMBER', '+27 82 675 4285')}<br>
+                        Email: {config['MAIL_DEFAULT_SENDER']}<br>
+                        Phone: {config.get('CONTACT_PHONE', '')}<br>
+                        <a href="https://{config.get('SITE_URL', 'www.snowspoiledgifts.co.za')}"
+                           style="color: #2563eb;">
+                            {config.get('SITE_URL', 'www.snowspoiledgifts.co.za')}
+                        </a>
+                    </p>
                 </div>
             </div>
         </body>

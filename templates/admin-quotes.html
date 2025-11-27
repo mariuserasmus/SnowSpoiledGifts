@@ -457,6 +457,9 @@
                     <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#emailModal{{ quote.request_type|replace(' ', '_')|replace('/', '_') }}_{{ quote.id }}">
                         <i class="fas fa-reply"></i> Email Customer
                     </button>
+                    <button type="button" class="btn btn-outline-success btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#whatsappModal{{ quote.request_type|replace(' ', '_')|replace('/', '_') }}_{{ quote.id }}">
+                        <i class="fab fa-whatsapp"></i> WhatsApp
+                    </button>
                 </div>
             </div>
             <div class="modal-footer">
@@ -519,6 +522,56 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-paper-plane"></i> Send Email
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- WhatsApp Customer Modals -->
+{% for quote in quotes %}
+<div class="modal fade" id="whatsappModal{{ quote.request_type|replace(' ', '_')|replace('/', '_') }}_{{ quote.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fab fa-whatsapp"></i> Send WhatsApp to {{ quote.name }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('send_whatsapp_to_customer', request_type=quote.request_type|replace(' ', '_')|replace('/', '_')|lower, quote_id=quote.id) }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Phone Number:</strong></label>
+                        {% if quote.phone %}
+                            <p class="form-control-plaintext">{{ quote.phone }}</p>
+                        {% else %}
+                            <p class="form-control-plaintext text-danger">
+                                <i class="fas fa-exclamation-triangle"></i> No phone number provided
+                            </p>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="whatsapp_message_{{ quote.id }}" class="form-label">Message:</label>
+                        <textarea class="form-control" id="whatsapp_message_{{ quote.id }}" name="whatsapp_message"
+                                  rows="6" required placeholder="Type your WhatsApp message here..."
+                                  {% if not quote.phone %}disabled{% endif %}></textarea>
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle"></i> Keep messages concise and professional.
+                            {% if config.WHATSAPP_ENABLED %}
+                            <span class="text-success">WhatsApp is enabled.</span>
+                            {% else %}
+                            <span class="text-danger">WhatsApp is not configured.</span>
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success" {% if not quote.phone %}disabled{% endif %}>
+                        <i class="fab fa-whatsapp"></i> Send WhatsApp
                     </button>
                 </div>
             </form>

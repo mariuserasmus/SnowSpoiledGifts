@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}WhatsApp Conversation - Admin Panel{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding-top: 100px;">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="mb-2">
+                <a href="{{ url_for('admin_whatsapp_inbox') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-arrow-left"></i> Back to Inbox
+                </a>
+                <form method="POST" action="{{ url_for('admin_whatsapp_delete_conversation', phone=phone) }}"
+                      onsubmit="return confirm('Delete this entire conversation? This cannot be undone.');"
+                      class="d-inline ms-2">
+                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete conversation">
+                        <i class="fas fa-trash"></i> Delete Conversation
+                    </button>
+                </form>
+            </div>
+            <h2>
+                <i class="fab fa-whatsapp text-success"></i>
+                {% if customer %}
+                    {{ customer.data.name }}
+                {% else %}
+                    {{ phone }}
+                {% endif %}
+            </h2>
+            <p class="text-muted">
+                {{ phone }}
+                {% if customer %}
+                    <span class="mx-2">•</span>
+                    {{ customer.data.email }}
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <!-- Messages -->
+    <div class="row">
+        <div class="col-lg-8 col-md-10 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-comments"></i> Conversation</h5>
+                </div>
+                <div class="card-body" style="max-height: 500px; overflow-y: auto;" id="messageContainer">
+                    {% if messages %}
+                        {% for msg in messages %}
+                        <div class="mb-3 {% if msg.direction == 'outbound' %}text-end{% endif %} message-item">
+                            <div class="d-inline-block p-3 rounded position-relative {% if msg.direction == 'inbound' %}bg-light{% else %}bg-success text-white{% endif %}"
+                                 style="max-width: 70%;">
+                                <div>{{ msg.message_text }}</div>
+                                <div class="d-flex justify-content-between align-items-center mt-1">
+                                    <small class="{% if msg.direction == 'inbound' %}text-muted{% else %}text-white-50{% endif %}">
+                                        {{ msg.timestamp }}
+                                        {% if msg.direction == 'inbound' %}
+                                            <i class="fas fa-user"></i>
+                                        {% else %}
+                                            <i class="fas fa-check"></i> You
+                                        {% endif %}
+                                    </small>
+                                    <form method="POST" action="{{ url_for('admin_whatsapp_delete_message', message_id=msg.id) }}"
+                                          onsubmit="return confirm('Delete this message?');"
+                                          class="d-inline ms-2">
+                                        <input type="hidden" name="phone" value="{{ phone }}">
+                                        <button type="submit" class="btn btn-sm {% if msg.direction == 'inbound' %}btn-outline-danger{% else %}btn-outline-light{% endif %}"
+                                                style="padding: 0.1rem 0.3rem; font-size: 0.7rem;" title="Delete message">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center">No messages yet</p>
+                    {% endif %}
+                </div>
+
+                <!-- Reply Form -->
+                <div class="card-footer">
+                    <form method="POST" action="{{ url_for('admin_whatsapp_reply', phone=phone) }}">
+                        <div class="input-group">
+                            <textarea name="message" class="form-control" rows="2"
+                                      placeholder="Type your message..." required></textarea>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fab fa-whatsapp"></i> Send
+                            </button>
+                        </div>
+                        <small class="text-muted mt-1 d-block">
+                            <i class="fas fa-info-circle"></i>
+                            Free-form replies work within 24 hours of customer's last message
+                        </small>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Customer Info Card -->
+            {% if customer %}
+            <div class="card mt-3">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-user"></i> Customer Information</h6>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-3">Name:</dt>
+                        <dd class="col-sm-9">{{ customer.data.name }}</dd>
+
+                        <dt class="col-sm-3">Email:</dt>
+                        <dd class="col-sm-9">{{ customer.data.email }}</dd>
+
+                        <dt class="col-sm-3">Phone:</dt>
+                        <dd class="col-sm-9">{{ phone }}</dd>
+
+                        {% if customer.type == 'quote' or customer.type == 'cake_topper' %}
+                        <dt class="col-sm-3">Type:</dt>
+                        <dd class="col-sm-9">
+                            <span class="badge bg-info">{{ customer.type|replace('_', ' ')|title }} Request</span>
+                        </dd>
+                        {% endif %}
+                    </dl>
+
+                    {% if customer.data.id %}
+                    <a href="{{ url_for('admin_quotes') }}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-file-alt"></i> View in Quotes
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-scroll to bottom of messages
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('messageContainer');
+    if (container) {
+        container.scrollTop = container.scrollHeight;
+    }
+});
+</script>
+{% endblock %}

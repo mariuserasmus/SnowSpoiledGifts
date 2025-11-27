@@ -91,6 +91,7 @@ class Database:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 email TEXT NOT NULL,
+                phone TEXT,
                 uploaded_files TEXT NOT NULL,
                 material TEXT NOT NULL,
                 color TEXT NOT NULL,
@@ -370,6 +371,29 @@ class Database:
             )
         ''')
 
+        # ===== WHATSAPP MESSAGING SYSTEM =====
+        # Create whatsapp_messages table for incoming/outgoing messages
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS whatsapp_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                message_id TEXT UNIQUE,
+                direction TEXT NOT NULL,
+                from_phone TEXT NOT NULL,
+                to_phone TEXT NOT NULL,
+                message_text TEXT,
+                message_type TEXT DEFAULT 'text',
+                media_url TEXT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                status TEXT DEFAULT 'received',
+                is_read INTEGER DEFAULT 0,
+                user_id INTEGER,
+                quote_id INTEGER,
+                quote_type TEXT,
+                conversation_id TEXT,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        ''')
+
         # Create indexes for candles & soaps
         cursor.execute('''
             CREATE INDEX IF NOT EXISTS idx_candles_soaps_products_category
@@ -392,6 +416,22 @@ class Database:
         cursor.execute('''
             CREATE INDEX IF NOT EXISTS idx_candles_soaps_stock_history_product
             ON candles_soaps_stock_history(product_id)
+        ''')
+
+        # Create indexes for WhatsApp messages
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_from_phone
+            ON whatsapp_messages(from_phone)
+        ''')
+
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_conversation
+            ON whatsapp_messages(conversation_id)
+        ''')
+
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_unread
+            ON whatsapp_messages(is_read)
         ''')
 
         # Run migrations for existing tables
@@ -1145,7 +1185,7 @@ class Database:
             conn.close()
             return False, f"An error occurred: {str(e)}"
 
-    def add_print_service_request(self, name, email, uploaded_files, material,
+    def add_print_service_request(self, name, email, phone, uploaded_files, material,
                                   color, layer_height, infill_density, quantity,
                                   supports, special_instructions, ip_address, user_id=None):
         """Add a new 3D print service request"""
@@ -1155,11 +1195,11 @@ class Database:
         try:
             cursor.execute('''
                 INSERT INTO print_service_requests (
-                    name, email, uploaded_files, material, color, layer_height,
+                    name, email, phone, uploaded_files, material, color, layer_height,
                     infill_density, quantity, supports, special_instructions, ip_address, user_id
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (name, email, uploaded_files, material, color, layer_height,
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (name, email, phone, uploaded_files, material, color, layer_height,
                   infill_density, quantity, supports, special_instructions, ip_address, user_id))
 
             conn.commit()
@@ -4303,3 +4343,197 @@ class Database:
             conn.rollback()
             conn.close()
             return False, f"Error updating quote pricing: {str(e)}"
+
+    # ============================================================================
+    # WHATSAPP MESSAGING METHODS
+    # ============================================================================
+
+    def save_whatsapp_message(self, message_id, direction, from_phone, to_phone,
+                              message_text, message_type='text', media_url=None,
+                              user_id=None, quote_id=None, quote_type=None):
+        """Save incoming or outgoing WhatsApp message"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        # Generate conversation ID (use the customer's phone number)
+        conversation_id = from_phone if direction == 'inbound' else to_phone
+
+        try:
+            cursor.execute('''
+                INSERT INTO whatsapp_messages (
+                    message_id, direction, from_phone, to_phone, message_text,
+                    message_type, media_url, user_id, quote_id, quote_type, conversation_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (message_id, direction, from_phone, to_phone, message_text,
+                  message_type, media_url, user_id, quote_id, quote_type, conversation_id))
+
+            conn.commit()
+            conn.close()
+            return True
+
+        except Exception as e:
+            print(f"Error saving WhatsApp message: {e}")
+            conn.rollback()
+            conn.close()
+            return False
+
+    def get_whatsapp_conversations(self, limit=50):
+        """Get all WhatsApp conversations grouped by phone number"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT
+                conversation_id,
+                MAX(timestamp) as last_message_time,
+                COUNT(*) as message_count,
+                SUM(CASE WHEN is_read = 0 AND direction = 'inbound' THEN 1 ELSE 0 END) as unread_count
+            FROM whatsapp_messages
+            GROUP BY conversation_id
+            ORDER BY last_message_time DESC
+            LIMIT ?
+        ''', (limit,))
+
+        conversations = cursor.fetchall()
+        conn.close()
+
+        return [dict(conv) for conv in conversations]
+
+    def get_whatsapp_messages_by_phone(self, phone_number, limit=100):
+        """Get all messages for a specific phone number (conversation)"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT * FROM whatsapp_messages
+            WHERE conversation_id = ?
+            ORDER BY timestamp ASC
+            LIMIT ?
+        ''', (phone_number, limit))
+
+        messages = cursor.fetchall()
+        conn.close()
+
+        return [dict(msg) for msg in messages]
+
+    def mark_whatsapp_messages_read(self, conversation_id):
+        """Mark all messages in a conversation as read"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            UPDATE whatsapp_messages
+            SET is_read = 1
+            WHERE conversation_id = ? AND direction = 'inbound'
+        ''', (conversation_id,))
+
+        conn.commit()
+        conn.close()
+
+    def get_whatsapp_unread_count(self):
+        """Get total count of unread messages"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT COUNT(*) as count
+            FROM whatsapp_messages
+            WHERE is_read = 0 AND direction = 'inbound'
+        ''')
+
+        result = cursor.fetchone()
+        conn.close()
+
+        return result['count'] if result else 0
+
+    def delete_whatsapp_message(self, message_id):
+        """Delete a single WhatsApp message"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('DELETE FROM whatsapp_messages WHERE id = ?', (message_id,))
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as e:
+            print(f"Error deleting WhatsApp message: {e}")
+            conn.rollback()
+            conn.close()
+            return False
+
+    def delete_whatsapp_conversation(self, conversation_id):
+        """Delete all messages in a conversation"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('DELETE FROM whatsapp_messages WHERE conversation_id = ?', (conversation_id,))
+            deleted_count = cursor.rowcount
+            conn.commit()
+            conn.close()
+            return True, deleted_count
+        except Exception as e:
+            print(f"Error deleting WhatsApp conversation: {e}")
+            conn.rollback()
+            conn.close()
+            return False, 0
+
+    def find_customer_by_phone(self, phone_number):
+        """Try to find a customer by phone number in users or quote tables"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        # Generate alternative phone formats to try
+        # Input might be: "27825522848", "0825522848", "+27825522848", etc.
+        phone_variants = [phone_number]
+
+        # Clean the number (remove +, spaces, dashes)
+        cleaned = phone_number.replace('+', '').replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+
+        # If it starts with 27 (South Africa), also try with leading 0
+        if cleaned.startswith('27') and len(cleaned) == 11:
+            phone_variants.append('0' + cleaned[2:])  # 27825522848 -> 0825522848
+            phone_variants.append('+' + cleaned)       # 27825522848 -> +27825522848
+
+        # If it starts with 0, also try with country code
+        if cleaned.startswith('0') and len(cleaned) == 10:
+            phone_variants.append('27' + cleaned[1:])  # 0825522848 -> 27825522848
+            phone_variants.append('+27' + cleaned[1:]) # 0825522848 -> +27825522848
+
+        # Try users table first with all variants
+        for variant in phone_variants:
+            cursor.execute('SELECT id, name, email, phone FROM users WHERE phone = ?', (variant,))
+            user = cursor.fetchone()
+            if user:
+                conn.close()
+                return {'type': 'user', 'data': dict(user)}
+
+        # Try quote_requests with all variants
+        for variant in phone_variants:
+            cursor.execute('''
+                SELECT id, name, email, phone FROM quote_requests
+                WHERE phone = ?
+                ORDER BY request_date DESC
+                LIMIT 1
+            ''', (variant,))
+            quote = cursor.fetchone()
+            if quote:
+                conn.close()
+                return {'type': 'quote', 'data': dict(quote)}
+
+        # Try cake_topper_requests with all variants
+        for variant in phone_variants:
+            cursor.execute('''
+                SELECT id, name, email, phone FROM cake_topper_requests
+                WHERE phone = ?
+                ORDER BY request_date DESC
+                LIMIT 1
+            ''', (variant,))
+            cake_quote = cursor.fetchone()
+            if cake_quote:
+                conn.close()
+                return {'type': 'cake_topper', 'data': dict(cake_quote)}
+
+        conn.close()
+        return None

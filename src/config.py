@@ -36,8 +36,11 @@ class Config:
     SOCIAL_MEDIA = {
         'facebook': 'https://facebook.com/snowspoiledgifts',
         'instagram': 'https://www.instagram.com/sn0w_sp0ild_g1fts',
-        'whatsapp': 'https://wa.me/27714711779',  # Replace with your WhatsApp number
+        'whatsapp': os.getenv('WHATSAPP_CONTACT_LINK', 'https://wa.me/27826754285'),  # Business WhatsApp
     }
+
+    # WhatsApp Business Contact (display number)
+    WHATSAPP_CONTACT_NUMBER = os.getenv('WHATSAPP_CONTACT_NUMBER', '+27 82 675 4285')
 
     # Email settings for notifications
     MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
@@ -59,6 +62,12 @@ class Config:
 
     # Base URL for links in emails (unsubscribe, etc.)
     BASE_URL = os.getenv('BASE_URL', 'www.snowspoiledgifts.co.za')
+
+    # WhatsApp Business API settings
+    WHATSAPP_PHONE_NUMBER_ID = os.getenv('WHATSAPP_PHONE_NUMBER_ID')
+    WHATSAPP_ACCESS_TOKEN = os.getenv('WHATSAPP_ACCESS_TOKEN')
+    WHATSAPP_BUSINESS_ACCOUNT_ID = os.getenv('WHATSAPP_BUSINESS_ACCOUNT_ID')
+    WHATSAPP_ENABLED = bool(WHATSAPP_ACCESS_TOKEN)  # Enable if token exists
 
     # Banking Details for EFT Payments
     BANK_NAME = os.getenv('BANK_NAME', 'FNB')

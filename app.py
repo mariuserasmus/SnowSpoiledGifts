@@ -1135,6 +1135,7 @@ def print_service_request():
     # Get form data
     name = request.form.get('name')
     email = request.form.get('email', '').lower().strip()
+    phone = request.form.get('phone', '')
     material = request.form.get('material')
     color = request.form.get('color')
     layer_height = request.form.get('layer_height', '0.2mm (Standard - Balanced)')
@@ -1167,13 +1168,13 @@ def print_service_request():
     uploaded_files_str = ','.join(file_names) if file_names else ''
 
     # Validate required fields
-    if not all([name, email, material, color]) or not file_names:
+    if not all([name, email, phone, material, color]) or not file_names:
         flash('Please fill in all required fields and upload at least one 3D file.', 'error')
         return redirect(url_for('printing_3d') + '#print-service')
 
     # Add to database with user_id
     success, message = db.add_print_service_request(
-        name, email, uploaded_files_str, material, color, layer_height,
+        name, email, phone, uploaded_files_str, material, color, layer_height,
         infill_density, quantity, supports, special_instructions, ip_address, user_id
     )
 
@@ -1182,6 +1183,7 @@ def print_service_request():
         print_service_data = {
             'name': name,
             'email': email,
+            'phone': phone,
             'uploaded_files': uploaded_files_str,
             'material': material,
             'color': color,
@@ -1799,6 +1801,132 @@ def admin_quotes():
                           quotes=all_quotes,
                           total_count=total_count,
                           config=app.config)
+
+
+@app.route('/admin/whatsapp-inbox')
+@admin_required
+def admin_whatsapp_inbox():
+    """Admin WhatsApp inbox - view and manage all WhatsApp conversations"""
+    # Get all conversations
+    conversations = db.get_whatsapp_conversations(limit=100)
+
+    # Enrich with customer details
+    for conv in conversations:
+        phone = conv['conversation_id']
+        customer = db.find_customer_by_phone(phone)
+        conv['customer'] = customer
+
+    # Get unread count
+    unread_count = db.get_whatsapp_unread_count()
+
+    return render_template('admin-whatsapp-inbox.html',
+                          conversations=conversations,
+                          unread_count=unread_count)
+
+
+@app.route('/admin/whatsapp-inbox/<string:phone>')
+@admin_required
+def admin_whatsapp_conversation(phone):
+    """View a specific WhatsApp conversation"""
+    # Get messages for this conversation
+    messages = db.get_whatsapp_messages_by_phone(phone, limit=100)
+
+    # Get customer details
+    customer = db.find_customer_by_phone(phone)
+
+    # Mark as read
+    db.mark_whatsapp_messages_read(phone)
+
+    return render_template('admin-whatsapp-conversation.html',
+                          messages=messages,
+                          customer=customer,
+                          phone=phone)
+
+
+@app.route('/admin/whatsapp-inbox/<string:phone>/reply', methods=['POST'])
+@admin_required
+def admin_whatsapp_reply(phone):
+    """Send reply in WhatsApp conversation"""
+    from src.whatsapp_utils import send_whatsapp_message
+
+    message = request.form.get('message', '').strip()
+
+    if not message:
+        flash('Please enter a message', 'danger')
+        return redirect(url_for('admin_whatsapp_conversation', phone=phone))
+
+    # Send WhatsApp
+    success, result_message = send_whatsapp_message(phone, message, app.config)
+
+    if success:
+        # Save to database
+        import time
+        business_number = app.config.get('WHATSAPP_PHONE_NUMBER_ID', '')
+
+        # Try to link to customer
+        customer = db.find_customer_by_phone(phone)
+        user_id = None
+        quote_id = None
+        quote_type = None
+
+        if customer:
+            if customer['type'] == 'user':
+                user_id = customer['data']['id']
+            elif customer['type'] in ['quote', 'cake_topper']:
+                quote_id = customer['data']['id']
+                quote_type = customer['type']
+
+        db.save_whatsapp_message(
+            message_id=f"outbound_{int(time.time())}",
+            direction='outbound',
+            from_phone=business_number,
+            to_phone=phone,
+            message_text=message,
+            message_type='text',
+            user_id=user_id,
+            quote_id=quote_id,
+            quote_type=quote_type
+        )
+
+        flash('Message sent successfully!', 'success')
+    else:
+        flash(f'Failed to send: {result_message}', 'danger')
+
+    return redirect(url_for('admin_whatsapp_conversation', phone=phone))
+
+
+@app.route('/admin/whatsapp-inbox/<string:phone>/delete', methods=['POST'])
+@admin_required
+def admin_whatsapp_delete_conversation(phone):
+    """Delete entire WhatsApp conversation"""
+    success, count = db.delete_whatsapp_conversation(phone)
+
+    if success:
+        flash(f'Conversation deleted ({count} messages removed)', 'success')
+    else:
+        flash('Failed to delete conversation', 'danger')
+
+    return redirect(url_for('admin_whatsapp_inbox'))
+
+
+@app.route('/admin/whatsapp-inbox/message/<int:message_id>/delete', methods=['POST'])
+@admin_required
+def admin_whatsapp_delete_message(message_id):
+    """Delete a single WhatsApp message"""
+    # Get the phone number to redirect back to conversation
+    phone = request.form.get('phone')
+
+    success = db.delete_whatsapp_message(message_id)
+
+    if success:
+        flash('Message deleted', 'success')
+    else:
+        flash('Failed to delete message', 'danger')
+
+    if phone:
+        return redirect(url_for('admin_whatsapp_conversation', phone=phone))
+    else:
+        return redirect(url_for('admin_whatsapp_inbox'))
 
 
 @app.route('/admin/quotes/update-status/<string:request_type>/<int:quote_id>', methods=['POST'])
@@ -2893,6 +3021,82 @@ def email_customer(request_type, quote_id):
     return redirect(url_for('admin_quotes'))
 
 
+@app.route('/admin/quotes/whatsapp/<string:request_type>/<int:quote_id>', methods=['POST'])
+@admin_required
+def send_whatsapp_to_customer(request_type, quote_id):
+    """Send WhatsApp message to customer from admin panel"""
+    from src.whatsapp_utils import send_whatsapp_message, format_phone_number
+
+    message = request.form.get('whatsapp_message', '').strip()
+
+    if not message:
+        flash('Please enter a message to send', 'danger')
+        return redirect(url_for('admin_quotes'))
+
+    # Get quote details based on request type
+    if request_type == 'custom_design' or request_type == 'cookie_clay_cutter':
+        quote_details = db.get_quote_request(quote_id)
+    elif request_type == 'cake_topper':
+        quote_details = db.get_cake_topper_request(quote_id)
+    elif request_type == 'print_service':
+        quote_details = db.get_print_service_request(quote_id)
+    else:
+        flash('Invalid request type', 'error')
+        return redirect(url_for('admin_quotes'))
+
+    if not quote_details:
+        flash('Quote not found', 'error')
+        return redirect(url_for('admin_quotes'))
+
+    # Format phone number
+    phone = format_phone_number(quote_details.get('phone', ''))
+    if not phone:
+        flash('Customer phone number is invalid or missing', 'danger')
+        return redirect(url_for('admin_quotes'))
+
+    # Send WhatsApp message
+    success, result_message = send_whatsapp_message(phone, message, app.config)
+
+    if success:
+        # Save message to timeline
+        quote_type_map = {
+            'custom_design': 'quote_requests',
+            'cookie_clay_cutter': 'quote_requests',
+            'cake_topper': 'cake_topper_requests',
+            'print_service': 'print_service_requests'
+        }
+        quote_type = quote_type_map.get(request_type, 'quote_requests')
+
+        # Add message to quote timeline
+        db.add_quote_message(
+            quote_type=quote_type,
+            quote_id=quote_id,
+            message_text=f"WhatsApp: {message}",
+            sender='admin',
+            message_type='admin_message'
+        )
+
+        # Also save to WhatsApp messages table for inbox
+        import time
+        business_number = app.config.get('WHATSAPP_PHONE_NUMBER_ID', '')
+        db.save_whatsapp_message(
+            message_id=f"outbound_{int(time.time())}_{quote_id}",
+            direction='outbound',
+            from_phone=business_number,
+            to_phone=phone,
+            message_text=message,
+            message_type='text',
+            quote_id=quote_id,
+            quote_type=quote_type
+        )
+
+        flash(f'WhatsApp message sent successfully to {quote_details["name"]} ({phone})! Note: Test number can only deliver to verified recipients.', 'success')
+    else:
+        flash(f'Failed to send WhatsApp: {result_message}', 'danger')
+
+    return redirect(url_for('admin_quotes'))
+
+
 @app.route('/admin/quotes/convert-to-sale/<string:request_type>/<int:quote_id>', methods=['POST'])
 @admin_required
 def convert_quote_to_sale(request_type, quote_id):
@@ -3224,11 +3428,13 @@ def admin_counts():
     active_orders_count = db.get_active_orders_count()
     active_quotes_count = db.get_active_quotes_count()
     total_carts_count = db.get_total_carts_count()
+    whatsapp_unread_count = db.get_whatsapp_unread_count()
 
     return jsonify({
         'orders': active_orders_count,
         'quotes': active_quotes_count,
-        'carts': total_carts_count
+        'carts': total_carts_count,
+        'whatsapp': whatsapp_unread_count
     })
 
 
@@ -3479,6 +3685,110 @@ def candles_soaps_cart_add():
 
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ============================================================================
+# WHATSAPP WEBHOOKS
+# ============================================================================
+
+@app.route('/webhooks/whatsapp', methods=['GET', 'POST'])
+def whatsapp_webhook():
+    """Handle WhatsApp webhook verification and incoming messages"""
+
+    # GET request: Webhook verification from Meta
+    if request.method == 'GET':
+        # Meta sends these parameters for verification
+        mode = request.args.get('hub.mode')
+        token = request.args.get('hub.verify_token')
+        challenge = request.args.get('hub.challenge')
+
+        # Verification token (set this in .env)
+        VERIFY_TOKEN = os.getenv('WHATSAPP_WEBHOOK_VERIFY_TOKEN', 'ssg_webhook_secret_2024')
+
+        print(f"\n=== Webhook Verification Attempt ===")
+        print(f"Mode: {mode}")
+        print(f"Token received: {token}")
+        print(f"Expected token: {VERIFY_TOKEN}")
+        print(f"Challenge: {challenge}")
+
+        # Verify the token
+        if mode == 'subscribe' and token == VERIFY_TOKEN:
+            print("✅ Webhook verified successfully!")
+            return challenge, 200
+        else:
+            print("❌ Webhook verification failed!")
+            return 'Forbidden', 403
+
+    # POST request: Incoming message from WhatsApp
+    elif request.method == 'POST':
+        try:
+            data = request.get_json()
+
+            print(f"\n=== Incoming WhatsApp Webhook ===")
+            print(f"Data: {data}")
+
+            # Process the webhook data
+            if data and 'entry' in data:
+                for entry in data['entry']:
+                    for change in entry.get('changes', []):
+                        if change.get('field') == 'messages':
+                            value = change.get('value', {})
+
+                            # Get message details
+                            messages = value.get('messages', [])
+                            for message in messages:
+                                from_phone = message.get('from')
+                                message_id = message.get('id')
+                                timestamp = message.get('timestamp')
+
+                                # Get message text
+                                message_text = None
+                                message_type = message.get('type', 'text')
+
+                                if message_type == 'text':
+                                    message_text = message.get('text', {}).get('body')
+
+                                print(f"📱 Message from: {from_phone}")
+                                print(f"💬 Text: {message_text}")
+                                print(f"🆔 Message ID: {message_id}")
+
+                                # Save to database
+                                if from_phone and message_text:
+                                    # Try to find customer by phone
+                                    customer = db.find_customer_by_phone(from_phone)
+                                    user_id = None
+                                    quote_id = None
+                                    quote_type = None
+
+                                    if customer:
+                                        print(f"✅ Found customer: {customer}")
+                                        if customer['type'] == 'user':
+                                            user_id = customer['data']['id']
+                                        elif customer['type'] in ['quote', 'cake_topper']:
+                                            quote_id = customer['data']['id']
+                                            quote_type = customer['type']
+
+                                    # Save message
+                                    business_number = app.config.get('WHATSAPP_PHONE_NUMBER_ID', '')
+                                    db.save_whatsapp_message(
+                                        message_id=message_id,
+                                        direction='inbound',
+                                        from_phone=from_phone,
+                                        to_phone=business_number,
+                                        message_text=message_text,
+                                        message_type=message_type,
+                                        user_id=user_id,
+                                        quote_id=quote_id,
+                                        quote_type=quote_type
+                                    )
+
+                                    print(f"✅ Message saved to database!")
+
+            return jsonify({'status': 'success'}), 200
+
+        except Exception as e:
+            print(f"❌ Error processing webhook: {e}")
+            return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
 if __name__ == '__main__':
