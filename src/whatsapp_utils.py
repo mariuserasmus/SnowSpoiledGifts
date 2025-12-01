@@ -229,3 +229,332 @@ def send_quote_notification(
 
     # Send message
     return send_whatsapp_message(formatted_phone, message, config)
+
+
+def send_quote_ready_template(
+    to: str,
+    customer_name: str,
+    quote_type: str,
+    amount: str,
+    quote_url: str,
+    config: dict
+) -> Tuple[bool, str]:
+    """
+    Send Quote Ready Notification template
+
+    Template: quote_ready_notification
+    Variables: {{1}} Name, {{2}} Quote Type, {{3}} Amount
+    Buttons: View Quote (URL), Call Us (Phone)
+
+    Args:
+        to: Recipient phone number
+        customer_name: Customer's name
+        quote_type: Type of quote (e.g., "Custom Cake", "3D Printing")
+        amount: Quote amount (e.g., "R450.00")
+        quote_url: Full URL to view quote
+        config: Flask config object
+
+    Returns:
+        (success: bool, message: str)
+    """
+    if not config.get('WHATSAPP_ENABLED'):
+        return False, "WhatsApp is not configured"
+
+    phone_number_id = config['WHATSAPP_PHONE_NUMBER_ID']
+    access_token = config['WHATSAPP_ACCESS_TOKEN']
+
+    url = f"https://graph.facebook.com/v22.0/{phone_number_id}/messages"
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "template",
+        "template": {
+            "name": "quote_ready_notification",
+            "language": {
+                "code": "en"
+            },
+            "components": [
+                {
+                    "type": "body",
+                    "parameters": [
+                        {"type": "text", "text": customer_name},
+                        {"type": "text", "text": quote_type},
+                        {"type": "text", "text": amount}
+                    ]
+                }
+            ]
+        }
+    }
+
+    try:
+        logger.info(f"Sending quote_ready_notification to {to}")
+        response = requests.post(url, headers=headers, json=payload, timeout=10)
+
+        if response.status_code == 200:
+            result = response.json()
+            message_id = result.get('messages', [{}])[0].get('id', 'unknown')
+            logger.info(f"Quote ready template sent to {to}: {message_id}")
+            return True, f"Quote notification sent (ID: {message_id})"
+        else:
+            error_data = response.json()
+            error_msg = error_data.get('error', {}).get('message', 'Unknown error')
+            logger.error(f"WhatsApp API error: {error_msg}")
+            return False, f"API Error: {error_msg}"
+
+    except Exception as e:
+        logger.error(f"Error sending quote ready template: {e}")
+        return False, f"Error: {str(e)}"
+
+
+def send_payment_reminder_template(
+    to: str,
+    customer_name: str,
+    order_number: str,
+    amount: str,
+    order_url: str,
+    config: dict
+) -> Tuple[bool, str]:
+    """
+    Send Payment Reminder template
+
+    Template: payment_reminder
+    Variables: {{1}} Name, {{2}} Order Number, {{3}} Amount
+    Buttons: View Order (URL), Quick Replies (Resend Bank Details, Already Paid)
+
+    Args:
+        to: Recipient phone number
+        customer_name: Customer's name
+        order_number: Order number
+        amount: Outstanding amount
+        order_url: Full URL to view order
+        config: Flask config object
+
+    Returns:
+        (success: bool, message: str)
+    """
+    if not config.get('WHATSAPP_ENABLED'):
+        return False, "WhatsApp is not configured"
+
+    phone_number_id = config['WHATSAPP_PHONE_NUMBER_ID']
+    access_token = config['WHATSAPP_ACCESS_TOKEN']
+
+    url = f"https://graph.facebook.com/v22.0/{phone_number_id}/messages"
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "template",
+        "template": {
+            "name": "payment_reminder",
+            "language": {
+                "code": "en"
+            },
+            "components": [
+                {
+                    "type": "body",
+                    "parameters": [
+                        {"type": "text", "text": customer_name},
+                        {"type": "text", "text": order_number},
+                        {"type": "text", "text": amount}
+                    ]
+                }
+            ]
+        }
+    }
+
+    try:
+        logger.info(f"Sending payment_reminder to {to}")
+        response = requests.post(url, headers=headers, json=payload, timeout=10)
+
+        if response.status_code == 200:
+            result = response.json()
+            message_id = result.get('messages', [{}])[0].get('id', 'unknown')
+            logger.info(f"Payment reminder sent to {to}: {message_id}")
+            return True, f"Payment reminder sent (ID: {message_id})"
+        else:
+            error_data = response.json()
+            error_msg = error_data.get('error', {}).get('message', 'Unknown error')
+            logger.error(f"WhatsApp API error: {error_msg}")
+            return False, f"API Error: {error_msg}"
+
+    except Exception as e:
+        logger.error(f"Error sending payment reminder: {e}")
+        return False, f"Error: {str(e)}"
+
+
+def send_order_status_update_template(
+    to: str,
+    customer_name: str,
+    order_number: str,
+    status: str,
+    details: str,
+    order_url: str,
+    config: dict
+) -> Tuple[bool, str]:
+    """
+    Send Order Status Update template
+
+    Template: order_status_update
+    Variables: {{1}} Name, {{2}} Order Number, {{3}} Status, {{4}} Details
+    Buttons: Track Order (URL), Need Help (Phone)
+
+    Args:
+        to: Recipient phone number
+        customer_name: Customer's name
+        order_number: Order number
+        status: New status (e.g., "Processing", "Ready")
+        details: Additional details about the status
+        order_url: Full URL to view order
+        config: Flask config object
+
+    Returns:
+        (success: bool, message: str)
+    """
+    if not config.get('WHATSAPP_ENABLED'):
+        return False, "WhatsApp is not configured"
+
+    phone_number_id = config['WHATSAPP_PHONE_NUMBER_ID']
+    access_token = config['WHATSAPP_ACCESS_TOKEN']
+
+    url = f"https://graph.facebook.com/v22.0/{phone_number_id}/messages"
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "template",
+        "template": {
+            "name": "order_status_update",
+            "language": {
+                "code": "en"
+            },
+            "components": [
+                {
+                    "type": "body",
+                    "parameters": [
+                        {"type": "text", "text": customer_name},
+                        {"type": "text", "text": order_number},
+                        {"type": "text", "text": status},
+                        {"type": "text", "text": details}
+                    ]
+                }
+            ]
+        }
+    }
+
+    try:
+        logger.info(f"Sending order_status_update to {to}")
+        response = requests.post(url, headers=headers, json=payload, timeout=10)
+
+        if response.status_code == 200:
+            result = response.json()
+            message_id = result.get('messages', [{}])[0].get('id', 'unknown')
+            logger.info(f"Order status update sent to {to}: {message_id}")
+            return True, f"Status update sent (ID: {message_id})"
+        else:
+            error_data = response.json()
+            error_msg = error_data.get('error', {}).get('message', 'Unknown error')
+            logger.error(f"WhatsApp API error: {error_msg}")
+            return False, f"API Error: {error_msg}"
+
+    except Exception as e:
+        logger.error(f"Error sending order status update: {e}")
+        return False, f"Error: {str(e)}"
+
+
+def send_order_ready_template(
+    to: str,
+    customer_name: str,
+    order_number: str,
+    details: str,
+    order_url: str,
+    location_url: str,
+    config: dict
+) -> Tuple[bool, str]:
+    """
+    Send Order Ready Notification template
+
+    Template: order_ready_notification
+    Variables: {{1}} Name, {{2}} Order Number, {{3}} Details
+    Buttons: View Order (URL), Pickup Location (Maps), Confirmed (Quick Reply)
+
+    Args:
+        to: Recipient phone number
+        customer_name: Customer's name
+        order_number: Order number
+        details: Pickup/shipping details
+        order_url: Full URL to view order
+        location_url: Google Maps URL for pickup location
+        config: Flask config object
+
+    Returns:
+        (success: bool, message: str)
+    """
+    if not config.get('WHATSAPP_ENABLED'):
+        return False, "WhatsApp is not configured"
+
+    phone_number_id = config['WHATSAPP_PHONE_NUMBER_ID']
+    access_token = config['WHATSAPP_ACCESS_TOKEN']
+
+    url = f"https://graph.facebook.com/v22.0/{phone_number_id}/messages"
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "template",
+        "template": {
+            "name": "order_ready_notification",
+            "language": {
+                "code": "en"
+            },
+            "components": [
+                {
+                    "type": "body",
+                    "parameters": [
+                        {"type": "text", "text": customer_name},
+                        {"type": "text", "text": order_number},
+                        {"type": "text", "text": details}
+                    ]
+                }
+            ]
+        }
+    }
+
+    try:
+        logger.info(f"Sending order_ready_notification to {to}")
+        response = requests.post(url, headers=headers, json=payload, timeout=10)
+
+        if response.status_code == 200:
+            result = response.json()
+            message_id = result.get('messages', [{}])[0].get('id', 'unknown')
+            logger.info(f"Order ready notification sent to {to}: {message_id}")
+            return True, f"Order ready notification sent (ID: {message_id})"
+        else:
+            error_data = response.json()
+            error_msg = error_data.get('error', {}).get('message', 'Unknown error')
+            logger.error(f"WhatsApp API error: {error_msg}")
+            return False, f"API Error: {error_msg}"
+
+    except Exception as e:
+        logger.error(f"Error sending order ready notification: {e}")
+        return False, f"Error: {str(e)}"

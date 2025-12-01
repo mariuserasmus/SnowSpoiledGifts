@@ -651,10 +651,12 @@ def accept_quote_route(quote_type, quote_id):
         )
 
         if success:
+            # Handle sqlite3.Row object - use bracket notation
+            cart_item_id = result_data['item_id'] if result_data and 'item_id' in result_data.keys() else None
             return jsonify({
                 'success': True,
                 'message': 'Quote accepted! Item added to your cart.',
-                'cart_item_id': result_data.get('item_id')
+                'cart_item_id': cart_item_id
             })
         else:
             return jsonify({'success': False, 'message': message}), 400
@@ -1477,6 +1479,7 @@ def admin_update_order_status(order_number):
     """Update order status"""
     new_status = request.form.get('status')
     send_email = request.form.get('send_email') == 'on'
+    send_whatsapp = request.form.get('send_whatsapp') == 'on'
 
     order = db.get_order_by_number(order_number)
     if not order:
@@ -1504,13 +1507,95 @@ def admin_update_order_status(order_number):
             if pdf_success:
                 flash(f'Invoice {invoice_number} auto-generated!', 'info')
 
+    # Get customer for notifications
+    user = db.get_user_by_id(order['user_id'])
+
     # Send status update email if requested
-    if send_email:
+    if send_email and user:
         from src.email_utils import send_order_status_update
-        user = db.get_user_by_id(order['user_id'])
-        if user:
-            # Pass shipping method for context-aware messaging
-            send_order_status_update(app.config, user['email'], order_number, new_status, user['name'], order.get('shipping_method'))
+        # Pass shipping method for context-aware messaging
+        # Handle sqlite3.Row safely
+        try:
+            shipping_method = order['shipping_method'] if 'shipping_method' in order.keys() and order['shipping_method'] else 'pickup'
+        except (KeyError, IndexError):
+            shipping_method = 'pickup'
+        send_order_status_update(app.config, user['email'], order_number, new_status, user['name'], shipping_method)
+
+    # Send WhatsApp status update template if requested
+    # Handle sqlite3.Row safely for phone number
+    user_phone = user['phone'] if user and 'phone' in user.keys() and user['phone'] else None
+    if send_whatsapp and user and user_phone:
+        from src.whatsapp_utils import send_order_status_update_template, format_phone_number
+
+        formatted_phone = format_phone_number(user_phone)
+        if formatted_phone:
+            # Build order URL
+            order_url = f"https://www.snowspoiledgifts.co.za/orders-quotes#order-{order_number}"
+
+            # Create status details message
+            status_details = {
+                'pending': 'Your order is being prepared.',
+                'processing': 'We are currently working on your order.',
+                'confirmed': 'Your order has been confirmed and is being processed.',
+                'awaiting_payment': 'Please complete payment to proceed with your order.',
+                'ready': 'Your order is ready for collection!',
+                'shipped': 'Your order has been shipped and is on its way!',
+                'completed': 'Your order has been completed. Thank you!',
+                'cancelled': 'Your order has been cancelled.'
+            }.get(new_status, 'Your order status has been updated.')
+
+            # Send template
+            wa_success, wa_message = send_order_status_update_template(
+                to=formatted_phone,
+                customer_name=user['name'],
+                order_number=order_number,
+                status=new_status.replace('_', ' ').title(),
+                details=status_details,
+                order_url=order_url,
+                config=app.config
+            )
+
+            if wa_success:
+                flash('WhatsApp status update sent!', 'success')
+            else:
+                flash(f'WhatsApp failed: {wa_message}', 'warning')
+
+    # Auto-send Order Ready template for Ready/Shipped statuses
+    if new_status in ['ready', 'shipped'] and user and user_phone:
+        from src.whatsapp_utils import send_order_ready_template, format_phone_number
+
+        formatted_phone = format_phone_number(user_phone)
+        if formatted_phone:
+            # Build order URL
+            order_url = f"https://www.snowspoiledgifts.co.za/orders-quotes#order-{order_number}"
+
+            # Build details based on shipping method
+            try:
+                shipping_method = order['shipping_method'] if 'shipping_method' in order.keys() and order['shipping_method'] else 'pickup'
+            except (KeyError, IndexError):
+                shipping_method = 'pickup'
+            if shipping_method == 'pickup':
+                details = "Your order is ready for collection at our location."
+                location_url = "https://maps.google.com/?q=Snow+Spoiled+Gifts"
+            else:
+                details = "Your order has been shipped and should arrive within 3-5 business days."
+                location_url = "https://www.snowspoiledgifts.co.za"
+
+            # Send order ready template
+            wa_success, wa_message = send_order_ready_template(
+                to=formatted_phone,
+                customer_name=user['name'],
+                order_number=order_number,
+                details=details,
+                order_url=order_url,
+                location_url=location_url,
+                config=app.config
+            )
+
+            if wa_success:
+                print(f"Auto-sent order ready WhatsApp to {user_phone}")
+            else:
+                print(f"Auto-send order ready WhatsApp failed: {wa_message}")
 
     flash(f'Order {order_number} status updated to {new_status}.', 'success')
     return redirect(url_for('admin_order_detail', order_number=order_number))
@@ -1574,6 +1659,60 @@ def admin_send_whatsapp_order(order_number):
             # Continue anyway - message was sent successfully
     else:
         flash(f'Failed to send WhatsApp: {result}', 'error')
+
+    return redirect(url_for('admin_order_detail', order_number=order_number))
+
+
+@app.route('/admin/orders/<order_number>/send-payment-reminder', methods=['POST'])
+@admin_required
+def admin_send_payment_reminder(order_number):
+    """Send payment reminder WhatsApp template to customer"""
+    from src.whatsapp_utils import send_payment_reminder_template, format_phone_number
+
+    # Get order and customer details
+    order = db.get_order_by_number(order_number)
+    if not order:
+        flash('Order not found.', 'error')
+        return redirect(url_for('admin_orders'))
+
+    customer = db.get_user_by_id(order['user_id'])
+    # Handle sqlite3.Row safely
+    customer_phone = customer['phone'] if customer and 'phone' in customer.keys() and customer['phone'] else None
+    if not customer or not customer_phone:
+        flash('Customer phone number is invalid or missing.', 'error')
+        return redirect(url_for('admin_order_detail', order_number=order_number))
+
+    # Format phone number
+    formatted_phone = format_phone_number(customer_phone)
+    if not formatted_phone:
+        flash(f'Invalid phone number format: {customer_phone}', 'error')
+        return redirect(url_for('admin_order_detail', order_number=order_number))
+
+    # Build order URL
+    order_url = f"https://www.snowspoiledgifts.co.za/orders-quotes#order-{order_number}"
+
+    # Format amount (template already has "R" prefix)
+    # Handle sqlite3.Row - column is 'total_amount' not 'total'
+    try:
+        order_total = order['total_amount'] if 'total_amount' in order.keys() else 0.0
+    except (KeyError, IndexError):
+        order_total = 0.0
+    amount_formatted = f"{order_total:,.2f}"
+
+    # Send template
+    success, result = send_payment_reminder_template(
+        to=formatted_phone,
+        customer_name=customer['name'],
+        order_number=order_number,
+        amount=amount_formatted,
+        order_url=order_url,
+        config=app.config
+    )
+
+    if success:
+        flash(f'Payment reminder sent to {customer_phone}!', 'success')
+    else:
+        flash(f'Failed to send payment reminder: {result}', 'error')
 
     return redirect(url_for('admin_order_detail', order_number=order_number))
 
@@ -2179,6 +2318,33 @@ def send_quote(request_type, quote_id):
             email_success, email_message = send_quote_to_customer(app.config, quote_email_data)
             if not email_success:
                 print(f"Quote email failed: {email_message}")
+
+            # Auto-send WhatsApp template notification if customer has phone number
+            if quote.get('phone'):
+                from src.whatsapp_utils import send_quote_ready_template, format_phone_number
+
+                formatted_phone = format_phone_number(quote['phone'])
+                if formatted_phone:
+                    # Build quote URL
+                    quote_url = f"https://www.snowspoiledgifts.co.za/orders-quotes#quote-{quote_id}"
+
+                    # Format amount (template already has "R" prefix)
+                    amount_formatted = f"{total:,.2f}"
+
+                    # Send template
+                    wa_success, wa_message = send_quote_ready_template(
+                        to=formatted_phone,
+                        customer_name=quote['name'],
+                        quote_type=quote_type_name,
+                        amount=amount_formatted,
+                        quote_url=quote_url,
+                        config=app.config
+                    )
+
+                    if wa_success:
+                        print(f"WhatsApp quote notification sent to {quote['phone']}")
+                    else:
+                        print(f"WhatsApp quote notification failed: {wa_message}")
 
         return jsonify({
             'success': True,
@@ -3803,16 +3969,69 @@ def whatsapp_webhook():
                                 message_id = message.get('id')
                                 timestamp = message.get('timestamp')
 
-                                # Get message text
+                                # Get message text and check for quick reply
                                 message_text = None
                                 message_type = message.get('type', 'text')
+                                is_quick_reply = False
+                                quick_reply_payload = None
 
                                 if message_type == 'text':
                                     message_text = message.get('text', {}).get('body')
 
+                                # Check for interactive button/quick reply
+                                if message_type == 'interactive':
+                                    interactive = message.get('interactive', {})
+                                    button_reply = interactive.get('button_reply', {})
+                                    if button_reply:
+                                        is_quick_reply = True
+                                        quick_reply_payload = button_reply.get('id', '')
+                                        message_text = button_reply.get('title', '')
+
                                 print(f"📱 Message from: {from_phone}")
                                 print(f"💬 Text: {message_text}")
                                 print(f"🆔 Message ID: {message_id}")
+                                print(f"🔘 Quick Reply: {is_quick_reply} ({quick_reply_payload})")
+
+                                # Handle quick reply button clicks
+                                if is_quick_reply and quick_reply_payload:
+                                    from src.whatsapp_utils import send_whatsapp_message
+
+                                    # "Resend Bank Details" button
+                                    if quick_reply_payload == 'resend_bank_details':
+                                        bank_details = """Here are our banking details:
+
+Bank: FNB
+Account Name: Snow Spoiled Gifts
+Account Number: 62891234567
+Branch Code: 250655
+Reference: Your order number
+
+Please use your order number as the payment reference so we can match your payment."""
+
+                                        send_whatsapp_message(from_phone, bank_details, app.config)
+                                        print(f"✅ Auto-sent bank details to {from_phone}")
+
+                                    # "Already Paid" button
+                                    elif quick_reply_payload == 'already_paid':
+                                        # Find customer to get their name
+                                        customer = db.find_customer_by_phone(from_phone)
+                                        customer_name = "Customer"
+                                        if customer and customer.get('data'):
+                                            customer_name = customer['data'].get('name', 'Customer')
+
+                                        # Send acknowledgment to customer
+                                        ack_message = f"Thank you for confirming your payment! We'll verify and process it shortly. You'll receive an update once confirmed."
+                                        send_whatsapp_message(from_phone, ack_message, app.config)
+
+                                        print(f"⚠️ ADMIN ALERT: {customer_name} ({from_phone}) says they already paid!")
+
+                                    # "Confirmed ✅" button (order collection/receipt confirmation)
+                                    elif quick_reply_payload == 'order_confirmed':
+                                        # Send acknowledgment
+                                        ack_message = "Great! Thank you for confirming. We hope you love your order! 🎉"
+                                        send_whatsapp_message(from_phone, ack_message, app.config)
+
+                                        print(f"✅ Customer {from_phone} confirmed order receipt/collection")
 
                                 # Save to database
                                 if from_phone and message_text:

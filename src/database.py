@@ -3520,7 +3520,10 @@ class Database:
                             # Determine upload folder based on table_name and service_type
                             if table_name == 'quote_requests':
                                 # Check service_type to determine correct folder
-                                service_type = quote.get('service_type', '').lower()
+                                try:
+                                    service_type = quote['service_type'].lower() if quote['service_type'] else ''
+                                except (KeyError, IndexError):
+                                    service_type = ''
                                 # Cookie/Clay cutter quotes are saved to cutter_references
                                 if 'cookie' in service_type and 'cutter' in service_type:
                                     upload_folder = 'cutter_references'
